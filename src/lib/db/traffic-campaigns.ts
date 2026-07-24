@@ -17,6 +17,7 @@ import type {
   TrafficDomain,
 } from "@/lib/traffic-shield/campaign-types";
 import { normalizeCustomSlug } from "@/lib/traffic-shield/campaign-types";
+import { validateCampaignHostnameInput } from "@/lib/traffic-shield/campaign-hostname";
 import { hostsMatchDomain, normalizeOriginUrl } from "@/lib/traffic-shield/origin-url";
 import { getSiteCampaignHostname } from "@/lib/traffic-shield/site-domain";
 
@@ -192,7 +193,7 @@ export async function createTrafficDomain(input: {
   hostname: string;
   label?: string;
   isPrimary?: boolean;
-  originUrl: string;
+  originUrl?: string;
 }): Promise<TrafficDomain> {
   const supabase = createAdminClient();
   const { used, limit } = await getDomainSlotInfo();
@@ -201,7 +202,18 @@ export async function createTrafficDomain(input: {
   }
 
   const hostname = normalizeHostname(input.hostname);
-  const originUrl = normalizeOriginUrl(input.originUrl);
+  const hostCheck = validateCampaignHostnameInput(hostname);
+  if (!hostCheck.ok) {
+    throw new Error(
+      hostCheck.suggested
+        ? `${hostCheck.message} Sugestão: ${hostCheck.suggested}`
+        : hostCheck.message ?? "Domínio inválido."
+    );
+  }
+
+  const originUrl = input.originUrl?.trim()
+    ? normalizeOriginUrl(input.originUrl)
+    : null;
 
   if (input.isPrimary) {
     await supabase
@@ -218,7 +230,7 @@ export async function createTrafficDomain(input: {
       is_primary: input.isPrimary ?? used === 0,
       status: "pending",
       validation_message:
-        "Configure o CNAME no painel DNS e clique em Validar. O site continua no ar via proxy de origem.",
+        "Crie o CNAME do subdomínio no DNS e clique em Validar. O site principal não muda.",
       last_checked_at: new Date().toISOString(),
       origin_url: originUrl,
     })

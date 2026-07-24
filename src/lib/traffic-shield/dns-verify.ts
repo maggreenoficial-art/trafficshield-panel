@@ -6,6 +6,12 @@ function normalizeDnsHost(value: string): string {
   return value.toLowerCase().replace(/\.$/, "");
 }
 
+function cnameMatchesTarget(found: string, target: string): boolean {
+  const f = normalizeDnsHost(found);
+  const t = normalizeDnsHost(target);
+  return f === t || f.endsWith(`.${t}`) || t.endsWith(`.${f}`);
+}
+
 export async function checkCnamePointsToTarget(
   hostname: string
 ): Promise<{ ok: boolean; found?: string; lookupHost: string }> {
@@ -13,17 +19,13 @@ export async function checkCnamePointsToTarget(
   const target = normalizeDnsHost(getCnameTarget());
   const recordName = getCnameRecordName(clean);
   const lookupHost =
-    recordName === "www" && !clean.startsWith("www.")
+    recordName === "www" && !clean.includes("www.")
       ? `www.${clean}`
       : clean;
 
   try {
     const cnames = await dns.resolveCname(lookupHost);
-    const match = cnames.find(
-      (c) =>
-        normalizeDnsHost(c) === target ||
-        normalizeDnsHost(c).endsWith(`.${target}`)
-    );
+    const match = cnames.find((c) => cnameMatchesTarget(c, target));
     return {
       ok: Boolean(match),
       found: cnames[0],
@@ -40,17 +42,24 @@ export async function validateDomainDns(
   const clean = normalizeHostname(hostname);
   const instructions = getCnameTarget();
   const cnameCheck = await checkCnamePointsToTarget(clean);
+  const recordName = getCnameRecordName(clean);
 
   if (cnameCheck.ok) {
     return {
       status: "valid",
-      message: `CNAME configurado corretamente → ${instructions}`,
+      message: `CNAME ${recordName} → ${instructions} verificado.`,
     };
   }
 
-  const recordName = getCnameRecordName(clean);
+  if (cnameCheck.found) {
+    return {
+      status: "pending",
+      message: `CNAME de ${cnameCheck.lookupHost} aponta para "${cnameCheck.found}", mas deve apontar para ${instructions}.`,
+    };
+  }
+
   return {
     status: "pending",
-    message: `Crie o CNAME: ${recordName} → ${instructions}. DNS pode levar até 48h para propagar.`,
+    message: `Crie o CNAME: ${recordName} → ${instructions}. O www e o domínio raiz do site não precisam mudar.`,
   };
 }

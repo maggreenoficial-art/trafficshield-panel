@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { getCampaignSubdomainLabel } from "@/lib/traffic-shield/campaign-hostname";
 
 export interface DnsRecordInstruction {
   type: "CNAME";
@@ -51,66 +52,66 @@ export function DnsSetupModal({
   onClose,
   onValidate,
 }: DnsSetupModalProps) {
+  const subLabel = getCampaignSubdomainLabel(instructions.hostname);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-white/10 bg-black p-6">
         <p className="text-[10px] tracking-widest text-accent uppercase">
-          Passo 2 de 4
+          Passo 2 de 4 — DNS
         </p>
-        <h3 className="mt-2 text-lg font-medium">Aponte o domínio para o norat</h3>
+        <h3 className="mt-2 text-lg font-medium">CNAME do subdomínio de campanha</h3>
         <p className="mt-2 text-xs text-muted">
-          No painel DNS de{" "}
-          <strong className="text-white">{instructions.hostname}</strong>,{" "}
-          <strong className="text-white">edite</strong> o CNAME existente (não crie
-          outro no mesmo nome) ou crie o registro abaixo.
+          Crie um registro <strong className="text-white">novo</strong> no DNS de{" "}
+          <strong className="text-white">{instructions.hostname}</strong>. O{" "}
+          <code className="text-accent">www</code> e o domínio raiz{" "}
+          <strong className="text-white">não mudam</strong> — o site continua no ar.
         </p>
 
         <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-3 text-[10px] text-muted">
-          <strong className="text-green-400">Seu site não sai do ar.</strong> O norat
-          intercepta apenas <code className="text-accent">/c/*</code> (campanhas). Todo
-          o resto é repassado para a origem:
-          {originUrl ? (
-            <span className="mt-1 block font-mono text-accent">{originUrl}</span>
-          ) : null}
+          <strong className="text-green-400">Modelo correto (como cloakers de mercado):</strong>
+          <p className="mt-1">
+            <code className="text-accent">{subLabel}</code> → norat ·{" "}
+            <code className="text-accent">www</code> → site (intocado)
+          </p>
+          <p className="mt-2">
+            URL do anúncio:{" "}
+            <code className="text-accent">
+              https://{instructions.hostname}/c/sua-campanha
+            </code>
+          </p>
         </div>
 
         <div className="mt-6 border border-white/10 bg-white/[0.02] px-4">
           <CopyField label="Tipo" value={instructions.type} />
-          <CopyField label="Nome" value={instructions.name} />
-          <CopyField label="Destino" value={instructions.target} />
+          <CopyField label="Nome (subdomínio)" value={instructions.name} />
+          <CopyField label="Destino (edge norat)" value={instructions.target} />
           <CopyField label="TTL" value={instructions.ttl} />
         </div>
 
         <div className="mt-4 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
           <p>
-            <strong className="text-white">Destino norat (Vercel):</strong>{" "}
+            <strong className="text-white">Edge norat:</strong>{" "}
             <code className="text-accent">{instructions.target}</code>
           </p>
           <p className="mt-2">
-            No painel Vercel do norat, adicione também{" "}
-            <strong className="text-white">{instructions.hostname}</strong> em{" "}
-            <em>Settings → Domains</em> para SSL e roteamento funcionarem.
+            Na Vercel → projeto norat → <em>Settings → Domains</em>, adicione{" "}
+            <strong className="text-white">{instructions.hostname}</strong> para SSL
+            funcionar.
           </p>
-        </div>
-
-        <div className="mt-4 space-y-2 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
-          <p>
-            <strong className="text-white">Exemplo radario.sbs:</strong> se o{" "}
-            <code className="text-accent">www</code> hoje aponta para{" "}
-            <code className="text-accent">xxx.vercel-dns.com</code>, troque só o
-            destino para <code className="text-accent">{instructions.target}</code> e
-            use essa URL Vercel como origem no cadastro.
-          </p>
-          <p>
-            Visitantes normais → site original · Anúncios em{" "}
-            <code className="text-accent">/c/slug</code> → cloaker norat.
-          </p>
+          {originUrl ? (
+            <p className="mt-2">
+              Proxy de origem (opcional):{" "}
+              <code className="text-accent">{originUrl}</code>
+            </p>
+          ) : null}
         </div>
 
         <div className="mt-4 rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-[10px] text-muted">
-          <strong className="text-yellow-400">Propagação:</strong> pode levar de
-          minutos até 48h. Depois clique em{" "}
-          <strong className="text-white">Validar DNS agora</strong>.
+          <strong className="text-yellow-400">Validação estrita:</strong> só fica
+          &quot;Valid&quot; quando o CNAME de <code className="text-accent">{instructions.name}</code>{" "}
+          apontar para <code className="text-accent">{instructions.target}</code> — não
+          basta o site principal estar no ar.
         </div>
 
         <div className="mt-6 flex gap-3">

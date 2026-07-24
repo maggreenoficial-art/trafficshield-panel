@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getTrafficDomainByHostname } from "@/lib/db/traffic-campaigns";
+import { getRootDomainFromHostname } from "@/lib/traffic-shield/campaign-hostname";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 import {
   getRequestHostname,
@@ -10,19 +11,17 @@ import {
 
 const DOMAIN_ROUTE_CACHE_MS = 30_000;
 
-type DomainRouteCache = {
+type DomainRouteEntry = {
   hostname: string;
   originUrl: string | null;
   at: number;
 };
 
 const globalCache = globalThis as typeof globalThis & {
-  __domainRouteCache?: Map<string, DomainRouteCache>;
+  __domainRouteCache?: Map<string, DomainRouteEntry>;
 };
 
-async function loadDomainOrigin(
-  hostname: string
-): Promise<string | null> {
+async function loadDomainRoute(hostname: string): Promise<DomainRouteEntry | null> {
   const now = Date.now();
   const key = hostname.toLowerCase();
 
@@ -32,19 +31,20 @@ async function loadDomainOrigin(
 
   const cached = globalCache.__domainRouteCache.get(key);
   if (cached && now - cached.at < DOMAIN_ROUTE_CACHE_MS) {
-    return cached.originUrl;
+    return cached;
   }
 
   const domain = await getTrafficDomainByHostname(hostname);
-  const originUrl = domain?.originUrl ?? null;
+  if (!domain) return null;
 
-  globalCache.__domainRouteCache.set(key, {
+  const entry: DomainRouteEntry = {
     hostname: key,
-    originUrl,
+    originUrl: domain.originUrl,
     at: now,
-  });
+  };
 
-  return originUrl;
+  globalCache.__domainRouteCache.set(key, entry);
+  return entry;
 }
 
 export async function handleCustomDomainRoute(
@@ -53,14 +53,20 @@ export async function handleCustomDomainRoute(
   const hostname = getRequestHostname(request);
   if (!hostname || isPanelHostname(hostname)) return null;
 
-  const { pathname } = request.nextUrl;
-  const originUrl = await loadDomainOrigin(hostname);
+  const route = await loadDomainRoute(hostname);
+  if (!route) return null;
 
-  if (!originUrl) return null;
+  const { pathname, search } = request.nextUrl;
 
   if (pathname.startsWith("/c/")) {
     return handleCampaignRoute(request);
   }
 
-  return proxyRequestToOrigin(request, originUrl, hostname);
+  if (route.originUrl) {
+    return proxyRequestToOrigin(request, route.originUrl, hostname);
+  }
+
+  const root = getRootDomainFromHostname(hostname);
+  const redirectUrl = new URL(`https://www.${root}${pathname}${search}`);
+  return NextResponse.redirect(redirectUrl, 302);
 }
