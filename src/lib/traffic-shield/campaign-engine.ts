@@ -8,6 +8,7 @@ import type {
   TrafficCampaign,
   TrafficSource,
 } from "@/lib/traffic-shield/campaign-types";
+import { normalizeCampaignPageUrl } from "@/lib/traffic-shield/page-url";
 
 const SOURCE_PARAMS: Record<TrafficSource, string[]> = {
   meta: ["fbclid", "utm_source=facebook", "utm_source=meta", "utm_source=ig"],
@@ -31,15 +32,7 @@ export function detectDevice(userAgent: string): DeviceType {
 }
 
 function normalizePageUrl(url: string): string {
-  const trimmed = url.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      return new URL(trimmed).href;
-    } catch {
-      return trimmed;
-    }
-  }
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return normalizeCampaignPageUrl(url);
 }
 
 function isExternalUrl(url: string): boolean {

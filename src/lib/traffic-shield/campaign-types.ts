@@ -25,6 +25,7 @@ export type DomainStatus = "pending" | "valid" | "invalid";
 
 export interface TrafficDomain {
   id: string;
+  tenantId?: string;
   hostname: string;
   label: string | null;
   isPrimary: boolean;

@@ -1,7 +1,5 @@
 import { normalizeHostname } from "@/lib/traffic-shield/hostname-utils";
 
-const CAMPAIGN_PREFIXES = ["ads", "c", "track", "go", "clk"];
-
 /** Subdomínio dedicado (ex: ads.radario.sbs) — não mexe no www/@ */
 export function isDedicatedCampaignSubdomain(hostname: string): boolean {
   const parts = normalizeHostname(hostname).split(".").filter(Boolean);
@@ -47,10 +45,10 @@ export function validateCampaignHostnameInput(hostname: string): {
   }
 
   const label = getCampaignSubdomainLabel(clean);
-  if (!CAMPAIGN_PREFIXES.includes(label) && label.length < 2) {
+  if (label.length < 2) {
     return {
       ok: false,
-      message: "Use um prefixo claro: ads, c, track ou go.",
+      message: "Use um prefixo de subdomínio válido (ex: ads, c, track).",
     };
   }
 

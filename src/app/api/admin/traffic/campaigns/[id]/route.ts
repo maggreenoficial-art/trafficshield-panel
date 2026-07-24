@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   deleteTrafficCampaign,
   getCampaignById,
@@ -8,19 +8,23 @@ import {
 import { buildCampaignUrl } from "@/lib/traffic-shield/campaign-engine";
 import type { CreateCampaignInput } from "@/lib/traffic-shield/campaign-types";
 import { enrichCampaignHostname } from "@/lib/traffic-shield/site-domain";
+import { requirePanelContext } from "@/lib/api/panel-context";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     if (searchParams.get("stats") === "1") {
-      const stats = await getCampaignStats(id);
+      const stats = await getCampaignStats(ctx.tenantId, id);
       return NextResponse.json(stats);
     }
-    const campaign = await getCampaignById(id);
+    const campaign = await getCampaignById(id, ctx.tenantId);
     if (!campaign) {
       return NextResponse.json({ error: "Não encontrada." }, { status: 404 });
     }
@@ -42,15 +46,18 @@ export async function GET(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
     const body = (await request.json()) as Partial<CreateCampaignInput> & {
       status?: "draft" | "active" | "paused";
     };
-    const campaign = await updateTrafficCampaign(id, body);
+    const campaign = await updateTrafficCampaign(ctx.tenantId, id, body);
     return NextResponse.json({ campaign });
   } catch {
     return NextResponse.json({ error: "Erro ao atualizar." }, { status: 500 });
@@ -58,12 +65,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
-    await deleteTrafficCampaign(id);
+    await deleteTrafficCampaign(ctx.tenantId, id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Erro ao excluir." }, { status: 500 });

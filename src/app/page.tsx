@@ -1,5 +1,5 @@
-import { HomeView } from "@/components/HomeView";
+import { TrafficOverviewView } from "@/components/admin/TrafficOverviewView";
 
 export default function HomePage() {
-  return <HomeView />;
+  return <TrafficOverviewView />;
 }

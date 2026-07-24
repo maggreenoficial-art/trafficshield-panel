@@ -22,28 +22,42 @@ const shields = [
 
 export function AdminLoginForm() {
   const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       const res = await fetch("/api/admin/auth", {
-        method: "POST",
+        method: mode === "login" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(
+          mode === "login"
+            ? { email, password }
+            : { email, password, companyName }
+        ),
         credentials: "same-origin",
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Credenciais inválidas.");
+        setError(data.error ?? "Não foi possível continuar.");
+        return;
+      }
+
+      if (data.needsEmailConfirmation) {
+        setSuccess(data.message ?? "Conta criada! Confirme seu e-mail.");
+        setMode("login");
         return;
       }
 
@@ -131,17 +145,66 @@ export function AdminLoginForm() {
           >
             <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-muted uppercase">
               <Shield size={12} className="text-accent" />
-              Acesso administrativo
+              {mode === "login" ? "Acesso ao painel" : "Nova assinatura"}
             </div>
 
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-              Entrar no painel
+            <div className="mt-4 flex gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setSuccess("");
+                }}
+                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
+                  mode === "login"
+                    ? "bg-white text-black"
+                    : "text-muted hover:text-white"
+                }`}
+              >
+                Entrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("register");
+                  setError("");
+                  setSuccess("");
+                }}
+                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
+                  mode === "register"
+                    ? "bg-white text-black"
+                    : "text-muted hover:text-white"
+                }`}
+              >
+                Criar conta
+              </button>
+            </div>
+
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+              {mode === "login" ? "Entrar no painel" : "Criar seu workspace"}
             </h2>
             <p className="mt-2 text-xs text-muted">
-              Autentique-se para gerenciar campanhas e domínios protegidos.
+              {mode === "login"
+                ? "Autentique-se para gerenciar campanhas e domínios do seu workspace."
+                : "Cada conta tem painel zerado — domínios, campanhas e configurações isolados."}
             </p>
 
             <div className="mt-8 space-y-5">
+              {mode === "register" && (
+                <div>
+                  <label className="mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
+                    Nome da empresa / projeto
+                  </label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Minha Loja"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3.5 px-4 text-sm outline-none transition-colors placeholder:text-white/25 focus:border-accent/50"
+                  />
+                </div>
+              )}
               <div>
                 <label className="mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
                   E-mail
@@ -184,6 +247,12 @@ export function AdminLoginForm() {
               </div>
             </div>
 
+            {success && (
+              <div className="mt-4 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2.5 text-xs text-green-300">
+                {success}
+              </div>
+            )}
+
             {error && (
               <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-300">
                 {error}
@@ -199,7 +268,7 @@ export function AdminLoginForm() {
                 <Loader2 className="animate-spin" size={18} />
               ) : (
                 <>
-                  Iniciar sessão
+                  {mode === "login" ? "Iniciar sessão" : "Criar conta"}
                   <ArrowRight size={16} />
                 </>
               )}

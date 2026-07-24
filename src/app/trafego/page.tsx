@@ -1,5 +1,5 @@
-import { TrafficShieldView } from "@/components/admin/TrafficShieldView";
+import { redirect } from "next/navigation";
 
-export default function TrafficPage() {
-  return <TrafficShieldView />;
+export default function TrafficLegacyPage() {
+  redirect("/");
 }

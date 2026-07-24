@@ -43,6 +43,7 @@ create table if not exists public.traffic_domains (
     check (status in ('pending', 'valid', 'invalid')),
   last_checked_at timestamptz,
   validation_message text,
+  origin_url text,
   created_at timestamptz not null default now()
 );
 

@@ -24,6 +24,7 @@ import type { SiteCampaignDomain } from "@/lib/traffic-shield/site-domain";
 import { CreateCampaignModal } from "@/components/admin/CreateCampaignModal";
 import { CampaignUrlDeliverables } from "@/components/admin/CampaignUrlDeliverables";
 import { CampaignAdInsertionGuide } from "@/components/admin/CampaignAdInsertionGuide";
+import { CampaignCloakerGuide } from "@/components/admin/CampaignCloakerGuide";
 import { CampaignChartsPanel } from "@/components/admin/CampaignChartsPanel";
 
 export function CampaignManager() {
@@ -143,13 +144,7 @@ export function CampaignManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="font-serif text-xl italic sm:text-2xl">Campanhas</h2>
-          <p className="mt-1 text-xs text-muted sm:text-sm">
-            URLs seguras, ofertas e segmentação de tráfego
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <button
           onClick={() => setShowForm(true)}
           disabled={!canCreateCampaigns}
@@ -164,7 +159,7 @@ export function CampaignManager() {
         <div className="rounded border border-white/10 bg-white/[0.02] p-4 text-xs text-muted">
           Campanhas usam por padrão o domínio da loja{" "}
           <strong className="text-white">{siteDomain.hostname}</strong>. Domínios
-          extras na aba <strong>Domínios</strong> servem para campanhas isoladas
+          extras no menu <strong>Domínios</strong> servem para campanhas isoladas
           com CNAME próprio.
         </div>
       )}
@@ -172,7 +167,7 @@ export function CampaignManager() {
       {!canCreateCampaigns && (
         <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-300/90">
           Configure <strong>NEXT_PUBLIC_SITE_URL</strong> no ambiente ou valide um
-          domínio na aba <strong>Domínios</strong> para criar campanhas.
+          domínio no menu <strong>Domínios</strong> para criar campanhas.
         </div>
       )}
 
@@ -399,6 +394,12 @@ export function CampaignManager() {
                 campaignUrl={campaignUrl}
                 urlParams={urlParams}
                 trafficSource={selected.trafficSource}
+              />
+
+              <CampaignCloakerGuide
+                campaign={selected}
+                campaignUrl={campaignUrl}
+                urlParams={urlParams}
               />
 
               <div className="grid gap-3 text-xs sm:grid-cols-2">

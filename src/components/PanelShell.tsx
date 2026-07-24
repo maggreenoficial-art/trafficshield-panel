@@ -2,23 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Shield } from "lucide-react";
+import {
+  Globe,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+} from "lucide-react";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
 import { NoratLogo } from "@/components/NoratLogo";
+import { logoutPanel } from "@/lib/auth-logout";
 
 const nav = [
   { href: "/", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/trafego", label: "Proteção", icon: Shield, exact: false },
-];
+  { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
+  { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
+] as const;
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLogin = pathname === "/login";
-
-  const handleLogout = async () => {
-    await fetch("/api/admin/auth", { method: "DELETE" });
-    window.location.assign("/login");
-  };
 
   if (isLogin) {
     return <div className="min-h-screen bg-black text-white">{children}</div>;
@@ -55,15 +57,16 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-        </nav>
 
-        <button
-          onClick={handleLogout}
-          className="mt-auto flex w-full items-center gap-2 px-3 py-2 text-xs text-muted hover:text-red-400"
-        >
-          <LogOut size={14} />
-          Sair
-        </button>
+          <button
+            type="button"
+            onClick={() => logoutPanel()}
+            className="mt-2 flex w-full items-center gap-3 rounded px-3 py-2 text-sm text-muted transition-colors hover:text-red-400"
+          >
+            <LogOut size={16} />
+            Sair
+          </button>
+        </nav>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -79,13 +82,6 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
               norat
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-muted hover:text-red-400"
-            aria-label="Sair"
-          >
-            <LogOut size={18} />
-          </button>
         </header>
 
         <main className="admin-main flex-1 overflow-x-hidden">{children}</main>

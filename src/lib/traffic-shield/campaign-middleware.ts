@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getCampaignBySlug } from "@/lib/db/traffic-campaigns";
+import { getTrafficConfig } from "@/lib/db/traffic";
 import {
   detectDevice,
   evaluateCampaignTraffic,
@@ -13,6 +14,8 @@ import {
 import { TRAFFIC_CONFIG_KEY } from "@/lib/traffic-shield/config";
 import { getClientIp, hashIp } from "@/lib/request";
 import { VISITOR_COOKIE } from "@/lib/traffic-shield/middleware";
+import { getRequestHostname } from "@/lib/traffic-shield/domain-origin-proxy";
+import { getTrafficDomainByHostname } from "@/lib/db/traffic-campaigns";
 import { createAdminClient, hasAdminClient } from "@/lib/supabase/admin";
 
 const CAMPAIGN_CACHE_MS = 30_000;
@@ -28,8 +31,17 @@ const globalCache = globalThis as typeof globalThis & {
   __campaignCache?: Map<string, CampaignCache>;
 };
 
-async function loadShieldConfig(): Promise<ReturnType<typeof mergeTrafficConfig>> {
+async function loadShieldConfig(
+  tenantId?: string
+): Promise<ReturnType<typeof mergeTrafficConfig>> {
   if (!hasAdminClient()) return getDefaultTrafficConfig();
+  if (tenantId) {
+    try {
+      return await getTrafficConfig(tenantId);
+    } catch {
+      return getDefaultTrafficConfig();
+    }
+  }
   try {
     const supabase = createAdminClient();
     const { data } = await supabase
@@ -43,23 +55,24 @@ async function loadShieldConfig(): Promise<ReturnType<typeof mergeTrafficConfig>
   }
 }
 
-async function loadCampaign(slug: string) {
+async function loadCampaign(slug: string, tenantId?: string) {
   const now = Date.now();
+  const cacheKey = tenantId ? `${tenantId}:${slug}` : slug;
   if (!globalCache.__campaignCache) {
     globalCache.__campaignCache = new Map();
   }
-  const cached = globalCache.__campaignCache.get(slug);
+  const cached = globalCache.__campaignCache.get(cacheKey);
   if (cached && now - cached.at < CAMPAIGN_CACHE_MS) {
     return cached;
   }
 
   const [campaign, config] = await Promise.all([
-    getCampaignBySlug(slug),
-    loadShieldConfig(),
+    getCampaignBySlug(slug, tenantId),
+    loadShieldConfig(tenantId),
   ]);
 
   const entry: CampaignCache = { slug, campaign, config, at: now };
-  globalCache.__campaignCache.set(slug, entry);
+  globalCache.__campaignCache.set(cacheKey, entry);
   return entry;
 }
 
@@ -92,7 +105,13 @@ export async function handleCampaignRoute(
     return handlePrePage(request, slug, searchParams);
   }
 
-  const { campaign, config } = await loadCampaign(slug);
+  const hostname = getRequestHostname(request);
+  const domain = hostname
+    ? await getTrafficDomainByHostname(hostname)
+    : null;
+  const tenantId = domain?.tenantId;
+
+  const { campaign, config } = await loadCampaign(slug, tenantId);
   if (!campaign) {
     return NextResponse.redirect(new URL("/", request.url));
   }
@@ -119,6 +138,7 @@ export async function handleCampaignRoute(
   });
 
   logCampaignClickAsync(request.nextUrl.origin, {
+    tenantId,
     campaignId: campaign.id,
     destination: result.destination,
     country: geo?.country,

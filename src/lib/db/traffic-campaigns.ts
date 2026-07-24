@@ -18,11 +18,15 @@ import type {
 } from "@/lib/traffic-shield/campaign-types";
 import { normalizeCustomSlug } from "@/lib/traffic-shield/campaign-types";
 import { validateCampaignHostnameInput } from "@/lib/traffic-shield/campaign-hostname";
+import { getErrorMessage } from "@/lib/errors";
 import { hostsMatchDomain, normalizeOriginUrl } from "@/lib/traffic-shield/origin-url";
+import { normalizeCampaignPageUrl } from "@/lib/traffic-shield/page-url";
 import { getSiteCampaignHostname } from "@/lib/traffic-shield/site-domain";
+import { getTenantById } from "@/lib/db/tenants";
 
 type DomainRow = {
   id: string;
+  tenant_id?: string | null;
   hostname: string;
   label: string | null;
   is_primary: boolean;
@@ -35,6 +39,7 @@ type DomainRow = {
 
 type CampaignRow = {
   id: string;
+  tenant_id?: string | null;
   name: string;
   slug: string;
   domain_id: string | null;
@@ -71,6 +76,7 @@ type ClickRow = {
 function rowToDomain(row: DomainRow): TrafficDomain {
   return {
     id: row.id,
+    tenantId: row.tenant_id ?? undefined,
     hostname: row.hostname,
     label: row.label,
     isPrimary: row.is_primary,
@@ -127,20 +133,30 @@ function rowToClick(row: ClickRow): TrafficCampaignClick {
   };
 }
 
-export async function getTrafficDomains(): Promise<TrafficDomain[]> {
-  return getTrafficDomainsWithStats();
+export async function getTrafficDomains(tenantId: string): Promise<TrafficDomain[]> {
+  return getTrafficDomainsWithStats(tenantId);
 }
 
-export async function getTrafficDomainsWithStats(): Promise<TrafficDomain[]> {
+export async function getTrafficDomainsWithStats(
+  tenantId: string
+): Promise<TrafficDomain[]> {
   if (!hasAdminClient()) return [];
   const supabase = createAdminClient();
 
   const [domainsRes, campaignsRes, clicksRes] = await Promise.all([
-    supabase.from("traffic_domains").select("*").order("is_primary", { ascending: false }),
-    supabase.from("traffic_campaigns").select("id, domain_id, clicks_offer, clicks_safe"),
+    supabase
+      .from("traffic_domains")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("is_primary", { ascending: false }),
+    supabase
+      .from("traffic_campaigns")
+      .select("id, domain_id, clicks_offer, clicks_safe")
+      .eq("tenant_id", tenantId),
     supabase
       .from("traffic_campaign_clicks")
       .select("campaign_id, destination, reasons")
+      .eq("tenant_id", tenantId)
       .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
@@ -181,22 +197,31 @@ export async function getTrafficDomainsWithStats(): Promise<TrafficDomain[]> {
   });
 }
 
-export async function getDomainSlotInfo(): Promise<{
+export async function getDomainSlotInfo(tenantId: string): Promise<{
   used: number;
   limit: number;
 }> {
-  const domains = await getTrafficDomainsWithStats();
-  return { used: domains.length, limit: DOMAIN_SLOT_LIMIT };
+  const [domains, tenant] = await Promise.all([
+    getTrafficDomainsWithStats(tenantId),
+    getTenantById(tenantId),
+  ]);
+  return {
+    used: domains.length,
+    limit: tenant?.domainSlotLimit ?? DOMAIN_SLOT_LIMIT,
+  };
 }
 
-export async function createTrafficDomain(input: {
+export async function createTrafficDomain(
+  tenantId: string,
+  input: {
   hostname: string;
   label?: string;
   isPrimary?: boolean;
   originUrl?: string;
-}): Promise<TrafficDomain> {
+}
+): Promise<TrafficDomain> {
   const supabase = createAdminClient();
-  const { used, limit } = await getDomainSlotInfo();
+  const { used, limit } = await getDomainSlotInfo(tenantId);
   if (used >= limit) {
     throw new Error(`Limite de ${limit} domínios atingido.`);
   }
@@ -219,12 +244,14 @@ export async function createTrafficDomain(input: {
     await supabase
       .from("traffic_domains")
       .update({ is_primary: false })
+      .eq("tenant_id", tenantId)
       .neq("id", "00000000-0000-0000-0000-000000000000");
   }
 
   const { data, error } = await supabase
     .from("traffic_domains")
     .insert({
+      tenant_id: tenantId,
       hostname,
       label: input.label ?? null,
       is_primary: input.isPrimary ?? used === 0,
@@ -232,11 +259,13 @@ export async function createTrafficDomain(input: {
       validation_message:
         "Crie o CNAME do subdomínio no DNS e clique em Validar. O site principal não muda.",
       last_checked_at: new Date().toISOString(),
-      origin_url: originUrl,
+      ...(originUrl ? { origin_url: originUrl } : {}),
     })
     .select("*")
     .single();
-  if (error) throw error;
+  if (error) {
+    throw new Error(getErrorMessage(error, "Erro ao salvar domínio no banco."));
+  }
   return rowToDomain(data as DomainRow);
 }
 
@@ -261,6 +290,7 @@ export async function getTrafficDomainByHostname(
 }
 
 export async function updateTrafficDomainValidation(
+  tenantId: string,
   id: string,
   validation: { status: DomainStatus; message: string }
 ): Promise<TrafficDomain> {
@@ -273,6 +303,7 @@ export async function updateTrafficDomainValidation(
       last_checked_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .select("*")
     .single();
 
@@ -280,22 +311,39 @@ export async function updateTrafficDomainValidation(
   return rowToDomain(data as DomainRow);
 }
 
-export async function deleteTrafficDomain(id: string): Promise<void> {
+export async function deleteTrafficDomain(
+  tenantId: string,
+  id: string
+): Promise<void> {
   const supabase = createAdminClient();
-  const { error } = await supabase.from("traffic_domains").delete().eq("id", id);
+  const { error } = await supabase
+    .from("traffic_domains")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) throw error;
 }
 
-export async function setPrimaryDomain(id: string): Promise<void> {
+export async function setPrimaryDomain(
+  tenantId: string,
+  id: string
+): Promise<void> {
   const supabase = createAdminClient();
   await supabase
     .from("traffic_domains")
     .update({ is_primary: false })
+    .eq("tenant_id", tenantId)
     .neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("traffic_domains").update({ is_primary: true }).eq("id", id);
+  await supabase
+    .from("traffic_domains")
+    .update({ is_primary: true })
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
 }
 
-export async function getTrafficCampaigns(): Promise<TrafficCampaign[]> {
+export async function getTrafficCampaigns(
+  tenantId: string
+): Promise<TrafficCampaign[]> {
   if (!hasAdminClient()) return [];
   const supabase = createAdminClient();
 
@@ -303,10 +351,12 @@ export async function getTrafficCampaigns(): Promise<TrafficCampaign[]> {
     supabase
       .from("traffic_campaigns")
       .select("*, traffic_domains(hostname)")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false }),
     supabase
       .from("traffic_campaign_clicks")
       .select("campaign_id, destination, reasons")
+      .eq("tenant_id", tenantId)
       .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
@@ -331,21 +381,24 @@ export async function getTrafficCampaigns(): Promise<TrafficCampaign[]> {
 }
 
 export async function getCampaignBySlug(
-  slug: string
+  slug: string,
+  tenantId?: string
 ): Promise<TrafficCampaign | null> {
   if (!hasAdminClient()) return null;
   const supabase = createAdminClient();
-  const { data } = await supabase
+  let query = supabase
     .from("traffic_campaigns")
     .select("*, traffic_domains(hostname)")
-    .eq("slug", slug)
-    .single();
+    .eq("slug", slug);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data } = await query.single();
   if (!data) return null;
   return rowToCampaign(data as CampaignRow);
 }
 
 export async function getCampaignById(
-  id: string
+  id: string,
+  tenantId: string
 ): Promise<TrafficCampaign | null> {
   if (!hasAdminClient()) return null;
   const supabase = createAdminClient();
@@ -353,12 +406,14 @@ export async function getCampaignById(
     .from("traffic_campaigns")
     .select("*, traffic_domains(hostname)")
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .single();
   if (!data) return null;
   return rowToCampaign(data as CampaignRow);
 }
 
 export async function createTrafficCampaign(
+  tenantId: string,
   input: CreateCampaignInput,
   origin: string
 ): Promise<TrafficCampaign & { campaignUrl: string; urlParams: string }> {
@@ -371,14 +426,15 @@ export async function createTrafficCampaign(
   const { data, error } = await supabase
     .from("traffic_campaigns")
     .insert({
+      tenant_id: tenantId,
       name: input.name,
       slug,
       domain_id: input.domainId ?? null,
       traffic_source: input.trafficSource,
       allowed_countries: input.allowedCountries ?? [],
       allowed_devices: input.allowedDevices ?? [],
-      safe_page_url: input.safePageUrl,
-      offer_page_url: input.offerPageUrl,
+      safe_page_url: normalizeCampaignPageUrl(input.safePageUrl),
+      offer_page_url: normalizeCampaignPageUrl(input.offerPageUrl),
       delivery_method:
         input.safeDeliveryMethod ?? input.deliveryMethod ?? "redirect",
       offer_delivery_method: input.offerDeliveryMethod ?? "redirect",
@@ -404,6 +460,7 @@ export async function createTrafficCampaign(
 }
 
 export async function updateTrafficCampaign(
+  tenantId: string,
   id: string,
   patch: Partial<CreateCampaignInput> & { status?: TrafficCampaign["status"] }
 ): Promise<TrafficCampaign> {
@@ -416,8 +473,10 @@ export async function updateTrafficCampaign(
   if (patch.trafficSource) update.traffic_source = patch.trafficSource;
   if (patch.allowedCountries) update.allowed_countries = patch.allowedCountries;
   if (patch.allowedDevices) update.allowed_devices = patch.allowedDevices;
-  if (patch.safePageUrl) update.safe_page_url = patch.safePageUrl;
-  if (patch.offerPageUrl) update.offer_page_url = patch.offerPageUrl;
+  if (patch.safePageUrl)
+    update.safe_page_url = normalizeCampaignPageUrl(patch.safePageUrl);
+  if (patch.offerPageUrl)
+    update.offer_page_url = normalizeCampaignPageUrl(patch.offerPageUrl);
   if (patch.safeDeliveryMethod ?? patch.deliveryMethod) {
     update.delivery_method =
       patch.safeDeliveryMethod ?? patch.deliveryMethod;
@@ -435,22 +494,28 @@ export async function updateTrafficCampaign(
     .from("traffic_campaigns")
     .update(update)
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .select("*, traffic_domains(hostname)")
     .single();
   if (error) throw error;
   return rowToCampaign(data as CampaignRow);
 }
 
-export async function deleteTrafficCampaign(id: string): Promise<void> {
+export async function deleteTrafficCampaign(
+  tenantId: string,
+  id: string
+): Promise<void> {
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("traffic_campaigns")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) throw error;
 }
 
 export async function logCampaignClick(input: {
+  tenantId?: string;
   campaignId: string;
   destination: "offer" | "safe";
   country?: string;
@@ -463,6 +528,7 @@ export async function logCampaignClick(input: {
   const supabase = createAdminClient();
 
   await supabase.from("traffic_campaign_clicks").insert({
+    tenant_id: input.tenantId ?? null,
     campaign_id: input.campaignId,
     destination: input.destination,
     country: input.country ?? null,
@@ -501,6 +567,7 @@ function isBotClick(reasons: string[]): boolean {
 }
 
 export async function getCampaignStats(
+  tenantId: string,
   campaignId: string
 ): Promise<CampaignStats> {
   const empty: CampaignStats = {
@@ -523,11 +590,13 @@ export async function getCampaignStats(
       .from("traffic_campaigns")
       .select("clicks_offer, clicks_safe")
       .eq("id", campaignId)
+      .eq("tenant_id", tenantId)
       .single(),
     supabase
       .from("traffic_campaign_clicks")
       .select("*")
       .eq("campaign_id", campaignId)
+      .eq("tenant_id", tenantId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(500),

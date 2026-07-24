@@ -14,6 +14,7 @@ import {
   Clock,
 } from "lucide-react";
 import type { TrafficDomain } from "@/lib/traffic-shield/campaign-types";
+import { validateCampaignHostnameInput } from "@/lib/traffic-shield/campaign-hostname";
 import {
   DnsSetupModal,
   type DnsRecordInstruction,
@@ -65,10 +66,26 @@ export function DomainManager() {
   const handleAdd = async () => {
     setSaving(true);
     setError("");
+
+    const hostCheck = validateCampaignHostnameInput(hostname);
+    if (!hostCheck.ok) {
+      setError(
+        hostCheck.suggested
+          ? `${hostCheck.message} Sugestão: ${hostCheck.suggested}`
+          : hostCheck.message ?? "Domínio inválido."
+      );
+      setSaving(false);
+      return;
+    }
+
     const res = await fetch("/api/admin/traffic/domains", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hostname, label: label || undefined, originUrl }),
+      body: JSON.stringify({
+        hostname,
+        label: label || undefined,
+        originUrl: originUrl.trim() || undefined,
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -141,13 +158,7 @@ export function DomainManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="font-serif text-2xl italic">Domínios</h2>
-          <p className="mt-1 text-sm text-muted">
-            Subdomínio de campanha com CNAME para o edge norat
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <button
           onClick={() => setShowModal(true)}
           disabled={slots.used >= slots.limit}

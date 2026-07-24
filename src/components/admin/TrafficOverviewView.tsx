@@ -28,13 +28,7 @@ import type {
   TrafficShieldConfig,
   TrafficShieldStats,
 } from "@/lib/traffic-shield/types";
-import { CampaignManager } from "@/components/admin/CampaignManager";
-import { DomainManager } from "@/components/admin/DomainManager";
-import { NoratLogo } from "@/components/NoratLogo";
-import {
-  AdminPageTitle,
-  AdminScrollTabs,
-} from "@/components/admin/AdminMobileUI";
+import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 
 const features = [
   {
@@ -69,19 +63,24 @@ const features = [
   },
 ];
 
-export function TrafficShieldView() {
-  const [tab, setTab] = useState<"overview" | "campaigns" | "domains">("overview");
+export function TrafficOverviewView() {
   const [config, setConfig] = useState<TrafficShieldConfig | null>(null);
   const [stats, setStats] = useState<TrafficShieldStats | null>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/traffic");
-    const json = await res.json();
+    const [trafficRes, meRes] = await Promise.all([
+      fetch("/api/admin/traffic"),
+      fetch("/api/admin/me"),
+    ]);
+    const json = await trafficRes.json();
+    const me = await meRes.json();
     setConfig(json.config ?? null);
     setStats(json.stats ?? null);
+    setTenantName(me.tenant?.name ?? json.tenant?.name ?? null);
     setLoading(false);
   }, []);
 
@@ -120,68 +119,36 @@ export function TrafficShieldView() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <NoratLogo size={32} />
-            <AdminPageTitle
-              title="norat"
-              subtitle="Contra ratos — clonadores, bots e revisores"
-            />
-          </div>
-        </div>
+        <AdminPageTitle
+          title="Início"
+          subtitle={
+            tenantName
+              ? `${tenantName} — visão geral`
+              : "Visão geral do seu workspace"
+          }
+        />
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {tab === "overview" && (
-            <>
-              <button
-                onClick={() => updateConfig({ enabled: !config!.enabled })}
-                disabled={saving}
-                className={`w-full rounded-full px-5 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors sm:w-auto ${
-                  config!.enabled
-                    ? "border border-green-500/30 bg-green-500/20 text-green-400"
-                    : "border border-white/20 bg-white/10 text-muted"
-                }`}
-              >
-                {config!.enabled ? "Ativo" : "Inativo"}
-              </button>
-              <button
-                onClick={load}
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2.5 text-xs tracking-widest uppercase hover:border-accent sm:w-auto"
-              >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Atualizar
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <AdminScrollTabs>
-        {([
-          { id: "overview" as const, label: "Visão Geral" },
-          { id: "campaigns" as const, label: "Campanhas" },
-          { id: "domains" as const, label: "Domínios" },
-        ]).map((t) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`shrink-0 px-4 py-3 text-xs tracking-widest uppercase transition-colors ${
-              tab === t.id
-                ? "border-b-2 border-accent text-accent"
-                : "text-muted hover:text-white"
+            onClick={() => updateConfig({ enabled: !config!.enabled })}
+            disabled={saving}
+            className={`w-full rounded-full px-5 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors sm:w-auto ${
+              config!.enabled
+                ? "border border-green-500/30 bg-green-500/20 text-green-400"
+                : "border border-white/20 bg-white/10 text-muted"
             }`}
           >
-            {t.label}
+            {config!.enabled ? "Ativo" : "Inativo"}
           </button>
-        ))}
-      </AdminScrollTabs>
-
-      {tab === "campaigns" ? (
-        <CampaignManager />
-      ) : tab === "domains" ? (
-        <DomainManager />
-      ) : (
-        <>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2.5 text-xs tracking-widest uppercase hover:border-accent sm:w-auto"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Atualizar
+          </button>
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -460,8 +427,6 @@ export function TrafficShieldView() {
           </table>
         </div>
       </div>
-        </>
-      )}
     </div>
   );
 }

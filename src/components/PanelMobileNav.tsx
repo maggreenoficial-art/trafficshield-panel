@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Shield } from "lucide-react";
+import { Globe, LayoutDashboard, LogOut, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logoutPanel } from "@/lib/auth-logout";
 
 const tabs = [
   { href: "/", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/trafego", label: "Proteção", icon: Shield, exact: false },
+  { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
+  { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
 ] as const;
 
 export function PanelMobileNav() {
@@ -29,7 +31,7 @@ export function PanelMobileNav() {
               key={href}
               href={href}
               className={cn(
-                "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs tracking-wide transition-colors",
+                "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] tracking-wide transition-colors",
                 isActive ? "text-accent" : "text-white/50"
               )}
             >
@@ -38,12 +40,21 @@ export function PanelMobileNav() {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => logoutPanel()}
+          className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] tracking-wide text-white/50 transition-colors hover:text-red-400"
+        >
+          <LogOut size={20} strokeWidth={1.75} />
+          <span>Sair</span>
+        </button>
       </div>
     </nav>
   );
 }
 
 export function panelPageTitle(pathname: string): string {
-  if (pathname.startsWith("/trafego")) return "Proteção";
+  if (pathname.startsWith("/campanhas")) return "Campanhas";
+  if (pathname.startsWith("/dominios")) return "Domínios";
   return "Início";
 }

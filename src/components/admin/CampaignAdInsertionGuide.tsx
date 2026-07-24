@@ -70,6 +70,12 @@ export function CampaignAdInsertionGuide({
 
       <div className="border-t border-white/10 pt-3 text-[10px] text-muted">
         <p>
+          <strong className="text-white">URL PARAMS ≠ página de oferta.</strong>{" "}
+          Eles validam o clique (token <code className="text-accent">vp_t</code>,{" "}
+          fonte de tráfego). O norat decide sozinho se o visitante vai para a
+          oferta ou para a página segura.
+        </p>
+        <p className="mt-2">
           <strong className="text-white">Com ferramenta de tracking:</strong> concatene
           seus parâmetros com <code className="text-accent">&</code> (a ordem não
           importa):

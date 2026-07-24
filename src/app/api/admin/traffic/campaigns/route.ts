@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   createTrafficCampaign,
   getCampaignStats,
@@ -10,21 +10,27 @@ import {
   enrichCampaignHostname,
   getSiteCampaignHostname,
 } from "@/lib/traffic-shield/site-domain";
+import { requirePanelContext } from "@/lib/api/panel-context";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const origin = new URL(request.url).origin;
     const { searchParams } = new URL(request.url);
     const statsFor = searchParams.get("stats");
     if (statsFor) {
-      const stats = await getCampaignStats(statsFor);
+      const stats = await getCampaignStats(ctx.tenantId, statsFor);
       return NextResponse.json(stats);
     }
-    const campaigns = (await getTrafficCampaigns()).map((campaign) => ({
-      ...campaign,
-      domainHostname: enrichCampaignHostname(campaign, origin),
-    }));
-    return NextResponse.json({ campaigns });
+    const campaigns = (await getTrafficCampaigns(ctx.tenantId)).map(
+      (campaign) => ({
+        ...campaign,
+        domainHostname: enrichCampaignHostname(campaign, origin),
+      })
+    );
+    return NextResponse.json({ campaigns, tenant: ctx.tenant });
   } catch {
     return NextResponse.json(
       { error: "Erro ao carregar campanhas." },
@@ -33,7 +39,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const body = (await request.json()) as CreateCampaignInput;
     if (!body.name?.trim()) {
@@ -59,7 +68,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     } else {
-      const domains = await getTrafficDomainsWithStats();
+      const domains = await getTrafficDomainsWithStats(ctx.tenantId);
       const domain = domains.find((d) => d.id === body.domainId);
       if (!domain) {
         return NextResponse.json(
@@ -85,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const campaign = await createTrafficCampaign(body, origin);
+    const campaign = await createTrafficCampaign(ctx.tenantId, body, origin);
     return NextResponse.json({
       campaign: {
         ...campaign,

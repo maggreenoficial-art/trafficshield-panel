@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isAdminUser, updateSession } from "@/lib/supabase/middleware";
+import { canAccessPanel, updateSession } from "@/lib/supabase/middleware";
 import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 
@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
     const { supabase, user, supabaseResponse } = await updateSession(request);
 
     if (pathname.startsWith("/api/admin")) {
-      if (!user || !(await isAdminUser(supabase, user.id))) {
+      if (!user || !(await canAccessPanel(user.id))) {
         return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
       }
       return supabaseResponse;
@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
 
     if (
       !isPublicPath(pathname) &&
-      (!user || !(await isAdminUser(supabase, user.id)))
+      (!user || !(await canAccessPanel(user.id)))
     ) {
       const login = new URL("/login", request.url);
       login.searchParams.set("from", pathname);

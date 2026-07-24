@@ -39,7 +39,7 @@ function rowToLog(row: LogRow): TrafficLogEntry {
   };
 }
 
-export async function getTrafficConfig(): Promise<TrafficShieldConfig> {
+export async function getTrafficConfig(tenantId: string): Promise<TrafficShieldConfig> {
   if (!hasAdminClient()) return getDefaultTrafficConfig();
 
   const supabase = createAdminClient();
@@ -47,6 +47,7 @@ export async function getTrafficConfig(): Promise<TrafficShieldConfig> {
     .from("app_config")
     .select("value, updated_at")
     .eq("key", TRAFFIC_CONFIG_KEY)
+    .eq("tenant_id", tenantId)
     .single();
 
   const value = data?.value as Partial<TrafficShieldConfig> | null;
@@ -57,6 +58,7 @@ export async function getTrafficConfig(): Promise<TrafficShieldConfig> {
 }
 
 export async function saveTrafficConfig(
+  tenantId: string,
   config: TrafficShieldConfig
 ): Promise<TrafficShieldConfig> {
   const supabase = createAdminClient();
@@ -65,17 +67,22 @@ export async function saveTrafficConfig(
     updatedAt: new Date().toISOString(),
   };
 
-  const { error } = await supabase.from("app_config").upsert({
-    key: TRAFFIC_CONFIG_KEY,
-    value: payload,
-    updated_at: new Date().toISOString(),
-  });
+  const { error } = await supabase.from("app_config").upsert(
+    {
+      key: TRAFFIC_CONFIG_KEY,
+      tenant_id: tenantId,
+      value: payload,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "tenant_id,key" }
+  );
 
   if (error) throw error;
   return payload;
 }
 
 export async function logTrafficEvent(input: {
+  tenantId?: string;
   ipHash: string;
   userAgent?: string;
   path: string;
@@ -89,6 +96,7 @@ export async function logTrafficEvent(input: {
 
   const supabase = createAdminClient();
   await supabase.from("traffic_logs").insert({
+    tenant_id: input.tenantId ?? null,
     ip_hash: input.ipHash,
     user_agent: input.userAgent?.slice(0, 500) ?? null,
     path: input.path.slice(0, 500),
@@ -100,7 +108,7 @@ export async function logTrafficEvent(input: {
   });
 }
 
-export async function getTrafficStats(): Promise<TrafficShieldStats> {
+export async function getTrafficStats(tenantId: string): Promise<TrafficShieldStats> {
   const empty: TrafficShieldStats = {
     total24h: 0,
     allowed24h: 0,
@@ -121,6 +129,7 @@ export async function getTrafficStats(): Promise<TrafficShieldStats> {
   const { data: logs } = await supabase
     .from("traffic_logs")
     .select("*")
+    .eq("tenant_id", tenantId)
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(2000);
@@ -188,13 +197,17 @@ export async function getTrafficStats(): Promise<TrafficShieldStats> {
   };
 }
 
-export async function getTrafficLogs(limit = 100): Promise<TrafficLogEntry[]> {
+export async function getTrafficLogs(
+  tenantId: string,
+  limit = 100
+): Promise<TrafficLogEntry[]> {
   if (!hasAdminClient()) return [];
 
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("traffic_logs")
     .select("*")
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(limit);
 

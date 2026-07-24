@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   deleteTrafficDomain,
   getTrafficDomainsWithStats,
@@ -7,16 +7,20 @@ import {
 } from "@/lib/db/traffic-campaigns";
 import { getDnsInstructions } from "@/lib/traffic-shield/dns-instructions";
 import { validateDomainHostname } from "@/lib/traffic-shield/domain-validation";
+import { requirePanelContext } from "@/lib/api/panel-context";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
-    const domains = await getTrafficDomainsWithStats();
+    const domains = await getTrafficDomainsWithStats(ctx.tenantId);
     const domain = domains.find((d) => d.id === id);
     if (!domain) {
       return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
@@ -31,27 +35,34 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
     const body = await request.json();
     const action = body.action as string;
 
     if (action === "validate") {
-      const domains = await getTrafficDomainsWithStats();
+      const domains = await getTrafficDomainsWithStats(ctx.tenantId);
       const existing = domains.find((d) => d.id === id);
       if (!existing) {
         return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
       }
       const validation = await validateDomainHostname(existing.hostname);
-      const domain = await updateTrafficDomainValidation(id, validation);
+      const domain = await updateTrafficDomainValidation(
+        ctx.tenantId,
+        id,
+        validation
+      );
       return NextResponse.json({ domain });
     }
 
     if (action === "set_primary") {
-      await setPrimaryDomain(id);
+      await setPrimaryDomain(ctx.tenantId, id);
       return NextResponse.json({ ok: true });
     }
 
@@ -63,12 +74,15 @@ export async function POST(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+
   try {
     const { id } = await params;
-    await deleteTrafficDomain(id);
+    await deleteTrafficDomain(ctx.tenantId, id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Erro ao excluir domínio." }, { status: 500 });
