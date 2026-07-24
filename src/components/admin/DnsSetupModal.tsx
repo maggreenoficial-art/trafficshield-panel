@@ -81,6 +81,18 @@ export function DnsSetupModal({
           <CopyField label="TTL" value={instructions.ttl} />
         </div>
 
+        <div className="mt-4 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
+          <p>
+            <strong className="text-white">Destino norat (Vercel):</strong>{" "}
+            <code className="text-accent">{instructions.target}</code>
+          </p>
+          <p className="mt-2">
+            No painel Vercel do norat, adicione também{" "}
+            <strong className="text-white">{instructions.hostname}</strong> em{" "}
+            <em>Settings → Domains</em> para SSL e roteamento funcionarem.
+          </p>
+        </div>
+
         <div className="mt-4 space-y-2 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
           <p>
             <strong className="text-white">Exemplo radario.sbs:</strong> se o{" "}

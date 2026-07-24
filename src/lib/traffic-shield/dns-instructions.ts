@@ -10,7 +10,7 @@ export function getCnameTarget(): string {
   return (
     process.env.TRAFFIC_DNS_CNAME_TARGET?.trim() ||
     process.env.NEXT_PUBLIC_TRAFFIC_DNS_CNAME_TARGET?.trim() ||
-    "cname.vercel-dns.com"
+    "trafficshield-panel-iota.vercel.app"
   );
 }
 
