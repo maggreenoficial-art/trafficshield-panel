@@ -13,6 +13,7 @@ export interface DnsRecordInstruction {
 
 interface DnsSetupModalProps {
   instructions: DnsRecordInstruction;
+  originUrl?: string | null;
   onClose: () => void;
   onValidate?: () => void;
 }
@@ -46,6 +47,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 export function DnsSetupModal({
   instructions,
+  originUrl,
   onClose,
   onValidate,
 }: DnsSetupModalProps) {
@@ -55,12 +57,22 @@ export function DnsSetupModal({
         <p className="text-[10px] tracking-widest text-accent uppercase">
           Passo 2 de 4
         </p>
-        <h3 className="mt-2 text-lg font-medium">Crie o registro CNAME no painel de DNS</h3>
+        <h3 className="mt-2 text-lg font-medium">Aponte o domínio para o norat</h3>
         <p className="mt-2 text-xs text-muted">
-          No painel de DNS do provedor onde você registrou o domínio{" "}
-          <strong className="text-white">{instructions.hostname}</strong>, crie um
-          novo registro com os valores abaixo (ex.: Hostinger, Registro.br, Cloudflare).
+          No painel DNS de{" "}
+          <strong className="text-white">{instructions.hostname}</strong>,{" "}
+          <strong className="text-white">edite</strong> o CNAME existente (não crie
+          outro no mesmo nome) ou crie o registro abaixo.
         </p>
+
+        <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-3 text-[10px] text-muted">
+          <strong className="text-green-400">Seu site não sai do ar.</strong> O norat
+          intercepta apenas <code className="text-accent">/c/*</code> (campanhas). Todo
+          o resto é repassado para a origem:
+          {originUrl ? (
+            <span className="mt-1 block font-mono text-accent">{originUrl}</span>
+          ) : null}
+        </div>
 
         <div className="mt-6 border border-white/10 bg-white/[0.02] px-4">
           <CopyField label="Tipo" value={instructions.type} />
@@ -69,10 +81,24 @@ export function DnsSetupModal({
           <CopyField label="TTL" value={instructions.ttl} />
         </div>
 
+        <div className="mt-4 space-y-2 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
+          <p>
+            <strong className="text-white">Exemplo radario.sbs:</strong> se o{" "}
+            <code className="text-accent">www</code> hoje aponta para{" "}
+            <code className="text-accent">xxx.vercel-dns.com</code>, troque só o
+            destino para <code className="text-accent">{instructions.target}</code> e
+            use essa URL Vercel como origem no cadastro.
+          </p>
+          <p>
+            Visitantes normais → site original · Anúncios em{" "}
+            <code className="text-accent">/c/slug</code> → cloaker norat.
+          </p>
+        </div>
+
         <div className="mt-4 rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-[10px] text-muted">
-          <strong className="text-yellow-400">Importante:</strong> salve o registro no
-          painel do seu provedor. A propagação DNS pode levar de alguns minutos até 48
-          horas. Depois, volte aqui e clique em <strong className="text-white">Validar</strong>.
+          <strong className="text-yellow-400">Propagação:</strong> pode levar de
+          minutos até 48h. Depois clique em{" "}
+          <strong className="text-white">Validar DNS agora</strong>.
         </div>
 
         <div className="mt-6 flex gap-3">

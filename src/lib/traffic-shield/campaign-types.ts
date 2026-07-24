@@ -31,6 +31,8 @@ export interface TrafficDomain {
   status: DomainStatus;
   lastCheckedAt: string | null;
   validationMessage: string | null;
+  /** Backend do site real — norat faz proxy para manter o site no ar */
+  originUrl: string | null;
   createdAt: string;
   campaignCount?: number;
   clicksOffer?: number;

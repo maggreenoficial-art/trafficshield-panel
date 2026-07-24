@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isAdminUser, updateSession } from "@/lib/supabase/middleware";
+import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 
 const PUBLIC_PATHS = ["/login", "/api/admin/auth"];
@@ -16,6 +17,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   try {
+    const customDomainResponse = await handleCustomDomainRoute(request);
+    if (customDomainResponse) return customDomainResponse;
+
     if (pathname.startsWith("/c/")) {
       const campaignResponse = await handleCampaignRoute(request);
       if (campaignResponse) return campaignResponse;

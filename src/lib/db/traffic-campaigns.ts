@@ -17,6 +17,7 @@ import type {
   TrafficDomain,
 } from "@/lib/traffic-shield/campaign-types";
 import { normalizeCustomSlug } from "@/lib/traffic-shield/campaign-types";
+import { hostsMatchDomain, normalizeOriginUrl } from "@/lib/traffic-shield/origin-url";
 import { getSiteCampaignHostname } from "@/lib/traffic-shield/site-domain";
 
 type DomainRow = {
@@ -27,6 +28,7 @@ type DomainRow = {
   status?: string;
   last_checked_at?: string | null;
   validation_message?: string | null;
+  origin_url?: string | null;
   created_at: string;
 };
 
@@ -74,6 +76,7 @@ function rowToDomain(row: DomainRow): TrafficDomain {
     status: (row.status as DomainStatus) ?? "pending",
     lastCheckedAt: row.last_checked_at ?? null,
     validationMessage: row.validation_message ?? null,
+    originUrl: row.origin_url ?? null,
     createdAt: row.created_at,
   };
 }
@@ -189,6 +192,7 @@ export async function createTrafficDomain(input: {
   hostname: string;
   label?: string;
   isPrimary?: boolean;
+  originUrl: string;
 }): Promise<TrafficDomain> {
   const supabase = createAdminClient();
   const { used, limit } = await getDomainSlotInfo();
@@ -197,6 +201,7 @@ export async function createTrafficDomain(input: {
   }
 
   const hostname = normalizeHostname(input.hostname);
+  const originUrl = normalizeOriginUrl(input.originUrl);
 
   if (input.isPrimary) {
     await supabase
@@ -212,13 +217,35 @@ export async function createTrafficDomain(input: {
       label: input.label ?? null,
       is_primary: input.isPrimary ?? used === 0,
       status: "pending",
-      validation_message: "Configure o CNAME no painel DNS e clique em Validar.",
+      validation_message:
+        "Configure o CNAME no painel DNS e clique em Validar. O site continua no ar via proxy de origem.",
       last_checked_at: new Date().toISOString(),
+      origin_url: originUrl,
     })
     .select("*")
     .single();
   if (error) throw error;
   return rowToDomain(data as DomainRow);
+}
+
+export async function getTrafficDomainByHostname(
+  hostname: string
+): Promise<TrafficDomain | null> {
+  if (!hasAdminClient()) return null;
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("traffic_domains")
+    .select("*")
+    .eq("status", "valid");
+
+  if (error || !data?.length) return null;
+
+  const match = (data as DomainRow[]).find((row) =>
+    hostsMatchDomain(row.hostname, hostname)
+  );
+
+  return match ? rowToDomain(match) : null;
 }
 
 export async function updateTrafficDomainValidation(

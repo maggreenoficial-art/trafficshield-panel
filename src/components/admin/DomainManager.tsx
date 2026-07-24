@@ -28,9 +28,11 @@ export function DomainManager() {
   const [dnsModal, setDnsModal] = useState<{
     instructions: DnsRecordInstruction;
     domainId?: string;
+    originUrl?: string | null;
   } | null>(null);
   const [cnameTarget, setCnameTarget] = useState("");
   const [hostname, setHostname] = useState("");
+  const [originUrl, setOriginUrl] = useState("");
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +68,7 @@ export function DomainManager() {
     const res = await fetch("/api/admin/traffic/domains", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hostname, label: label || undefined }),
+      body: JSON.stringify({ hostname, label: label || undefined, originUrl }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -76,12 +78,14 @@ export function DomainManager() {
     }
     setShowModal(false);
     setHostname("");
+    setOriginUrl("");
     setLabel("");
     setSaving(false);
     if (json.dnsInstructions) {
       setDnsModal({
         instructions: json.dnsInstructions,
         domainId: json.domain?.id,
+        originUrl: json.domain?.originUrl,
       });
     }
     await load();
@@ -92,7 +96,11 @@ export function DomainManager() {
     const res = await fetch(`/api/admin/traffic/domains/${domainId}`);
     const json = await res.json();
     if (json.dnsInstructions) {
-      setDnsModal({ instructions: json.dnsInstructions, domainId });
+      setDnsModal({
+        instructions: json.dnsInstructions,
+        domainId,
+        originUrl: json.domain?.originUrl,
+      });
     }
   };
 
@@ -137,7 +145,8 @@ export function DomainManager() {
         <div>
           <h2 className="font-serif text-2xl italic">Domínios</h2>
           <p className="mt-1 text-sm text-muted">
-            Cadastre os domínios usados nas URLs das campanhas protegidas
+            Domínio principal com cloaker — o site continua no ar via proxy de
+            origem
           </p>
         </div>
         <button
@@ -168,6 +177,15 @@ export function DomainManager() {
             />
           </div>
         </div>
+      </div>
+
+      <div className="rounded border border-accent/20 bg-accent/5 p-4 text-xs text-muted">
+        <strong className="text-accent">Domínio principal (como cloaker de mercado):</strong>{" "}
+        aponte o <code className="text-white">www</code> para o norat e informe onde o
+        site está hospedado hoje (ex:{" "}
+        <code className="text-accent">https://xxx.vercel-dns.com</code>). Rotas{" "}
+        <code className="text-accent">/c/*</code> passam pelo cloaker; o resto vai para
+        o site original.
       </div>
 
       <div className="flex items-center gap-3 border border-white/10 px-4 py-3">
@@ -223,6 +241,11 @@ export function DomainManager() {
                     <p className="font-medium">{domain.hostname}</p>
                     {domain.label && (
                       <p className="mt-0.5 text-[10px] text-muted">{domain.label}</p>
+                    )}
+                    {domain.originUrl && (
+                      <p className="mt-1 max-w-[220px] truncate font-mono text-[10px] text-accent/80">
+                        → {domain.originUrl}
+                      </p>
                     )}
                     {domain.isPrimary && (
                       <span className="mt-1 inline-block text-[10px] text-accent">
@@ -311,23 +334,40 @@ export function DomainManager() {
           <div className="w-full max-w-md border border-white/10 bg-black p-6">
             <h3 className="text-lg font-medium">Adicionar domínio</h3>
             <p className="mt-2 text-xs text-muted">
-              Informe o domínio que será usado nas URLs das campanhas (ex:{" "}
-              <code className="text-accent">www.seudominio.com.br</code>).
-              Apenas o domínio da campanha precisa estar cadastrado.
+              Use o domínio principal das campanhas (ex:{" "}
+              <code className="text-accent">www.radario.sbs</code>). O site real
+              continua no ar — o norat só intercepta{" "}
+              <code className="text-accent">/c/*</code>.
             </p>
 
             <div className="mt-6 space-y-4">
               <div>
                 <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
-                  Domínio
+                  Domínio da campanha
                 </label>
                 <input
                   value={hostname}
                   onChange={(e) => setHostname(e.target.value)}
-                  placeholder="www.seudominio.com.br"
+                  placeholder="www.radario.sbs"
                   className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
                   autoFocus
                 />
+              </div>
+              <div>
+                <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+                  URL de origem do site
+                </label>
+                <input
+                  value={originUrl}
+                  onChange={(e) => setOriginUrl(e.target.value)}
+                  placeholder="https://769a4c1b.vercel-dns.com"
+                  className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
+                />
+                <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                  Onde o site está hospedado <strong className="text-white">hoje</strong>{" "}
+                  — cole o destino atual do CNAME (Vercel, Hostinger, etc.). Não use o
+                  domínio público após apontar para o norat.
+                </p>
               </div>
               <div>
                 <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
@@ -345,10 +385,10 @@ export function DomainManager() {
             <div className="mt-4 rounded border border-white/10 bg-white/5 p-3 text-[10px] text-muted">
               <strong className="text-white">Como funciona:</strong>
               <ol className="mt-2 list-decimal space-y-1 pl-4">
-                <li>Cadastre o domínio aqui</li>
-                <li>Crie o CNAME no painel DNS do provedor</li>
-                <li>Clique em Validar no menu ⋯</li>
-                <li>Use o domínio ao criar campanhas</li>
+                <li>Cadastre domínio + URL de origem</li>
+                <li>Edite o CNAME do www para o norat (substitua o destino atual)</li>
+                <li>Valide no menu ⋯</li>
+                <li>Campanhas em https://seu-dominio/c/slug</li>
               </ol>
               {cnameTarget && (
                 <p className="mt-2 text-accent">
@@ -362,7 +402,7 @@ export function DomainManager() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={handleAdd}
-                disabled={saving || !hostname.trim()}
+                disabled={saving || !hostname.trim() || !originUrl.trim()}
                 className="flex-1 rounded-full bg-white py-2.5 text-xs font-semibold text-black hover:bg-accent disabled:opacity-40"
               >
                 {saving ? "Salvando..." : "Cadastrar domínio"}
@@ -371,6 +411,7 @@ export function DomainManager() {
                 onClick={() => {
                   setShowModal(false);
                   setError("");
+                  setOriginUrl("");
                 }}
                 className="px-4 text-xs text-muted hover:text-white"
               >
@@ -384,6 +425,7 @@ export function DomainManager() {
       {dnsModal && (
         <DnsSetupModal
           instructions={dnsModal.instructions}
+          originUrl={dnsModal.originUrl}
           onClose={() => setDnsModal(null)}
           onValidate={dnsModal.domainId ? handleDnsValidate : undefined}
         />

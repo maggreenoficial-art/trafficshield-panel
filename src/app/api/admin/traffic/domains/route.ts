@@ -38,10 +38,17 @@ export async function POST(request: Request) {
     if (!body.hostname?.trim()) {
       return NextResponse.json({ error: "Domínio obrigatório." }, { status: 400 });
     }
+    if (!body.originUrl?.trim()) {
+      return NextResponse.json(
+        { error: "Informe a URL de origem do site (hospedagem atual)." },
+        { status: 400 }
+      );
+    }
     const domain = await createTrafficDomain({
       hostname: body.hostname,
       label: body.label,
       isPrimary: body.isPrimary,
+      originUrl: body.originUrl,
     });
     const slots = await getDomainSlotInfo();
     const dnsInstructions = getDnsInstructions(domain.hostname);
