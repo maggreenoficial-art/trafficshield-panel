@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, LogOut, Shield } from "lucide-react";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
+import { NoratLogo } from "@/components/NoratLogo";
 
 const nav = [
   { href: "/", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/trafego", label: "Traffic Shield", icon: Shield, exact: false },
+  { href: "/trafego", label: "Proteção", icon: Shield, exact: false },
 ];
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
@@ -26,12 +27,11 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-black text-white">
       <aside className="hidden w-56 shrink-0 flex-col border-r border-white/10 p-6 lg:flex">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <Shield size={20} className="text-accent" />
-          Traffic Shield
+        <Link href="/" className="flex items-center gap-2">
+          <NoratLogo size={28} showWordmark wordmarkClassName="text-base" />
         </Link>
         <p className="mt-1 text-[10px] tracking-widest text-muted uppercase">
-          Proteção de campanhas
+          Contra ratos digitais
         </p>
 
         <nav className="mt-10 space-y-1">
@@ -76,7 +76,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
               {panelPageTitle(pathname)}
             </p>
             <p className="text-[10px] tracking-widest text-muted uppercase">
-              Traffic Shield
+              norat
             </p>
           </div>
           <button

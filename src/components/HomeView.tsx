@@ -75,7 +75,7 @@ export function HomeView() {
     <div className="space-y-8">
       <AdminPageTitle
         title="Início"
-        subtitle="Visão geral da proteção de campanhas"
+        subtitle="Visão geral — caçando ratos nas suas campanhas"
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -110,16 +110,16 @@ export function HomeView() {
           Próximos passos
         </h2>
         <ul className="mt-4 space-y-3 text-sm text-white/80">
-          <li>1. Configure domínios CNAME para suas campanhas</li>
+          <li>1. Configure domínios CNAME para isolar campanhas</li>
           <li>2. Crie campanhas com URL de oferta e página segura</li>
-          <li>3. Instale o middleware Traffic Shield no site do cliente</li>
+          <li>3. Instale o middleware norat no site do cliente</li>
         </ul>
         <Link
           href="/trafego"
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-black hover:bg-accent-hover"
         >
           <Shield size={16} />
-          Abrir Traffic Shield
+          Abrir proteção
         </Link>
       </div>
     </div>

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Lock, Loader2, Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
+import { NoratLogo } from "@/components/NoratLogo";
 
 export function AdminLoginForm() {
   const searchParams = useSearchParams();
@@ -47,11 +48,10 @@ export function AdminLoginForm() {
         className="w-full max-w-sm border border-white/10 p-8"
       >
         <div className="flex items-center gap-3">
-          <Lock size={20} className="text-accent" />
-          <h1 className="text-2xl font-semibold">Traffic Shield</h1>
+          <NoratLogo size={40} showWordmark wordmarkClassName="text-2xl" />
         </div>
         <p className="mt-2 text-xs text-muted">
-          Painel de proteção de campanhas
+          Contra ratos — clonadores, bots e revisores
         </p>
 
         <label className="mt-8 block text-[10px] tracking-widest text-muted uppercase">

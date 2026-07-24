@@ -216,7 +216,7 @@ export const DELIVERY_METHOD_GUIDE: {
 }[] = [
   {
     id: "redirect",
-    label: "TWR Redirect",
+    label: "norat Redirect",
     howItWorks: "Redirecionamento padrão de uma URL para outra",
     whenToUse:
       "Mais compatível, funciona com qualquer tipo de página. É o mais usado.",
@@ -234,11 +234,11 @@ export const DELIVERY_METHOD_GUIDE: {
   },
   {
     id: "mirror",
-    label: "TWR Mirror",
+    label: "norat Mirror",
     howItWorks:
-      "Espelha o conteúdo da página na própria URL do TWR, sem redirecionamento",
+      "Espelha o conteúdo da página na própria URL do norat, sem redirecionamento",
     whenToUse:
-      "Mais seguro contra espionagem — o espião só vê a URL do domínio no TWR, nunca a URL real da oferta",
+      "Mais seguro contra espionagem — o rato só vê a URL do norat, nunca a URL real da oferta",
     forSafe: true,
     forOffer: true,
   },
@@ -257,7 +257,7 @@ export const DELIVERY_METHOD_GUIDE: {
 export const DELIVERY_METHODS = DELIVERY_METHOD_GUIDE.filter((m) => m.forSafe).map(
   (m) => ({
     id: m.id,
-    label: m.label.replace("TWR ", ""),
+    label: m.label.replace("norat ", ""),
     desc: m.howItWorks,
     badge: m.badge,
   })
@@ -269,7 +269,7 @@ export const OFFER_DELIVERY_METHODS = DELIVERY_METHOD_GUIDE.filter(
   (m) => m.forOffer
 ).map((m) => ({
   id: m.id,
-  label: m.label.replace("TWR ", ""),
+  label: m.label.replace("norat ", ""),
   desc: m.howItWorks,
   badge: m.badge,
 }));

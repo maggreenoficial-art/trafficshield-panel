@@ -1,15 +1,17 @@
-# Traffic Shield Panel
+# norat
 
-Painel SaaS de proteção de campanhas — **Início** + **Traffic Shield** (domínios, campanhas, estatísticas).
+Painel SaaS anti-ratos — proteção de campanhas contra clonadores, bots e revisores.
 
-Hospede em um domínio separado (ex: `painel.seudominio.com.br`) para oferecer aos clientes sem expor o e-commerce principal.
+**Início** + **Proteção** (domínios, campanhas, estatísticas).
+
+Hospede em um domínio separado (ex: `painel.seudominio.com.br`) para oferecer aos clientes sem expor o site principal.
 
 ## Rotas
 
 | Rota | Descrição |
 |------|-----------|
 | `/` | Início — visão geral e métricas 24h |
-| `/trafego` | Traffic Shield completo |
+| `/trafego` | Proteção norat completa |
 | `/login` | Login admin (Supabase Auth) |
 
 ## Setup
@@ -17,7 +19,7 @@ Hospede em um domínio separado (ex: `painel.seudominio.com.br`) para oferecer a
 ```bash
 npm install
 cp .env.example .env.local
-# Preencha Supabase + variáveis Traffic Shield
+# Preencha Supabase + variáveis norat
 npm run dev
 ```
 
@@ -36,9 +38,9 @@ npm run dev
 
 ## Integração no site do cliente
 
-O middleware Traffic Shield (`src/lib/traffic-shield/`) deve ser instalado no **site que recebe o tráfego** (loja/landing do cliente), apontando para o mesmo Supabase ou API compartilhada.
+O middleware norat (`src/lib/traffic-shield/`) deve ser instalado no **site que recebe o tráfego** (loja/landing do cliente), apontando para o mesmo Supabase ou API compartilhada.
 
-Este repositório contém apenas o **painel de gerenciamento**.
+Este repositório contém o **painel de gerenciamento**.
 
 ## Stack
 

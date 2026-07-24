@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/trafego", label: "Tráfego", icon: Shield, exact: false },
+  { href: "/trafego", label: "Proteção", icon: Shield, exact: false },
 ] as const;
 
 export function PanelMobileNav() {
@@ -44,6 +44,6 @@ export function PanelMobileNav() {
 }
 
 export function panelPageTitle(pathname: string): string {
-  if (pathname.startsWith("/trafego")) return "Traffic Shield";
+  if (pathname.startsWith("/trafego")) return "Proteção";
   return "Início";
 }

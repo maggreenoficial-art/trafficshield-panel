@@ -715,7 +715,7 @@ export function CreateCampaignModal({
                 <ul className="mt-2 list-disc space-y-1.5 pl-4">
                   <li>
                     Nem a página segura nem a de oferta precisam de conexão com o
-                    Traffic Shield —{" "}
+                    norat —{" "}
                     <strong className="text-white">
                       só o domínio da campanha
                     </strong>{" "}

@@ -30,6 +30,7 @@ import type {
 } from "@/lib/traffic-shield/types";
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import { DomainManager } from "@/components/admin/DomainManager";
+import { NoratLogo } from "@/components/NoratLogo";
 import {
   AdminPageTitle,
   AdminScrollTabs,
@@ -38,8 +39,8 @@ import {
 const features = [
   {
     icon: Zap,
-    title: "Plug and Play",
-    desc: "Ative em um clique. Sem instalar nada na hospedagem.",
+    title: "Anti-ratos",
+    desc: "Filtra clonadores, bots e revisores antes de chegarem na oferta.",
   },
   {
     icon: Globe,
@@ -49,7 +50,7 @@ const features = [
   {
     icon: ShieldCheck,
     title: "99,9% de passagem",
-    desc: "Campanhas legítimas passam; bots e scrapers são filtrados.",
+    desc: "Campanhas legítimas passam; ratos digitais são barrados.",
   },
   {
     icon: Sparkles,
@@ -59,7 +60,7 @@ const features = [
   {
     icon: Shield,
     title: "Anti-plágio",
-    desc: "Oculta conteúdo sensível de concorrentes e scrapers.",
+    desc: "Oculta conteúdo sensível de espiões e scrapers.",
   },
   {
     icon: ShieldAlert,
@@ -121,10 +122,10 @@ export function TrafficShieldView() {
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <Shield className="shrink-0 text-accent" size={24} />
+            <NoratLogo size={32} />
             <AdminPageTitle
-              title="Traffic Shield"
-              subtitle="Filtre bots e acessos indesejados antes das campanhas"
+              title="norat"
+              subtitle="Contra ratos — clonadores, bots e revisores"
             />
           </div>
         </div>

@@ -17,12 +17,16 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Traffic Shield",
-    template: "%s | Traffic Shield",
+    default: "norat",
+    template: "%s | norat",
   },
   description:
-    "Painel de proteção de campanhas — bloqueie bots, gerencie domínios e URLs seguras.",
+    "norat — proteção anti-ratos: bloqueie clonadores, bots e revisores nas suas campanhas.",
   robots: { index: false, follow: false },
+  icons: {
+    icon: "/norat-logo.png",
+    apple: "/norat-logo.png",
+  },
 };
 
 export default function RootLayout({

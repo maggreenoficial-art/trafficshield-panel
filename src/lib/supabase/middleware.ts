@@ -6,10 +6,15 @@ import type { Database } from "@/lib/supabase/types";
 import {
   getSupabasePublishableKey,
   getSupabaseUrl,
+  isSupabaseConfigured,
 } from "@/lib/supabase/env";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  if (!isSupabaseConfigured()) {
+    return { supabase: null, user: null, supabaseResponse };
+  }
 
   const supabase = createServerClient<Database>(
     getSupabaseUrl(),
@@ -40,9 +45,10 @@ export async function updateSession(request: NextRequest) {
 }
 
 export async function isAdminUser(
-  supabase: ReturnType<typeof createServerClient<Database>>,
+  supabase: ReturnType<typeof createServerClient<Database>> | null,
   userId: string
 ): Promise<boolean> {
+  if (!supabase || !userId) return false;
   if (hasAdminClient()) {
     const profile = await getProfileById(userId);
     return profile?.role === "admin";
