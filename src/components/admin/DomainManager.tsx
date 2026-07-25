@@ -19,6 +19,16 @@ import {
   DnsSetupModal,
   type DnsRecordInstruction,
 } from "@/components/admin/DnsSetupModal";
+import {
+  panelCardPadded,
+  panelInput,
+  panelMenu,
+  panelMenuItem,
+  panelPillBtn,
+  panelSearch,
+  panelSectionTitle,
+  panelTableWrap,
+} from "@/lib/panel-styles";
 
 export function DomainManager() {
   const [domains, setDomains] = useState<TrafficDomain[]>([]);
@@ -159,61 +169,61 @@ export function DomainManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-end gap-4">
-        <button
-          onClick={() => setShowModal(true)}
-          disabled={slots.used >= slots.limit}
-          className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-black hover:bg-accent disabled:opacity-40"
-        >
-          <Plus size={14} />
-          Adicionar domínio
-        </button>
+        <div className="landing-nav-pill rounded-full p-1">
+          <button
+            onClick={() => setShowModal(true)}
+            disabled={slots.used >= slots.limit}
+            className={`${panelPillBtn} flex items-center gap-1.5`}
+          >
+            <Plus size={14} />
+            Adicionar domínio
+          </button>
+        </div>
       </div>
 
-      <div className="border border-white/10 p-5">
+      <div className={panelCardPadded}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-[10px] tracking-widest text-muted uppercase">
-              Domain slots
-            </p>
-            <p className="mt-1 text-sm">
-              <span className="text-accent">{slots.used}</span>
-              <span className="text-muted"> de {slots.limit} slots usados</span>
+            <p className={panelSectionTitle}>Domain slots</p>
+            <p className="mt-1 text-sm text-white/70">
+              <span className="text-white/85">{slots.used}</span>
+              <span className="text-white/40"> de {slots.limit} slots usados</span>
             </p>
           </div>
-          <div className="h-2 w-48 overflow-hidden rounded-full bg-white/10">
+          <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/[0.06]">
             <div
-              className="h-full rounded-full bg-accent transition-all"
+              className="h-full rounded-full bg-white/30 transition-all"
               style={{ width: `${Math.min(100, slotPercent)}%` }}
             />
           </div>
         </div>
       </div>
 
-      <div className="rounded border border-accent/20 bg-accent/5 p-4 text-xs text-muted">
-        <strong className="text-accent">Subdomínio dedicado (padrão de cloakers):</strong>{" "}
-        crie <code className="text-white">ads.seudominio.com</code> apontando para{" "}
-        <code className="text-accent">{cnameTarget || "edge norat"}</code>. O{" "}
-        <code className="text-white">www</code> e o site principal{" "}
-        <strong className="text-white">não são alterados</strong>.
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-xs text-white/45">
+        <strong className="text-white/65">Subdomínio dedicado:</strong>{" "}
+        crie <code className="text-white/55">ads.seudominio.com</code> apontando para{" "}
+        <code className="text-white/55">{cnameTarget || "edge norat"}</code>. O{" "}
+        <code className="text-white/55">www</code> e o site principal{" "}
+        <strong className="text-white/65">não são alterados</strong>.
       </div>
 
-      <div className="flex items-center gap-3 border border-white/10 px-4 py-3">
-        <Search size={16} className="text-muted" />
+      <div className={panelSearch}>
+        <Search size={16} className="text-white/35" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar domínio..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/25"
         />
-        <button onClick={load} className="text-muted hover:text-white">
+        <button onClick={load} className="text-white/35 hover:text-white/70">
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
-      <div className="overflow-x-auto border border-white/10">
+      <div className={panelTableWrap}>
         <table className="w-full min-w-[720px] text-left text-xs">
           <thead>
-            <tr className="border-b border-white/10 bg-white/[0.02] text-muted">
+            <tr className="border-b border-white/[0.06] bg-white/[0.02] text-white/40">
               <th className="px-4 py-3 font-medium">Domínio</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium text-center">Campanhas</th>
@@ -301,30 +311,30 @@ export function DomainManager() {
                       <MoreHorizontal size={16} />
                     </button>
                     {menuOpen === domain.id && (
-                      <div className="absolute right-4 top-12 z-20 min-w-[160px] border border-white/10 bg-black py-1 shadow-xl">
+                      <div className={panelMenu}>
                         <button
                           onClick={() => openDnsModal(domain.id)}
-                          className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-white/5"
+                          className={panelMenuItem}
                         >
                           <Globe size={12} /> Configurar DNS
                         </button>
                         <button
                           onClick={() => handleValidate(domain.id)}
-                          className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-white/5"
+                          className={panelMenuItem}
                         >
                           <RefreshCw size={12} /> Validar
                         </button>
                         {!domain.isPrimary && (
                           <button
                             onClick={() => handleSetPrimary(domain.id)}
-                            className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-white/5"
+                            className={panelMenuItem}
                           >
                             ★ Tornar principal
                           </button>
                         )}
                         <button
                           onClick={() => handleDelete(domain.id)}
-                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-red-400 hover:bg-red-500/10"
+                          className={`${panelMenuItem} text-red-400/90 hover:bg-red-500/[0.06]`}
                         >
                           <Trash2 size={12} /> Excluir
                         </button>
@@ -340,9 +350,9 @@ export function DomainManager() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="w-full max-w-md border border-white/10 bg-black p-6">
-            <h3 className="text-lg font-medium">Adicionar domínio</h3>
-            <p className="mt-2 text-xs text-muted">
+          <div className={`w-full max-w-md ${panelCardPadded}`}>
+            <h3 className="text-lg font-medium text-white/85">Adicionar domínio</h3>
+            <p className="mt-2 text-xs text-white/40">
               Use um <strong className="text-white">subdomínio novo</strong> (ex:{" "}
               <code className="text-accent">ads.radario.sbs</code>). Não use o{" "}
               <code className="text-accent">www</code> do site — ele continua na
@@ -351,51 +361,51 @@ export function DomainManager() {
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+                <label className="mb-2 block text-xs text-white/40">
                   Subdomínio de campanha
                 </label>
                 <input
                   value={hostname}
                   onChange={(e) => setHostname(e.target.value)}
                   placeholder="ads.radario.sbs"
-                  className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
+                  className={panelInput}
                   autoFocus
                 />
-                <p className="mt-2 text-[10px] text-muted">
-                  DNS: registro CNAME <code className="text-accent">ads</code> →{" "}
-                  <code className="text-accent">{cnameTarget || "edge norat"}</code>
+                <p className="mt-2 text-xs text-white/35">
+                  DNS: registro CNAME <code className="text-white/55">ads</code> →{" "}
+                  <code className="text-white/55">{cnameTarget || "edge norat"}</code>
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+                <label className="mb-2 block text-xs text-white/40">
                   URL de origem (opcional)
                 </label>
                 <input
                   value={originUrl}
                   onChange={(e) => setOriginUrl(e.target.value)}
                   placeholder="https://769a4c1b.vercel-dns.com"
-                  className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
+                  className={panelInput}
                 />
-                <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                <p className="mt-2 text-xs leading-relaxed text-white/35">
                   Só necessário se quiser proxy do subdomínio para o site. No modelo
                   padrão (subdomínio dedicado) pode deixar em branco.
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+                <label className="mb-2 block text-xs text-white/40">
                   Apelido (opcional)
                 </label>
                 <input
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="Loja principal"
-                  className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
+                  className={panelInput}
                 />
               </div>
             </div>
 
-            <div className="mt-4 rounded border border-white/10 bg-white/5 p-3 text-[10px] text-muted">
-              <strong className="text-white">Como funciona:</strong>
+            <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-white/40">
+              <strong className="text-white/65">Como funciona:</strong>
               <ol className="mt-2 list-decimal space-y-1 pl-4">
                 <li>Cadastre ads.seudominio.com (subdomínio)</li>
                 <li>CNAME ads → edge norat (abaixo)</li>
@@ -403,8 +413,8 @@ export function DomainManager() {
                 <li>Valide no menu ⋯</li>
               </ol>
               {cnameTarget && (
-                <p className="mt-2 text-accent">
-                  Destino CNAME: <code>{cnameTarget}</code>
+                <p className="mt-2 text-xs text-white/55">
+                  Destino CNAME: <code className="text-white/70">{cnameTarget}</code>
                 </p>
               )}
             </div>
@@ -412,20 +422,22 @@ export function DomainManager() {
             {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
 
             <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleAdd}
-                disabled={saving || !hostname.trim()}
-                className="flex-1 rounded-full bg-white py-2.5 text-xs font-semibold text-black hover:bg-accent disabled:opacity-40"
-              >
-                {saving ? "Salvando..." : "Cadastrar domínio"}
-              </button>
+              <div className="landing-nav-pill flex-1 rounded-full p-1">
+                <button
+                  onClick={handleAdd}
+                  disabled={saving || !hostname.trim()}
+                  className={`${panelPillBtn} w-full`}
+                >
+                  {saving ? "Salvando..." : "Cadastrar domínio"}
+                </button>
+              </div>
               <button
                 onClick={() => {
                   setShowModal(false);
                   setError("");
                   setOriginUrl("");
                 }}
-                className="px-4 text-xs text-muted hover:text-white"
+                className={`${panelPillBtn} px-4`}
               >
                 Cancelar
               </button>

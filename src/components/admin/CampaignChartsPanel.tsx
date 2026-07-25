@@ -42,7 +42,7 @@ export function CampaignChartsPanel({
       </div>
 
       <div>
-        <p className="text-[10px] tracking-widest text-muted uppercase">
+        <p className="text-xs text-white/40">
           Passo 13 — Requisições em tempo real
         </p>
         <p className="mt-1 text-xs text-muted">
@@ -77,13 +77,13 @@ export function CampaignChartsPanel({
           label="Bots"
           value={formatCount(clicksBots)}
           desc="Contabilizados à parte"
-          color="text-orange-400"
+          color="text-accent"
         />
       </div>
 
       {stats && stats.hourly.length > 0 ? (
         <div>
-          <p className="mb-3 text-[10px] tracking-widest text-muted uppercase">
+          <p className="mb-3 text-xs text-white/40">
             Gráfico — últimas 24h
           </p>
           <div className="h-52">
@@ -102,8 +102,8 @@ export function CampaignChartsPanel({
                 <Area
                   type="monotone"
                   dataKey="offer"
-                  stroke="#d4a0a8"
-                  fill="#d4a0a830"
+                  stroke="var(--chart-permitted)"
+                  fill="color-mix(in srgb, var(--chart-permitted) 19%, transparent)"
                   name="Oferta"
                   stackId="1"
                 />
@@ -118,8 +118,8 @@ export function CampaignChartsPanel({
                 <Area
                   type="monotone"
                   dataKey="bots"
-                  stroke="#fb923c"
-                  fill="#fb923c30"
+                  stroke="var(--accent)"
+                  fill="color-mix(in srgb, var(--accent) 19%, transparent)"
                   name="Bots"
                   stackId="2"
                 />
@@ -128,7 +128,7 @@ export function CampaignChartsPanel({
           </div>
         </div>
       ) : (
-        <div className="rounded border border-white/10 py-12 text-center text-xs text-muted">
+        <div className="rounded border border-white/[0.06] py-12 text-center text-xs text-muted">
           Aguardando primeiras requisições da campanha ativa...
           <br />
           Publique o anúncio com a URL gerada e volte aqui para acompanhar.
@@ -154,7 +154,7 @@ function ChartStatCard({
   color?: string;
 }) {
   return (
-    <div className="border border-white/10 p-4">
+    <div className="border border-white/[0.06] p-4">
       <div className="flex items-center gap-2 text-muted">
         <Icon size={14} className={color ?? (accent ? "text-accent" : "")} />
         <p className="text-[10px] uppercase tracking-wider">{label}</p>

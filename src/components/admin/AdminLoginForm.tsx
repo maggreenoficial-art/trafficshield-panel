@@ -1,24 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowRight,
-  Bot,
-  Eye,
-  Loader2,
-  Lock,
-  Mail,
-  Radar,
-  Shield,
-} from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { NoratLogo } from "@/components/NoratLogo";
+import { cn } from "@/lib/utils";
 
-const shields = [
-  { icon: Bot, label: "Bots", status: "blocked" },
-  { icon: Eye, label: "Clonadores", status: "blocked" },
-  { icon: Radar, label: "Revisores", status: "filtered" },
-];
+const inputClass =
+  "w-full rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/15";
+
+const tabClass = (active: boolean) =>
+  cn(
+    "flex-1 rounded-full px-4 py-2 text-[13px] transition-colors",
+    active
+      ? "bg-white/[0.06] text-white"
+      : "text-white/55 hover:bg-white/[0.04] hover:text-white/80"
+  );
 
 export function AdminLoginForm() {
   const searchParams = useSearchParams();
@@ -61,7 +59,7 @@ export function AdminLoginForm() {
         return;
       }
 
-      const from = searchParams.get("from") ?? "/";
+      const from = searchParams.get("from") ?? "/painel";
       window.location.assign(from);
     } catch {
       setError("Erro de conexão. Tente novamente.");
@@ -70,215 +68,130 @@ export function AdminLoginForm() {
     }
   };
 
+  const switchMode = (next: "login" | "register") => {
+    setMode(next);
+    setError("");
+    setSuccess("");
+  };
+
   return (
-    <div className="login-shell relative min-h-screen overflow-hidden bg-[#030508] text-white">
-      <div className="login-grid pointer-events-none absolute inset-0" aria-hidden />
-      <div className="login-glow login-glow-a pointer-events-none absolute inset-0" aria-hidden />
-      <div className="login-glow login-glow-b pointer-events-none absolute inset-0" aria-hidden />
-      <div className="login-scanline pointer-events-none absolute inset-0" aria-hidden />
+    <div className="flex min-h-screen flex-col bg-black text-white">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex justify-center">
+            <Link href="/" className="flex items-center py-1">
+              <NoratLogo priority size="lg" />
+            </Link>
+          </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col lg:flex-row">
-        <section className="flex flex-1 flex-col justify-between px-6 py-8 sm:px-10 lg:px-14 lg:py-12">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-3 py-1 text-[10px] tracking-[0.2em] text-accent uppercase">
-              <span className="login-pulse h-1.5 w-1.5 rounded-full bg-accent" />
-              Sistema ativo
-            </div>
-
-            <div className="mt-10 flex items-center gap-5">
-              <div className="login-logo-ring relative shrink-0">
-                <Image
-                  src="/norat-logo.png"
-                  alt="norat"
-                  width={88}
-                  height={88}
-                  className="relative z-10 rounded-2xl object-cover"
-                  priority
-                />
-              </div>
-              <div>
-                <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-                  nor<span className="text-accent">at</span>
-                </h1>
-                <p className="mt-1 font-mono text-xs tracking-widest text-muted uppercase">
-                  anti-rat protocol
-                </p>
-              </div>
-            </div>
-
-            <p className="mt-8 max-w-md text-sm leading-relaxed text-white/70 sm:text-base">
-              Proteção de campanhas contra{" "}
-              <span className="text-accent">ratos digitais</span> — clonadores,
-              bots e revisores de anúncios.
+          <div className="mb-6 text-center">
+            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+              {mode === "login" ? "Área do cliente" : "Novo workspace"}
             </p>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-3 sm:max-w-lg">
-              {shields.map(({ icon: Icon, label, status }) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 backdrop-blur-sm"
-                >
-                  <div className="flex items-center gap-2 text-accent">
-                    <Icon size={14} />
-                    <span className="text-[10px] tracking-widest uppercase">
-                      {label}
-                    </span>
-                  </div>
-                  <p className="mt-2 font-mono text-[10px] text-green-400/90 uppercase">
-                    {status}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <h1 className="mt-2 text-xl font-medium tracking-tight text-white/85 sm:text-2xl">
+              {mode === "login" ? "Entrar no painel" : "Ativar sua conta"}
+            </h1>
+            <p className="mt-2 text-xs leading-relaxed text-white/40">
+              {mode === "login"
+                ? "Acesso exclusivo para assinantes."
+                : "Após assinar um plano, crie seu workspace aqui."}
+            </p>
           </div>
 
-          <div className="mt-10 hidden font-mono text-[10px] tracking-widest text-white/30 lg:block">
-            <p>// norat v0.1 — campaign shield</p>
-            <p className="mt-1">// encrypted admin channel</p>
-          </div>
-        </section>
-
-        <section className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-10">
-          <form
-            onSubmit={handleSubmit}
-            className="login-card w-full max-w-md rounded-2xl border border-white/10 bg-black/50 p-8 backdrop-blur-xl sm:p-10"
-          >
-            <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-muted uppercase">
-              <Shield size={12} className="text-accent" />
-              {mode === "login" ? "Acesso ao painel" : "Nova assinatura"}
-            </div>
-
-            <div className="mt-4 flex gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-1">
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:p-5">
+            <div className="landing-nav-pill mb-6 flex rounded-full p-1">
               <button
                 type="button"
-                onClick={() => {
-                  setMode("login");
-                  setError("");
-                  setSuccess("");
-                }}
-                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
-                  mode === "login"
-                    ? "bg-white text-black"
-                    : "text-muted hover:text-white"
-                }`}
+                onClick={() => switchMode("login")}
+                className={tabClass(mode === "login")}
               >
                 Entrar
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setMode("register");
-                  setError("");
-                  setSuccess("");
-                }}
-                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
-                  mode === "register"
-                    ? "bg-white text-black"
-                    : "text-muted hover:text-white"
-                }`}
+                onClick={() => switchMode("register")}
+                className={tabClass(mode === "register")}
               >
-                Criar conta
+                Assinar
               </button>
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-              {mode === "login" ? "Entrar no painel" : "Criar seu workspace"}
-            </h2>
-            <p className="mt-2 text-xs text-muted">
-              {mode === "login"
-                ? "Autentique-se para gerenciar campanhas e domínios do seu workspace."
-                : "Cada conta tem painel zerado — domínios, campanhas e configurações isolados."}
-            </p>
-
-            <div className="mt-8 space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "register" && (
                 <div>
-                  <label className="mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
-                    Nome da empresa / projeto
+                  <label className="mb-1.5 block text-xs text-white/40">
+                    Empresa / projeto
                   </label>
                   <input
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     placeholder="Minha Loja"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3.5 px-4 text-sm outline-none transition-colors placeholder:text-white/25 focus:border-accent/50"
+                    className={inputClass}
                   />
                 </div>
               )}
+
               <div>
-                <label className="mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
-                  E-mail
-                </label>
-                <div className="login-input-wrap relative">
-                  <Mail
-                    size={16}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-                  />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@seudominio.com"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3.5 pr-4 pl-11 text-sm outline-none transition-colors placeholder:text-white/25 focus:border-accent/50 focus:bg-accent/[0.03]"
-                    autoFocus
-                    required
-                  />
-                </div>
+                <label className="mb-1.5 block text-xs text-white/40">E-mail</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className={inputClass}
+                  autoFocus
+                  required
+                />
               </div>
 
               <div>
-                <label className="mb-2 block font-mono text-[10px] tracking-widest text-muted uppercase">
-                  Senha
-                </label>
-                <div className="login-input-wrap relative">
-                  <Lock
-                    size={16}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-                  />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3.5 pr-4 pl-11 text-sm outline-none transition-colors placeholder:text-white/25 focus:border-accent/50 focus:bg-accent/[0.03]"
-                    required
-                  />
-                </div>
+                <label className="mb-1.5 block text-xs text-white/40">Senha</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={inputClass}
+                  required
+                />
               </div>
-            </div>
 
-            {success && (
-              <div className="mt-4 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2.5 text-xs text-green-300">
-                {success}
+              {success && (
+                <p className="text-xs text-white/55">{success}</p>
+              )}
+
+              {error && <p className="text-xs text-red-400/90">{error}</p>}
+
+              <div className="landing-nav-pill rounded-full p-1 pt-2">
+                <button
+                  type="submit"
+                  disabled={loading || !email || !password}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <>
+                      {mode === "login" ? "Entrar" : "Ativar workspace"}
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
               </div>
-            )}
+            </form>
+          </div>
 
-            {error && (
-              <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-300">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !email || !password}
-              className="login-submit mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold text-black transition-all disabled:cursor-not-allowed disabled:opacity-40"
+          <p className="mt-6 text-center text-xs text-white/35">
+            Ainda não assinou?{" "}
+            <Link
+              href="/#planos"
+              className="text-white/55 transition-colors hover:text-white/80"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" size={18} />
-              ) : (
-                <>
-                  {mode === "login" ? "Iniciar sessão" : "Criar conta"}
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-
-            <p className="mt-6 text-center font-mono text-[10px] tracking-wider text-white/25">
-              TLS · sessão criptografada · norat shield
-            </p>
-          </form>
-        </section>
+              Ver planos
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

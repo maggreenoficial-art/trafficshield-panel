@@ -9,19 +9,28 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.8",
+    "dotted-map": "^3.1.0",
+    "face-api.js": "^0.22.2",
+    "gsap": "^3.15.0",
     "lucide-react": "^1.25.0",
+    "motion": "^12.42.2",
     "next": "16.2.11",
+    "postprocessing": "^6.39.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.10.0"
+    "react-icons": "^5.7.0",
+    "recharts": "^3.10.0",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "tailwindcss": "^4",

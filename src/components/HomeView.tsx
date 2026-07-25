@@ -10,12 +10,14 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import type {
   TrafficShieldConfig,
   TrafficShieldStats,
 } from "@/lib/traffic-shield/types";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
+import { NoratGlassIcon } from "@/components/react-bits";
 
 export function HomeView() {
   const [config, setConfig] = useState<TrafficShieldConfig | null>(null);
@@ -81,24 +83,28 @@ export function HomeView() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={enabled ? ShieldCheck : ShieldAlert}
+          color={enabled ? "green" : "red"}
           label="Status"
           value={enabled ? "Ativo" : "Desativado"}
           hint={mode === "protect" ? "Modo proteção" : "Modo monitoramento"}
         />
         <StatCard
           icon={Globe}
+          color="blue"
           label="Requisições 24h"
           value={String(stats?.total24h ?? 0)}
           hint="Total analisado"
         />
         <StatCard
           icon={Shield}
+          color="orange"
           label="Permitidos"
           value={String(stats?.allowed24h ?? 0)}
           hint="Tráfego humano"
         />
         <StatCard
           icon={Bot}
+          color="purple"
           label="Bloqueados"
           value={String(stats?.blocked24h ?? 0)}
           hint="Bots e suspeitos"
@@ -127,20 +133,22 @@ export function HomeView() {
 }
 
 function StatCard({
-  icon: Icon,
+  icon,
+  color = "accent",
   label,
   value,
   hint,
 }: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
+  color?: string;
   label: string;
   value: string;
   hint: string;
 }) {
   return (
     <div className="rounded-xl border border-white/10 p-5">
-      <div className="flex items-center gap-2 text-muted">
-        <Icon size={16} className="text-accent" />
+      <div className="flex items-center gap-3 text-muted">
+        <NoratGlassIcon icon={icon} color={color} size="sm" />
         <span className="text-xs tracking-widest uppercase">{label}</span>
       </div>
       <p className="mt-3 text-2xl font-semibold">{value}</p>

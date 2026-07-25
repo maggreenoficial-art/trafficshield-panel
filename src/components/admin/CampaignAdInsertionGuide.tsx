@@ -24,9 +24,9 @@ export function CampaignAdInsertionGuide({
     : `${campaignUrl}?seu_param=valor`;
 
   return (
-    <div className="space-y-4 rounded border border-white/10 bg-white/[0.02] p-4">
+    <div className="space-y-4 rounded border border-white/[0.06] bg-white/[0.02] p-4">
       <div>
-        <p className="text-[10px] tracking-widest text-accent uppercase">
+        <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
           Passo 12 — Inserir nos anúncios
         </p>
         <p className="mt-1 text-xs text-muted">
@@ -68,7 +68,7 @@ export function CampaignAdInsertionGuide({
         </div>
       )}
 
-      <div className="border-t border-white/10 pt-3 text-[10px] text-muted">
+      <div className="border-t border-white/[0.06] pt-3 text-[10px] text-muted">
         <p>
           <strong className="text-white">URL PARAMS ≠ página de oferta.</strong>{" "}
           Eles validam o clique (token <code className="text-accent">vp_t</code>,{" "}

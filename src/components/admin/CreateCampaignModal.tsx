@@ -20,20 +20,45 @@ import {
   isValidCustomSlug,
   normalizeCustomSlug,
   OFFER_TYPE_OPTIONS,
-  SAFE_PAGE_SUGGESTIONS,
   TRAFFIC_SOURCES,
 } from "@/lib/traffic-shield/campaign-types";
 import { CampaignUrlDeliverables } from "@/components/admin/CampaignUrlDeliverables";
 import { CampaignAdInsertionGuide } from "@/components/admin/CampaignAdInsertionGuide";
-import type { SiteCampaignDomain } from "@/lib/traffic-shield/site-domain";
+import { getRootDomainFromHostname } from "@/lib/traffic-shield/campaign-hostname";
+
+function getWwwSiteOrigin(campaignHostname: string): string {
+  const root = getRootDomainFromHostname(campaignHostname);
+  return `https://www.${root}`;
+}
+
+function buildSafePageSuggestions(campaignHostname: string) {
+  const base = getWwwSiteOrigin(campaignHostname);
+  return [
+    {
+      url: `${base}/territorios`,
+      label: "Página segura",
+      desc: "Conteúdo neutro para revisores e bots",
+    },
+    {
+      url: base,
+      label: "Home do site",
+      desc: "Página inicial da sua loja ou site",
+    },
+    {
+      url: `${base}/sobre`,
+      label: "Institucional",
+      desc: "Conteúdo educativo sem oferta direta",
+    },
+  ];
+}
 
 const emptyForm: CreateCampaignInput = {
   name: "",
-  useSiteDomain: true,
+  useSiteDomain: false,
   trafficSource: "meta",
   allowedCountries: [],
   allowedDevices: [],
-  safePageUrl: "/bem-estar",
+  safePageUrl: "",
   offerPageUrl: "",
   safeDeliveryMethod: "redirect",
   offerDeliveryMethod: "redirect",
@@ -46,7 +71,6 @@ type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface CreateCampaignModalProps {
   domains: TrafficDomain[];
-  siteDomain: SiteCampaignDomain | null;
   onClose: () => void;
   onCreated: (
     campaignId: string,
@@ -58,7 +82,6 @@ interface CreateCampaignModalProps {
 
 export function CreateCampaignModal({
   domains,
-  siteDomain: siteDomainProp,
   onClose,
   onCreated,
 }: CreateCampaignModalProps) {
@@ -66,27 +89,6 @@ export function CreateCampaignModal({
     () => domains.filter((d) => d.status === "valid"),
     [domains]
   );
-
-  const [clientSiteHostname, setClientSiteHostname] = useState<string | null>(
-    null
-  );
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setClientSiteHostname(window.location.hostname);
-    }
-  }, []);
-
-  const siteDomain: SiteCampaignDomain | null =
-    siteDomainProp ??
-    (clientSiteHostname
-      ? {
-          hostname: clientSiteHostname,
-          label: "Domínio da loja (hospedagem atual)",
-        }
-      : null);
-
-  const [domainMode, setDomainMode] = useState<"site" | "custom">("site");
 
   const [step, setStep] = useState<WizardStep>(1);
   const [form, setForm] = useState<CreateCampaignInput>(emptyForm);
@@ -104,17 +106,13 @@ export function CreateCampaignModal({
   } | null>(null);
 
   useEffect(() => {
-    if (domainMode !== "custom") return;
     const primary =
       validDomains.find((d) => d.isPrimary) ?? validDomains[0];
-    if (primary) {
-      setForm((prev) => ({
-        ...prev,
-        useSiteDomain: false,
-        domainId: primary.id,
-      }));
-    }
-  }, [validDomains, domainMode]);
+    if (!primary) return;
+    setForm((prev) =>
+      prev.domainId ? prev : { ...prev, domainId: primary.id, useSiteDomain: false }
+    );
+  }, [validDomains]);
 
   const stepMeta: Record<WizardStep, { label: string; title: string }> = {
     1: { label: "4", title: "Nova campanha" },
@@ -125,14 +123,14 @@ export function CreateCampaignModal({
     6: { label: "10", title: "Custom Path" },
   };
 
-  const selectedDomain =
-    domainMode === "custom"
-      ? validDomains.find((d) => d.id === form.domainId)
-      : null;
-  const previewHostname =
-    domainMode === "site"
-      ? siteDomain?.hostname
-      : selectedDomain?.hostname;
+  const selectedDomain = validDomains.find((d) => d.id === form.domainId);
+  const siteOrigin = selectedDomain
+    ? getWwwSiteOrigin(selectedDomain.hostname)
+    : null;
+  const safePageSuggestions = selectedDomain
+    ? buildSafePageSuggestions(selectedDomain.hostname)
+    : [];
+  const previewHostname = selectedDomain?.hostname;
   const previewSlug =
     form.customPathEnabled && form.customSlug?.trim()
       ? normalizeCustomSlug(form.customSlug)
@@ -142,14 +140,12 @@ export function CreateCampaignModal({
     : `https://seu-dominio.com/c/${previewSlug || "sua-slug"}`;
   const sourceDefaults = getDefaultDeliveryMethodsForSource(form.trafficSource);
 
-  const hasDomainSelected =
-    domainMode === "site"
-      ? Boolean(siteDomain?.hostname)
-      : Boolean(form.domainId);
+  const hasDomainSelected = Boolean(form.domainId);
 
   const canContinueStep1 =
     form.name.trim().length > 0 &&
     hasDomainSelected &&
+    validDomains.length > 0 &&
     Boolean(form.trafficSource);
 
   const canContinueSafePage = form.safePageUrl.trim().length > 0;
@@ -170,7 +166,11 @@ export function CreateCampaignModal({
   const handleContinueFromBasic = () => {
     setError("");
     if (!canContinueStep1) {
-      setError("Preencha nome, domínio e fonte de tráfego.");
+      setError(
+        validDomains.length === 0
+          ? "Cadastre e valide um domínio em Domínios antes de criar campanhas."
+          : "Preencha nome, domínio e fonte de tráfego."
+      );
       return;
     }
     setStep(2);
@@ -223,8 +223,8 @@ export function CreateCampaignModal({
     setSaving(true);
     const payload: CreateCampaignInput = {
       ...form,
-      useSiteDomain: domainMode === "site",
-      domainId: domainMode === "site" ? undefined : form.domainId,
+      useSiteDomain: false,
+      domainId: form.domainId,
       allowedDevices: allowedDevicesFromSelection(deviceSelection),
       allowedCountries: allowedCountriesFromSelection(countrySelection),
       offerDeliveryMethod: isExternalOffer
@@ -269,8 +269,8 @@ export function CreateCampaignModal({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
         <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-green-500/30 bg-black">
-          <div className="border-b border-white/10 px-6 py-5">
-            <p className="text-[10px] tracking-widest text-accent uppercase">
+          <div className="border-b border-white/[0.06] px-6 py-5">
+            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
               Passos 11 e 12
             </p>
             <div className="mt-2 flex items-center gap-2">
@@ -306,7 +306,7 @@ export function CreateCampaignModal({
             <button
               type="button"
               onClick={handleFinish}
-              className="mt-6 w-full rounded-full bg-white py-2.5 text-xs font-semibold text-black hover:bg-accent"
+              className="mt-6 w-full panel-pill-btn w-full"
             >
               Concluir e ver Charts
             </button>
@@ -318,10 +318,10 @@ export function CreateCampaignModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className={`max-h-[90vh] w-full overflow-y-auto border border-white/10 bg-black ${step === 5 ? "max-w-3xl" : "max-w-2xl"}`}>
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-white/[0.06] bg-black/95 backdrop-blur-md ${step === 5 ? "max-w-3xl" : "max-w-2xl"}`}>
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
           <div>
-            <p className="text-[10px] tracking-widest text-accent uppercase">
+            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
               Passo {stepMeta[step].label} de 11
             </p>
             <h3 className="mt-1 text-lg font-medium">{stepMeta[step].title}</h3>
@@ -338,7 +338,7 @@ export function CreateCampaignModal({
         {step === 1 && (
           <div className="p-6">
             <section>
-              <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+              <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                 Informações básicas
               </h4>
               <p className="mt-1 text-xs text-muted">
@@ -357,122 +357,70 @@ export function CreateCampaignModal({
                 />
 
                 <div>
-                  <label className="mb-1 block text-[10px] tracking-widest text-muted uppercase">
-                    Domínio
+                  <label className="mb-1 block text-xs text-white/40">
+                    Domínio da campanha
                   </label>
                   <p className="mb-2 text-[10px] text-muted">
-                    Use o domínio fixo da loja (padrão) ou um domínio de campanha
-                    isolada com CNAME validado
+                    Escolha um domínio validado com CNAME — é nele que o link do
+                    anúncio será hospedado (ex:{" "}
+                    <code className="text-accent">ads.seudominio.com</code>).
                   </p>
 
                   <div className="space-y-2">
-                    {siteDomain ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDomainMode("site");
-                          setForm((prev) => ({
-                            ...prev,
-                            useSiteDomain: true,
-                            domainId: undefined,
-                          }));
-                        }}
-                        className={`flex w-full items-center gap-3 border px-4 py-3 text-left transition-colors ${
-                          domainMode === "site"
-                            ? "border-accent bg-accent/10"
-                            : "border-white/10 hover:border-white/20"
-                        }`}
-                      >
-                        <Globe
-                          size={16}
-                          className={
-                            domainMode === "site" ? "text-accent" : "text-muted"
+                    {validDomains.length > 0 ? (
+                      validDomains.map((domain) => (
+                        <button
+                          key={domain.id}
+                          type="button"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              useSiteDomain: false,
+                              domainId: domain.id,
+                            })
                           }
-                        />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {siteDomain.hostname}
-                          </p>
-                          <p className="text-[10px] text-muted">
-                            {siteDomain.label} — sem CNAME, já hospedado
-                          </p>
-                        </div>
-                        <span className="ml-auto text-[10px] text-accent">
-                          Padrão
-                        </span>
-                      </button>
+                          className={`flex w-full items-center gap-3 border px-4 py-3 text-left transition-colors ${
+                            form.domainId === domain.id
+                              ? "border-white/15 bg-white/[0.06]"
+                              : "border-white/[0.06] hover:border-white/20"
+                          }`}
+                        >
+                          <Globe
+                            size={16}
+                            className={
+                              form.domainId === domain.id
+                                ? "text-accent"
+                                : "text-muted"
+                            }
+                          />
+                          <div>
+                            <p className="text-sm font-medium">
+                              {domain.hostname}
+                            </p>
+                            {domain.label && (
+                              <p className="text-[10px] text-muted">
+                                {domain.label}
+                              </p>
+                            )}
+                          </div>
+                          {domain.isPrimary && (
+                            <span className="ml-auto text-[10px] text-muted">
+                              Principal
+                            </span>
+                          )}
+                        </button>
+                      ))
                     ) : (
                       <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-4 text-xs text-yellow-300/90">
-                        Domínio da loja não detectado. Defina{" "}
-                        <strong>NEXT_PUBLIC_SITE_URL</strong> no ambiente ou
-                        acesse o painel pelo domínio da loja.
+                        Nenhum domínio validado. Cadastre e valide um domínio no
+                        menu <strong>Domínios</strong> antes de criar campanhas.
                       </div>
-                    )}
-
-                    {validDomains.length > 0 && (
-                      <>
-                        <p className="pt-2 text-[10px] tracking-widest text-muted uppercase">
-                          Domínios de campanha (CNAME)
-                        </p>
-                        {validDomains.map((domain) => (
-                          <button
-                            key={domain.id}
-                            type="button"
-                            onClick={() => {
-                              setDomainMode("custom");
-                              setForm({
-                                ...form,
-                                useSiteDomain: false,
-                                domainId: domain.id,
-                              });
-                            }}
-                            className={`flex w-full items-center gap-3 border px-4 py-3 text-left transition-colors ${
-                              domainMode === "custom" &&
-                              form.domainId === domain.id
-                                ? "border-accent bg-accent/10"
-                                : "border-white/10 hover:border-white/20"
-                            }`}
-                          >
-                            <Globe
-                              size={16}
-                              className={
-                                domainMode === "custom" &&
-                                form.domainId === domain.id
-                                  ? "text-accent"
-                                  : "text-muted"
-                              }
-                            />
-                            <div>
-                              <p className="text-sm font-medium">
-                                {domain.hostname}
-                              </p>
-                              {domain.label && (
-                                <p className="text-[10px] text-muted">
-                                  {domain.label}
-                                </p>
-                              )}
-                            </div>
-                            {domain.isPrimary && (
-                              <span className="ml-auto text-[10px] text-muted">
-                                Principal
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </>
-                    )}
-
-                    {validDomains.length === 0 && siteDomain && (
-                      <p className="text-[10px] text-muted">
-                        Para campanhas isoladas em outro domínio, cadastre e
-                        valide na aba <strong>Domínios</strong>.
-                      </p>
                     )}
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[10px] tracking-widest text-muted uppercase">
+                  <label className="mb-1 block text-xs text-white/40">
                     Fonte de tráfego
                   </label>
                   <p className="mb-3 text-[10px] text-muted">
@@ -496,8 +444,8 @@ export function CreateCampaignModal({
                         }}
                         className={`flex items-center gap-3 border px-4 py-3 text-left transition-colors ${
                           form.trafficSource === source.id
-                            ? "border-accent bg-accent/10"
-                            : "border-white/10 hover:border-white/20"
+                            ? "border-white/15 bg-white/[0.06]"
+                            : "border-white/[0.06] hover:border-white/20"
                         }`}
                       >
                         <span
@@ -533,7 +481,7 @@ export function CreateCampaignModal({
         {step === 2 && (
           <div className="p-6">
             <section>
-              <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+              <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                 Segmentação de público
               </h4>
               <p className="mt-1 text-xs text-muted">
@@ -576,7 +524,7 @@ export function CreateCampaignModal({
                 </SelectField>
               </div>
 
-              <div className="mt-5 rounded border border-white/10 bg-white/[0.02] p-4 text-[10px] text-muted">
+              <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
                 <strong className="text-white">Resumo da segmentação:</strong>
                 <ul className="mt-2 space-y-1">
                   <li>
@@ -617,14 +565,22 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <Shield size={16} className="text-green-400" />
-                <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                   Página segura
                 </h4>
               </div>
               <p className="mt-2 text-xs text-muted">
                 Cole em <strong className="text-white">URL da página segura</strong>{" "}
                 o endereço exibido para acessos indesejados — bots, ferramentas de
-                espionagem e concorrentes.
+                espionagem e concorrentes. Use o site real vinculado ao domínio da
+                campanha
+                {siteOrigin ? (
+                  <>
+                    {" "}
+                    (<code className="text-accent">{siteOrigin}</code>)
+                  </>
+                ) : null}
+                .
               </p>
 
               <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-4 text-[10px] leading-relaxed text-muted">
@@ -644,28 +600,36 @@ export function CreateCampaignModal({
               <div className="mt-6">
                 <Field
                   label="URL da página segura"
-                  hint="Caminho interno (ex: /bem-estar) ou URL completa"
+                  hint={
+                    siteOrigin
+                      ? `URL completa no site real (ex: ${siteOrigin}/territorios)`
+                      : "URL completa no site real da sua loja"
+                  }
                   value={form.safePageUrl}
                   onChange={(v) => setForm({ ...form, safePageUrl: v })}
-                  placeholder="https://seudominio.com/bem-estar"
+                  placeholder={
+                    siteOrigin
+                      ? `${siteOrigin}/territorios`
+                      : "https://www.seudominio.com/territorios"
+                  }
                   autoFocus
                 />
               </div>
 
               <div className="mt-4">
-                <p className="mb-2 text-[10px] tracking-widest text-muted uppercase">
+                <p className="mb-2 text-xs text-white/40">
                   Sugestões compatíveis
                 </p>
                 <div className="space-y-2">
-                  {SAFE_PAGE_SUGGESTIONS.map((s) => (
+                  {safePageSuggestions.map((s) => (
                     <button
-                      key={s.path}
+                      key={s.url}
                       type="button"
-                      onClick={() => setForm({ ...form, safePageUrl: s.path })}
+                      onClick={() => setForm({ ...form, safePageUrl: s.url })}
                       className={`flex w-full items-start justify-between gap-3 border px-4 py-3 text-left transition-colors ${
-                        form.safePageUrl === s.path
-                          ? "border-accent bg-accent/10"
-                          : "border-white/10 hover:border-white/20"
+                        form.safePageUrl === s.url
+                          ? "border-white/15 bg-white/[0.06]"
+                          : "border-white/[0.06] hover:border-white/20"
                       }`}
                     >
                       <div>
@@ -673,7 +637,7 @@ export function CreateCampaignModal({
                         <p className="text-[10px] text-muted">{s.desc}</p>
                       </div>
                       <code className="shrink-0 text-[10px] text-accent">
-                        {s.path}
+                        {s.url}
                       </code>
                     </button>
                   ))}
@@ -698,7 +662,7 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <ExternalLink size={16} className="text-accent" />
-                <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                   Página de oferta
                 </h4>
               </div>
@@ -710,7 +674,7 @@ export function CreateCampaignModal({
                 <strong className="text-white">domínio real da oferta</strong>.
               </p>
 
-              <div className="mt-4 rounded border border-accent/20 bg-accent/5 p-4 text-[10px] leading-relaxed text-muted">
+              <div className="mt-4 rounded border border-accent/20 bg-white/[0.03] p-4 text-[10px] leading-relaxed text-muted">
                 <strong className="text-accent">Isolamento recomendado:</strong>
                 <ul className="mt-2 list-disc space-y-1.5 pl-4">
                   <li>
@@ -733,7 +697,7 @@ export function CreateCampaignModal({
               </div>
 
               <div className="mt-6">
-                <label className="mb-1 block text-[10px] tracking-widest text-muted uppercase">
+                <label className="mb-1 block text-xs text-white/40">
                   Tipo de oferta
                 </label>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -745,8 +709,8 @@ export function CreateCampaignModal({
                       onClick={() => setOfferType(t.id)}
                       className={`rounded-full border px-4 py-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         offerType === t.id
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-white/10 text-muted hover:border-white/20"
+                          ? "border-white/15 bg-white/[0.06] text-white/75"
+                          : "border-white/[0.06] text-muted hover:border-white/20"
                       }`}
                     >
                       {t.label}
@@ -758,16 +722,20 @@ export function CreateCampaignModal({
               <div className="mt-6">
                 <Field
                   label="URL da página de oferta"
-                  hint="URL completa do domínio real da oferta ou caminho interno (/loja)"
+                  hint="URL completa do domínio real da oferta"
                   value={form.offerPageUrl}
                   onChange={(v) => setForm({ ...form, offerPageUrl: v })}
-                  placeholder="https://oferta.seudominio.com/pagina"
+                  placeholder={
+                    siteOrigin
+                      ? `https://oferta.${getRootDomainFromHostname(selectedDomain?.hostname ?? "")}`
+                      : "https://oferta.seudominio.com/pagina"
+                  }
                   autoFocus
                 />
               </div>
 
               <div className="mt-4 space-y-2">
-                <p className="text-[10px] tracking-widest text-muted uppercase">
+                <p className="text-xs text-white/40">
                   Exemplos
                 </p>
                 <button
@@ -775,29 +743,37 @@ export function CreateCampaignModal({
                   onClick={() =>
                     setForm({
                       ...form,
-                      offerPageUrl: "https://oferta.seudominio.com",
+                      offerPageUrl: siteOrigin
+                        ? `https://oferta.${getRootDomainFromHostname(selectedDomain?.hostname ?? "")}`
+                        : "https://oferta.seudominio.com",
                     })
                   }
-                  className="flex w-full items-center justify-between border border-white/10 px-4 py-3 text-left hover:border-white/20"
+                  className="flex w-full items-center justify-between border border-white/[0.06] px-4 py-3 text-left hover:border-white/20"
                 >
-                  <span className="text-sm">Domínio externo isolado</span>
+                  <span className="text-sm">Subdomínio isolado da oferta</span>
                   <code className="text-[10px] text-accent">
-                    https://oferta.seudominio.com
+                    {siteOrigin
+                      ? `https://oferta.${getRootDomainFromHostname(selectedDomain?.hostname ?? "")}`
+                      : "https://oferta.seudominio.com"}
                   </code>
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      offerPageUrl: "/loja",
-                    })
-                  }
-                  className="flex w-full items-center justify-between border border-white/10 px-4 py-3 text-left hover:border-white/20"
-                >
-                  <span className="text-sm">Página interna (mirror)</span>
-                  <code className="text-[10px] text-accent">/loja</code>
-                </button>
+                {siteOrigin && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        offerPageUrl: `${siteOrigin}/oferta`,
+                      })
+                    }
+                    className="flex w-full items-center justify-between border border-white/[0.06] px-4 py-3 text-left hover:border-white/20"
+                  >
+                    <span className="text-sm">Página no site principal</span>
+                    <code className="text-[10px] text-accent">
+                      {siteOrigin}/oferta
+                    </code>
+                  </button>
+                )}
               </div>
             </section>
 
@@ -818,7 +794,7 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <Settings2 size={16} className="text-accent" />
-                <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                   Método de entrega
                 </h4>
               </div>
@@ -828,10 +804,10 @@ export function CreateCampaignModal({
                 cada página.
               </p>
 
-              <div className="mt-5 overflow-x-auto border border-white/10">
+              <div className="mt-5 overflow-x-auto border border-white/[0.06]">
                 <table className="w-full min-w-[560px] text-left text-[10px]">
                   <thead>
-                    <tr className="border-b border-white/10 bg-white/[0.02] text-muted">
+                    <tr className="border-b border-white/[0.06] bg-white/[0.02] text-muted">
                       <th className="px-3 py-2.5 font-medium">Método</th>
                       <th className="px-3 py-2.5 font-medium">Como funciona</th>
                       <th className="px-3 py-2.5 font-medium">Quando usar</th>
@@ -896,7 +872,7 @@ export function CreateCampaignModal({
                 )}
               </div>
 
-              <div className="mt-4 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
+              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-[10px] text-muted">
                 <strong className="text-white">Padrão para{" "}
                 {TRAFFIC_SOURCES.find((s) => s.id === form.trafficSource)
                   ?.shortLabel ?? form.trafficSource}:</strong>{" "}
@@ -932,7 +908,7 @@ export function CreateCampaignModal({
                 </button>
               </div>
 
-              <div className="mt-6 border-t border-white/10 pt-5">
+              <div className="mt-6 border-t border-white/[0.06] pt-5">
                 <ToggleRow
                   label="Enable Unique Token"
                   hint="Cada campanha recebe automaticamente um parâmetro de rastreamento único na URL."
@@ -958,7 +934,7 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <GitBranch size={16} className="text-accent" />
-                <h4 className="text-xs font-semibold tracking-widest text-white uppercase">
+                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
                   Custom Path
                 </h4>
                 <span className="rounded bg-white/10 px-2 py-0.5 text-[8px] text-muted">
@@ -972,7 +948,7 @@ export function CreateCampaignModal({
                 o sistema gera uma slug aleatória automaticamente.
               </p>
 
-              <div className="mt-4 rounded border border-white/10 bg-white/[0.02] p-4 text-[10px] text-muted">
+              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
                 É apenas <strong className="text-white">cosmético</strong> — não
                 afeta a lógica de filtragem, segmentação ou entrega da campanha.
               </div>
@@ -1011,8 +987,8 @@ export function CreateCampaignModal({
                     placeholder="vsl-01"
                     autoFocus
                   />
-                  <div className="rounded border border-accent/20 bg-accent/5 p-4">
-                    <p className="text-[10px] tracking-widest text-muted uppercase">
+                  <div className="rounded border border-accent/20 bg-white/[0.03] p-4">
+                    <p className="text-xs text-white/40">
                       Preview da URL
                     </p>
                     <p className="mt-2 break-all font-mono text-xs text-accent">
@@ -1021,7 +997,7 @@ export function CreateCampaignModal({
                   </div>
                 </div>
               ) : (
-                <div className="mt-5 rounded border border-white/10 bg-white/[0.02] p-4 text-[10px] text-muted">
+                <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
                   <strong className="text-white">Slug automática:</strong> ao salvar,
                   será gerada algo como{" "}
                   <code className="text-accent">facebook-lancamento-x7k2m9</code>{" "}
@@ -1041,7 +1017,7 @@ export function CreateCampaignModal({
                         customSlug: suggestion,
                       })
                     }
-                    className="rounded-full border border-white/10 px-3 py-1 text-[10px] text-muted hover:border-accent hover:text-accent"
+                    className="rounded-full border border-white/[0.06] px-3 py-1 text-[10px] text-muted hover:border-accent hover:text-accent"
                   >
                     /{suggestion}
                   </button>
@@ -1083,7 +1059,7 @@ function DeliveryMethodPicker({
 }) {
   return (
     <div>
-      <p className="text-[10px] tracking-widest text-muted uppercase">{title}</p>
+      <p className="text-xs text-white/40">{title}</p>
       <p className="mt-0.5 truncate text-[10px] text-accent">{subtitle}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {methods.map((m) => {
@@ -1096,8 +1072,8 @@ function DeliveryMethodPicker({
               onClick={() => onSelect(m.id)}
               className={`rounded-full border px-4 py-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 selected === m.id
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-white/10 text-muted hover:border-white/20"
+                  ? "border-white/15 bg-white/[0.06] text-white/75"
+                  : "border-white/[0.06] text-muted hover:border-white/20"
               }`}
             >
               {m.label}
@@ -1142,7 +1118,7 @@ function WizardActions({
         type="button"
         onClick={onPrimary}
         disabled={primaryDisabled || primaryLoading}
-        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white py-2.5 text-xs font-semibold text-black hover:bg-accent disabled:opacity-40"
+        className="flex flex-1 items-center justify-center gap-2 panel-pill-btn w-full disabled:opacity-40"
       >
         {primaryLoading && <Loader2 size={14} className="animate-spin" />}
         {primaryLabel}
@@ -1176,14 +1152,14 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[10px] tracking-widest text-muted uppercase">
+      <label className="mb-1 block text-xs text-white/40">
         {label}
       </label>
       {hint && <p className="mb-2 text-[10px] text-muted">{hint}</p>}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-white/10 bg-black px-3 py-2.5 text-sm outline-none focus:border-accent"
+        className="w-full border border-white/[0.06] bg-black px-3 py-2.5 text-sm outline-none focus:border-accent"
       >
         {children}
       </select>
@@ -1244,7 +1220,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[10px] tracking-widest text-muted uppercase">
+      <label className="mb-1 block text-xs text-white/40">
         {label}
       </label>
       {hint && <p className="mb-2 text-[10px] text-muted">{hint}</p>}
@@ -1253,7 +1229,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="w-full border-b border-white/20 bg-transparent py-2.5 text-sm outline-none focus:border-accent"
+        className="panel-input"
       />
     </div>
   );

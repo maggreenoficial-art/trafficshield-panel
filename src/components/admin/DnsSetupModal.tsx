@@ -29,15 +29,15 @@ function CopyField({ label, value }: { label: string; value: string }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-white/10 py-3 last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] py-3 last:border-0">
       <div>
-        <p className="text-[10px] tracking-widest text-muted uppercase">{label}</p>
+        <p className="text-xs text-white/40">{label}</p>
         <p className="mt-1 font-mono text-sm text-accent">{value}</p>
       </div>
       <button
         type="button"
         onClick={copy}
-        className="flex shrink-0 items-center gap-1 rounded border border-white/10 px-2.5 py-1.5 text-[10px] text-muted hover:border-accent hover:text-white"
+        className="flex shrink-0 items-center gap-1 rounded border border-white/[0.06] px-2.5 py-1.5 text-[10px] text-muted hover:border-accent hover:text-white"
       >
         {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
         {copied ? "Copiado" : "Copiar"}
@@ -56,8 +56,8 @@ export function DnsSetupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-white/10 bg-black p-6">
-        <p className="text-[10px] tracking-widest text-accent uppercase">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-white/[0.06] bg-black p-6">
+        <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
           Passo 2 de 4 — DNS
         </p>
         <h3 className="mt-2 text-lg font-medium">CNAME do subdomínio de campanha</h3>
@@ -82,14 +82,14 @@ export function DnsSetupModal({
           </p>
         </div>
 
-        <div className="mt-6 border border-white/10 bg-white/[0.02] px-4">
+        <div className="mt-6 border border-white/[0.06] bg-white/[0.02] px-4">
           <CopyField label="Tipo" value={instructions.type} />
           <CopyField label="Nome (subdomínio)" value={instructions.name} />
           <CopyField label="Destino (edge norat)" value={instructions.target} />
           <CopyField label="TTL" value={instructions.ttl} />
         </div>
 
-        <div className="mt-4 rounded border border-white/10 bg-white/[0.02] p-3 text-[10px] text-muted">
+        <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-[10px] text-muted">
           <p>
             <strong className="text-white">Edge norat:</strong>{" "}
             <code className="text-accent">{instructions.target}</code>
@@ -119,7 +119,7 @@ export function DnsSetupModal({
             <button
               type="button"
               onClick={onValidate}
-              className="flex-1 rounded-full bg-white py-2.5 text-xs font-semibold text-black hover:bg-accent"
+              className="flex-1 panel-pill-btn w-full"
             >
               Validar DNS agora
             </button>

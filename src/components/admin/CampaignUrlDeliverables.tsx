@@ -52,9 +52,9 @@ export function CampaignUrlDeliverables({
             Não altere, remova nem reordene os parâmetros.
           </div>
 
-          <div className="rounded border border-white/10 bg-white/[0.02] p-4">
+          <div className="rounded border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] tracking-widest text-muted uppercase">
+              <p className="text-xs text-white/40">
                 URL completa (referência)
               </p>
               <button
@@ -96,7 +96,7 @@ function CopyField({
   disabled?: boolean;
 }) {
   return (
-    <div className="rounded border border-white/10 bg-white/[0.02] p-4">
+    <div className="rounded border border-white/[0.06] bg-white/[0.02] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold tracking-widest text-white uppercase">

@@ -22,7 +22,6 @@ export const metadata: Metadata = {
   },
   description:
     "norat — proteção anti-ratos: bloqueie clonadores, bots e revisores nas suas campanhas.",
-  robots: { index: false, follow: false },
   icons: {
     icon: "/norat-logo.png",
     apple: "/norat-logo.png",

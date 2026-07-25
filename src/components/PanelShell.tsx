@@ -10,33 +10,33 @@ import {
 } from "lucide-react";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
 import { NoratLogo } from "@/components/NoratLogo";
+import { panelNavItem } from "@/lib/panel-styles";
 import { logoutPanel } from "@/lib/auth-logout";
+import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/", label: "Início", icon: LayoutDashboard, exact: true },
+  { href: "/painel", label: "Início", icon: LayoutDashboard, exact: true },
   { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
   { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
 ] as const;
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isLogin = pathname === "/login";
+  const isStandalone =
+    pathname === "/" || pathname === "/login";
 
-  if (isLogin) {
-    return <div className="min-h-screen bg-black text-white">{children}</div>;
+  if (isStandalone) {
+    return <>{children}</>;
   }
 
   return (
     <div className="flex min-h-screen bg-black text-white">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-white/10 p-6 lg:flex">
-        <Link href="/" className="flex items-center gap-2">
-          <NoratLogo size={28} showWordmark wordmarkClassName="text-base" />
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 shrink-0 flex-col border-r border-white/[0.06] bg-black p-5 lg:flex">
+        <Link href="/painel" className="block py-1">
+          <NoratLogo priority size="md" />
         </Link>
-        <p className="mt-1 text-[10px] tracking-widest text-muted uppercase">
-          Contra ratos digitais
-        </p>
 
-        <nav className="mt-10 space-y-1">
+        <nav className="landing-nav-pill mt-8 flex flex-col gap-0.5 rounded-2xl p-1.5">
           {nav.map((item) => {
             const Icon = item.icon;
             const active = item.exact
@@ -46,13 +46,16 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded px-3 py-2 text-sm transition-colors ${
-                  active
-                    ? "bg-accent/10 text-accent"
-                    : "text-muted hover:text-white"
-                }`}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-full px-3 py-2 text-[13px] transition-colors",
+                  panelNavItem(active)
+                )}
               >
-                <Icon size={16} />
+                <Icon
+                  size={15}
+                  strokeWidth={1.75}
+                  className={active ? "text-white/70" : "text-white/35"}
+                />
                 {item.label}
               </Link>
             );
@@ -61,27 +64,25 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => logoutPanel()}
-            className="mt-2 flex w-full items-center gap-3 rounded px-3 py-2 text-sm text-muted transition-colors hover:text-red-400"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-[13px] text-white/40 transition-colors hover:bg-red-500/[0.06] hover:text-red-400/90"
           >
-            <LogOut size={16} />
+            <LogOut size={15} strokeWidth={1.75} />
             Sair
           </button>
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col lg:ml-56">
         <header
-          className="admin-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-black/95 px-4 py-3 backdrop-blur-md lg:hidden"
+          className="admin-mobile-header fixed inset-x-0 top-0 z-40 flex items-center justify-between gap-3 border-b border-white/[0.06] bg-black/95 px-4 py-3 backdrop-blur-md lg:hidden"
           style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
         >
-          <div className="min-w-0">
-            <p className="truncate text-lg font-semibold leading-tight">
-              {panelPageTitle(pathname)}
-            </p>
-            <p className="text-[10px] tracking-widest text-muted uppercase">
-              norat
-            </p>
-          </div>
+          <Link href="/painel" className="shrink-0 py-0.5">
+            <NoratLogo size="sm" />
+          </Link>
+          <p className="min-w-0 truncate text-right text-sm text-white/60">
+            {panelPageTitle(pathname)}
+          </p>
         </header>
 
         <main className="admin-main flex-1 overflow-x-hidden">{children}</main>

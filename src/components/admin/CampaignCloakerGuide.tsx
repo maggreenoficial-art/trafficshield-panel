@@ -40,9 +40,9 @@ export function CampaignCloakerGuide({
   const testSafe = `${fullUrl}${joiner}vp_test=safe`;
 
   return (
-    <div className="space-y-4 rounded border border-accent/20 bg-accent/5 p-4">
+    <div className="space-y-4 rounded border border-accent/20 bg-white/[0.03] p-4">
       <div>
-        <p className="text-[10px] tracking-widest text-accent uppercase">
+        <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
           Como o cloaker decide
         </p>
         <p className="mt-2 text-xs leading-relaxed text-muted">
@@ -63,25 +63,25 @@ export function CampaignCloakerGuide({
       </div>
 
       <div className="grid gap-2 text-[10px] sm:grid-cols-2">
-        <div className="rounded border border-white/10 bg-black/30 px-3 py-2">
+        <div className="rounded border border-white/[0.06] bg-black/30 px-3 py-2">
           <span className="text-muted">Dispositivos permitidos:</span>{" "}
           <span className="text-white">
             {formatDevices(campaign.allowedDevices)}
           </span>
         </div>
-        <div className="rounded border border-white/10 bg-black/30 px-3 py-2">
+        <div className="rounded border border-white/[0.06] bg-black/30 px-3 py-2">
           <span className="text-muted">Países permitidos:</span>{" "}
           <span className="text-white">
             {formatCountries(campaign.allowedCountries)}
           </span>
         </div>
-        <div className="rounded border border-white/10 bg-black/30 px-3 py-2">
+        <div className="rounded border border-white/[0.06] bg-black/30 px-3 py-2">
           <span className="text-muted">Token único:</span>{" "}
           <span className="text-white">
             {campaign.uniqueTokenEnabled ? "Ativo (vp_t obrigatório)" : "Desativado"}
           </span>
         </div>
-        <div className="rounded border border-white/10 bg-black/30 px-3 py-2">
+        <div className="rounded border border-white/[0.06] bg-black/30 px-3 py-2">
           <span className="text-muted">Status:</span>{" "}
           <span className="text-white">
             {campaign.status === "active" ? "Ativa" : "Pausada → sempre segura"}
@@ -98,7 +98,7 @@ export function CampaignCloakerGuide({
       </div>
 
       <div className="space-y-2">
-        <p className="text-[10px] tracking-widest text-muted uppercase">
+        <p className="text-xs text-white/40">
           Links de teste (só para você)
         </p>
         <TestLink label="Forçar oferta (preview)" href={testOffer} />
@@ -120,7 +120,7 @@ function TestLink({ label, href }: { label: string; href: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center justify-between gap-3 rounded border border-white/10 bg-black/40 px-3 py-2.5 text-[10px] hover:border-accent"
+      className="flex items-center justify-between gap-3 rounded border border-white/[0.06] bg-black/40 px-3 py-2.5 text-[10px] hover:border-accent"
     >
       <span className="text-white">{label}</span>
       <ExternalLink size={12} className="shrink-0 text-muted" />

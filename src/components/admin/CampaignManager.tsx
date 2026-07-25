@@ -20,17 +20,23 @@ import {
   DELIVERY_METHODS,
   TRAFFIC_SOURCES,
 } from "@/lib/traffic-shield/campaign-types";
-import type { SiteCampaignDomain } from "@/lib/traffic-shield/site-domain";
 import { CreateCampaignModal } from "@/components/admin/CreateCampaignModal";
 import { CampaignUrlDeliverables } from "@/components/admin/CampaignUrlDeliverables";
 import { CampaignAdInsertionGuide } from "@/components/admin/CampaignAdInsertionGuide";
 import { CampaignCloakerGuide } from "@/components/admin/CampaignCloakerGuide";
 import { CampaignChartsPanel } from "@/components/admin/CampaignChartsPanel";
+import {
+  panelCardPadded,
+  panelMenu,
+  panelMenuItem,
+  panelPillBtn,
+  panelSearch,
+  panelTableWrap,
+} from "@/lib/panel-styles";
 
 export function CampaignManager() {
   const [campaigns, setCampaigns] = useState<TrafficCampaign[]>([]);
   const [domains, setDomains] = useState<TrafficDomain[]>([]);
-  const [siteDomain, setSiteDomain] = useState<SiteCampaignDomain | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -51,7 +57,6 @@ export function CampaignManager() {
     const domJson = await domRes.json();
     setCampaigns(campJson.campaigns ?? []);
     setDomains(domJson.domains ?? []);
-    setSiteDomain(domJson.siteDomain ?? null);
     setLoading(false);
   }, []);
 
@@ -97,7 +102,7 @@ export function CampaignManager() {
   }, [campaigns, search]);
 
   const validDomainCount = domains.filter((d) => d.status === "valid").length;
-  const canCreateCampaigns = Boolean(siteDomain) || validDomainCount > 0;
+  const canCreateCampaigns = validDomainCount > 0;
 
   const handleCreated = async (
     id: string,
@@ -137,7 +142,7 @@ export function CampaignManager() {
   if (loading && campaigns.length === 0) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="animate-spin text-accent" size={28} />
+        <Loader2 className="animate-spin text-white/30" size={28} />
       </div>
     );
   }
@@ -145,52 +150,45 @@ export function CampaignManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        <button
-          onClick={() => setShowForm(true)}
-          disabled={!canCreateCampaigns}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-black hover:bg-accent disabled:opacity-40 sm:w-auto"
-        >
-          <Plus size={14} />
-          Nova campanha
-        </button>
-      </div>
-
-      {siteDomain && (
-        <div className="rounded border border-white/10 bg-white/[0.02] p-4 text-xs text-muted">
-          Campanhas usam por padrão o domínio da loja{" "}
-          <strong className="text-white">{siteDomain.hostname}</strong>. Domínios
-          extras no menu <strong>Domínios</strong> servem para campanhas isoladas
-          com CNAME próprio.
+        <div className="landing-nav-pill rounded-full p-1">
+          <button
+            onClick={() => setShowForm(true)}
+            disabled={!canCreateCampaigns}
+            className={`${panelPillBtn} flex w-full items-center justify-center gap-1.5 sm:w-auto`}
+          >
+            <Plus size={14} />
+            Nova campanha
+          </button>
         </div>
-      )}
+      </div>
 
       {!canCreateCampaigns && (
         <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-300/90">
-          Configure <strong>NEXT_PUBLIC_SITE_URL</strong> no ambiente ou valide um
-          domínio no menu <strong>Domínios</strong> para criar campanhas.
+          Valide pelo menos um domínio no menu <strong>Domínios</strong> para
+          criar campanhas.
         </div>
       )}
 
-      <div className="flex items-center gap-3 border border-white/10 px-4 py-3">
-        <Search size={16} className="text-muted" />
+      <div className={panelSearch}>
+        <Search size={16} className="text-white/35" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filtrar campanhas..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-white/25"
         />
-        <button onClick={load} className="text-muted hover:text-white">
+        <button onClick={load} className="text-white/35 hover:text-white/70">
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
-      <p className="text-[10px] text-muted sm:hidden">
+      <p className="text-xs text-white/35 sm:hidden">
         Deslize horizontalmente para ver todas as colunas →
       </p>
-      <div className="overflow-x-auto border border-white/10">
+      <div className={panelTableWrap}>
         <table className="w-full min-w-[900px] text-left text-xs">
           <thead>
-            <tr className="border-b border-white/10 bg-white/[0.02] text-muted">
+            <tr className="border-b border-white/[0.06] bg-white/[0.02] text-white/40">
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">Fonte</th>
               <th className="px-4 py-3 font-medium">Hash</th>
@@ -212,7 +210,7 @@ export function CampaignManager() {
             {loading ? (
               <tr>
                 <td colSpan={9} className="py-16 text-center">
-                  <Loader2 className="mx-auto animate-spin text-accent" size={24} />
+                  <Loader2 className="mx-auto animate-spin text-white/30" size={24} />
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
@@ -233,8 +231,8 @@ export function CampaignManager() {
                       setSelectedId(c.id);
                       setDetailTab("campaign");
                     }}
-                    className={`cursor-pointer border-b border-white/5 transition-colors hover:bg-white/[0.02] ${
-                      selectedId === c.id ? "bg-accent/5" : ""
+                    className={`cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.02] ${
+                      selectedId === c.id ? "bg-white/[0.03]" : ""
                     }`}
                   >
                     <td className="px-4 py-4">
@@ -293,10 +291,10 @@ export function CampaignManager() {
                         <MoreHorizontal size={16} />
                       </button>
                       {menuOpen === c.id && (
-                        <div className="absolute right-4 top-12 z-20 min-w-[140px] border border-white/10 bg-black py-1 shadow-xl">
+                        <div className={panelMenu}>
                           <button
                             onClick={() => toggleStatus(c)}
-                            className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-white/5"
+                            className={panelMenuItem}
                           >
                             {c.status === "active" ? (
                               <Pause size={12} />
@@ -307,7 +305,7 @@ export function CampaignManager() {
                           </button>
                           <button
                             onClick={() => handleDelete(c.id)}
-                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-red-400 hover:bg-red-500/10"
+                            className={`${panelMenuItem} text-red-400/90 hover:bg-red-500/[0.06]`}
                           >
                             <Trash2 size={12} /> Excluir
                           </button>
@@ -323,14 +321,14 @@ export function CampaignManager() {
       </div>
 
       {selected && (
-        <div className="border border-white/10 p-6 space-y-6">
+        <div className={`${panelCardPadded} space-y-6`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-medium">{selected.name}</h3>
                 <StatusBadge status={selected.status} />
               </div>
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-xs text-white/40">
                 /c/{selected.slug} ·{" "}
                 {new Date(selected.createdAt).toLocaleString("pt-BR")}
               </p>
@@ -356,31 +354,29 @@ export function CampaignManager() {
             </div>
           </div>
 
-          <div className="flex gap-1 border-b border-white/10">
-            {(
-              [
-                { id: "campaign" as const, label: "Campaign" },
-                { id: "charts" as const, label: "Charts" },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setDetailTab(tab.id)}
-                className={`px-4 py-2 text-xs transition-colors ${
-                  detailTab === tab.id
-                    ? "border-b-2 border-accent text-white"
-                    : "text-muted hover:text-white"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            <div className="landing-nav-pill flex gap-0.5 rounded-full p-1">
+              {(
+                [
+                  { id: "campaign" as const, label: "Campaign" },
+                  { id: "charts" as const, label: "Charts" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDetailTab(tab.id)}
+                  className={`${panelPillBtn} px-3 py-1.5 text-xs ${
+                    detailTab === tab.id ? "bg-white/[0.06] text-white/75" : ""
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
           {detailTab === "campaign" ? (
             <>
-              <div className="rounded border border-white/10 bg-white/5 p-4">
-                <p className="mb-4 text-[10px] tracking-widest text-muted uppercase">
+              <div className="rounded border border-white/[0.06] bg-white/5 p-4">
+                <p className="mb-4 text-xs text-white/40">
                   Display Source — entregáveis do anúncio
                 </p>
                 <CampaignUrlDeliverables
@@ -447,7 +443,6 @@ export function CampaignManager() {
       {showForm && (
         <CreateCampaignModal
           domains={domains}
-          siteDomain={siteDomain}
           onClose={() => setShowForm(false)}
           onCreated={handleCreated}
         />
@@ -474,7 +469,7 @@ function StatusBadge({ status }: { status: string }) {
     },
     draft: {
       label: "Draft",
-      className: "text-muted bg-white/5 border-white/10",
+      className: "text-muted bg-white/5 border-white/[0.06]",
     },
   };
   const c = config[status] ?? config.draft;
@@ -489,9 +484,9 @@ function StatusBadge({ status }: { status: string }) {
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-white/5 p-3">
-      <p className="text-[10px] text-muted">{label}</p>
-      <p className="mt-1 truncate">{value}</p>
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+      <p className="text-xs text-white/40">{label}</p>
+      <p className="mt-1 truncate text-sm text-white/70">{value}</p>
     </div>
   );
 }

@@ -29,6 +29,12 @@ import type {
   TrafficShieldStats,
 } from "@/lib/traffic-shield/types";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
+import {
+  panelCardPadded,
+  panelInput,
+  panelPillBtn,
+  panelSectionTitle,
+} from "@/lib/panel-styles";
 
 const features = [
   {
@@ -107,13 +113,13 @@ export function TrafficOverviewView() {
   if (loading && !config) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="animate-spin text-accent" size={32} />
+        <Loader2 className="animate-spin text-white/30" size={28} />
       </div>
     );
   }
 
   if (!config || !stats) {
-    return <p className="text-muted">Erro ao carregar proteção de tráfego.</p>;
+    return <p className="text-sm text-white/40">Erro ao carregar proteção de tráfego.</p>;
   }
 
   return (
@@ -128,25 +134,27 @@ export function TrafficOverviewView() {
           }
         />
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <button
-            onClick={() => updateConfig({ enabled: !config!.enabled })}
-            disabled={saving}
-            className={`w-full rounded-full px-5 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors sm:w-auto ${
-              config!.enabled
-                ? "border border-green-500/30 bg-green-500/20 text-green-400"
-                : "border border-white/20 bg-white/10 text-muted"
-            }`}
-          >
-            {config!.enabled ? "Ativo" : "Inativo"}
-          </button>
-          <button
-            onClick={load}
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-2.5 text-xs tracking-widest uppercase hover:border-accent sm:w-auto"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Atualizar
-          </button>
+          <div className="landing-nav-pill rounded-full p-1">
+            <button
+              onClick={() => updateConfig({ enabled: !config!.enabled })}
+              disabled={saving}
+              className={`${panelPillBtn} w-full sm:w-auto ${
+                config!.enabled ? "text-white/75" : ""
+              }`}
+            >
+              {config!.enabled ? "Ativo" : "Inativo"}
+            </button>
+          </div>
+          <div className="landing-nav-pill rounded-full p-1">
+            <button
+              onClick={load}
+              disabled={loading}
+              className={`${panelPillBtn} flex w-full items-center justify-center gap-1.5 sm:w-auto`}
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Atualizar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -179,8 +187,8 @@ export function TrafficOverviewView() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="border border-white/10 p-6">
-          <h2 className="text-xs font-bold tracking-[0.2em]">TRÁFEGO POR HORA</h2>
+        <div className={panelCardPadded}>
+          <h2 className={panelSectionTitle}>Tráfego por hora</h2>
           <div className="mt-6 h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.hourly}>
@@ -198,24 +206,24 @@ export function TrafficOverviewView() {
                   type="monotone"
                   dataKey="allowed"
                   stackId="1"
-                  stroke="#d4a0a8"
-                  fill="#d4a0a830"
+                  stroke="var(--chart-permitted)"
+                  fill="color-mix(in srgb, var(--chart-permitted) 19%, transparent)"
                   name="Permitido"
                 />
                 <Area
                   type="monotone"
                   dataKey="suspicious"
                   stackId="1"
-                  stroke="#fbbf24"
-                  fill="#fbbf2430"
+                  stroke="var(--chart-suspicious)"
+                  fill="color-mix(in srgb, var(--chart-suspicious) 19%, transparent)"
                   name="Suspeito"
                 />
                 <Area
                   type="monotone"
                   dataKey="blocked"
                   stackId="1"
-                  stroke="#f87171"
-                  fill="#f8717130"
+                  stroke="var(--chart-blocked)"
+                  fill="color-mix(in srgb, var(--chart-blocked) 19%, transparent)"
                   name="Bloqueado"
                 />
               </AreaChart>
@@ -223,10 +231,8 @@ export function TrafficOverviewView() {
           </div>
         </div>
 
-        <div className="border border-white/10 p-6">
-          <h2 className="text-xs font-bold tracking-[0.2em]">
-            MOTIVOS DE BLOQUEIO
-          </h2>
+        <div className={panelCardPadded}>
+          <h2 className={panelSectionTitle}>Motivos de bloqueio</h2>
           <div className="mt-6 h-56">
             {stats.topReasons.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -246,11 +252,11 @@ export function TrafficOverviewView() {
                       fontSize: 12,
                     }}
                   />
-                  <Bar dataKey="count" fill="#d4a0a8" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="flex h-full items-center justify-center text-sm text-muted">
+              <p className="flex h-full items-center justify-center text-sm text-white/40">
                 Nenhum bloqueio nas últimas 24h
               </p>
             )}
@@ -258,8 +264,8 @@ export function TrafficOverviewView() {
         </div>
       </div>
 
-      <div className="border border-white/10 p-6">
-        <h2 className="text-xs font-bold tracking-[0.2em]">CONFIGURAÇÃO</h2>
+      <div className={panelCardPadded}>
+        <h2 className={panelSectionTitle}>Configuração</h2>
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Toggle
             label="Modo proteção"
@@ -309,7 +315,7 @@ export function TrafficOverviewView() {
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+            <label className="mb-2 block text-xs text-white/40">
               Sensibilidade IA ({Math.round(config.mlSensitivity * 100)}%)
             </label>
             <input
@@ -323,12 +329,12 @@ export function TrafficOverviewView() {
               }
               className="w-full accent-accent"
             />
-            <p className="mt-1 text-[10px] text-muted">
+            <p className="mt-1 text-xs text-white/35">
               Ajusta o scoring adaptativo de detecção
             </p>
           </div>
           <div>
-            <label className="mb-2 block text-[10px] tracking-widest text-muted uppercase">
+            <label className="mb-2 block text-xs text-white/40">
               Página segura (anti-plágio)
             </label>
             <input
@@ -337,20 +343,18 @@ export function TrafficOverviewView() {
               onChange={(e) =>
                 updateConfig({ safePagePath: e.target.value })
               }
-              className="w-full border-b border-white/20 bg-transparent py-2 text-sm outline-none focus:border-accent"
+              className={panelInput}
             />
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="landing-nav-pill mt-6 inline-flex flex-wrap gap-0.5 rounded-full p-1">
           {(["monitor", "protect", "strict"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => updateConfig({ mode })}
-              className={`rounded-full px-4 py-1.5 text-[10px] tracking-widest uppercase ${
-                config.mode === mode
-                  ? "bg-accent/20 text-accent border border-accent/40"
-                  : "border border-white/10 text-muted hover:border-white/30"
+              className={`${panelPillBtn} px-3 py-1.5 text-xs ${
+                config.mode === mode ? "bg-white/[0.06] text-white/75" : ""
               }`}
             >
               {mode === "monitor"
@@ -367,26 +371,21 @@ export function TrafficOverviewView() {
         {features.map((f) => {
           const Icon = f.icon;
           return (
-            <div
-              key={f.title}
-              className="border border-white/10 p-5 transition-colors hover:border-accent/30"
-            >
-              <Icon size={20} className="text-accent" />
-              <h3 className="mt-3 text-sm font-medium">{f.title}</h3>
-              <p className="mt-1 text-xs text-muted">{f.desc}</p>
+            <div key={f.title} className={panelCardPadded}>
+              <Icon size={16} className="text-white/30" strokeWidth={1.5} />
+              <h3 className="mt-3 text-sm font-medium text-white/75">{f.title}</h3>
+              <p className="mt-1 text-xs text-white/40">{f.desc}</p>
             </div>
           );
         })}
       </div>
 
-      <div className="border border-white/10 p-6">
-        <h2 className="text-xs font-bold tracking-[0.2em]">
-          LOGS RECENTES
-        </h2>
+      <div className={panelCardPadded}>
+        <h2 className={panelSectionTitle}>Logs recentes</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-white/10 text-muted">
+              <tr className="border-b border-white/[0.06] text-white/40">
                 <th className="py-3 pr-4">Hora</th>
                 <th className="py-3 pr-4">Ação</th>
                 <th className="py-3 pr-4">Score</th>
@@ -398,15 +397,15 @@ export function TrafficOverviewView() {
             <tbody>
               {stats.recentLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-muted">
+                  <td colSpan={6} className="py-8 text-center text-white/40">
                     Nenhum log ainda. O shield começará a registrar após a
                     primeira visita.
                   </td>
                 </tr>
               ) : (
                 stats.recentLogs.map((log) => (
-                  <tr key={log.id} className="border-b border-white/5">
-                    <td className="py-3 pr-4 text-muted">
+                  <tr key={log.id} className="border-b border-white/[0.04]">
+                    <td className="py-3 pr-4 text-white/40">
                       {new Date(log.createdAt).toLocaleTimeString("pt-BR")}
                     </td>
                     <td className="py-3 pr-4">
@@ -417,7 +416,7 @@ export function TrafficOverviewView() {
                       {log.path}
                     </td>
                     <td className="py-3 pr-4 capitalize">{log.category}</td>
-                    <td className="py-3 text-muted">
+                    <td className="py-3 text-white/40">
                       {log.reasons.slice(0, 2).join(", ")}
                     </td>
                   </tr>
@@ -444,20 +443,15 @@ function StatCard({
   icon: typeof Shield;
   accent?: boolean;
 }) {
+  void accent;
   return (
-    <div className="border border-white/10 p-5">
+    <div className={panelCardPadded}>
       <div className="flex items-center justify-between">
-        <p className="text-[10px] tracking-widest text-muted uppercase">
-          {label}
-        </p>
-        <Icon size={16} className={accent ? "text-accent" : "text-muted"} />
+        <p className="text-xs text-white/40">{label}</p>
+        <Icon size={15} className="text-white/30" strokeWidth={1.5} />
       </div>
-      <p
-        className={`mt-3 text-2xl font-medium ${accent ? "text-accent" : ""}`}
-      >
-        {value}
-      </p>
-      <p className="mt-1 text-[10px] text-muted">{sub}</p>
+      <p className="mt-3 text-2xl font-medium text-white/85">{value}</p>
+      <p className="mt-1 text-xs text-white/35">{sub}</p>
     </div>
   );
 }
@@ -482,8 +476,8 @@ function Toggle({
         className="mt-1 accent-accent"
       />
       <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-[10px] text-muted">{desc}</p>
+        <p className="text-sm font-medium text-white/75">{label}</p>
+        <p className="text-xs text-white/40">{desc}</p>
       </div>
     </label>
   );

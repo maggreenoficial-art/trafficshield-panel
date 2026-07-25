@@ -3,7 +3,7 @@ import { canAccessPanel, updateSession } from "@/lib/supabase/middleware";
 import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 
-const PUBLIC_PATHS = ["/login", "/api/admin/auth"];
+const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
 
 function isPublicPath(pathname: string): boolean {
   return (
