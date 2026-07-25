@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Globe, LayoutDashboard, LogOut, Megaphone } from "lucide-react";
+import { LogOut, panelNav, panelPageTitle } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 import { logoutPanel } from "@/lib/auth-logout";
 
-const tabs = [
-  { href: "/painel", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
-  { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
-] as const;
+export { panelPageTitle };
 
 export function PanelMobileNav() {
   const pathname = usePathname();
@@ -21,8 +17,8 @@ export function PanelMobileNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Navegação do painel"
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 pt-1">
-        {tabs.map(({ href, label, icon: Icon, exact }) => {
+      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
+        {panelNav.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact
             ? pathname === href
             : pathname.startsWith(href);
@@ -31,7 +27,7 @@ export function PanelMobileNav() {
               key={href}
               href={href}
               className={cn(
-                "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] transition-colors",
+                "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors",
                 isActive ? "text-white/80" : "text-white/40"
               )}
             >
@@ -43,7 +39,7 @@ export function PanelMobileNav() {
         <button
           type="button"
           onClick={() => logoutPanel()}
-          className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-white/40 transition-colors hover:text-red-400/90"
+          className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] text-white/40 transition-colors hover:text-red-400/90"
         >
           <LogOut size={18} strokeWidth={1.75} />
           <span>Sair</span>
@@ -51,11 +47,4 @@ export function PanelMobileNav() {
       </div>
     </nav>
   );
-}
-
-export function panelPageTitle(pathname: string): string {
-  if (pathname.startsWith("/campanhas")) return "Campanhas";
-  if (pathname.startsWith("/dominios")) return "Domínios";
-  if (pathname.startsWith("/painel")) return "Início";
-  return "Painel";
 }

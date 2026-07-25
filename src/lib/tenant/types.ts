@@ -12,6 +12,9 @@ export interface Tenant {
   domainSlotLimit: number;
   status: TenantStatus;
   createdAt: string;
+  subscriptionStartsAt: string | null;
+  subscriptionEndsAt: string | null;
+  billingInterval: "monthly" | "yearly";
 }
 
 export interface TenantMembership {

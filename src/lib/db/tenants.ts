@@ -13,6 +13,9 @@ type TenantRow = {
   domain_slot_limit: number;
   status: Tenant["status"];
   created_at: string;
+  subscription_starts_at?: string | null;
+  subscription_ends_at?: string | null;
+  billing_interval?: Tenant["billingInterval"] | null;
 };
 
 type MemberRow = {
@@ -31,6 +34,9 @@ function rowToTenant(row: TenantRow): Tenant {
     domainSlotLimit: row.domain_slot_limit,
     status: row.status,
     createdAt: row.created_at,
+    subscriptionStartsAt: row.subscription_starts_at ?? row.created_at,
+    subscriptionEndsAt: row.subscription_ends_at ?? null,
+    billingInterval: row.billing_interval ?? "monthly",
   };
 }
 
@@ -91,18 +97,38 @@ export async function createTenantForUser(input: {
   const supabase = createAdminClient();
   const suffix = Math.random().toString(36).slice(2, 7);
   const slug = `${slugify(input.name || input.email.split("@")[0])}-${suffix}`;
+  const now = new Date();
+  const subscriptionEndsAt = new Date(now);
+  subscriptionEndsAt.setDate(subscriptionEndsAt.getDate() + 30);
 
-  const { data: tenant, error: tenantError } = await supabase
+  const basePayload = {
+    name: input.name.trim() || `Workspace de ${input.email.split("@")[0]}`,
+    slug,
+    plan: "starter" as const,
+    domain_slot_limit: 3,
+    status: "active" as const,
+  };
+
+  let tenantResult = await supabase
     .from("tenants")
     .insert({
-      name: input.name.trim() || `Workspace de ${input.email.split("@")[0]}`,
-      slug,
-      plan: "starter",
-      domain_slot_limit: 3,
-      status: "active",
+      ...basePayload,
+      subscription_starts_at: now.toISOString(),
+      subscription_ends_at: subscriptionEndsAt.toISOString(),
+      billing_interval: "monthly",
     })
     .select("*")
     .single();
+
+  if (tenantResult.error?.code === "PGRST204") {
+    tenantResult = await supabase
+      .from("tenants")
+      .insert(basePayload)
+      .select("*")
+      .single();
+  }
+
+  const { data: tenant, error: tenantError } = tenantResult;
 
   if (tenantError || !tenant) {
     throw new Error(tenantError?.message ?? "Erro ao criar workspace.");

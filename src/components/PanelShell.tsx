@@ -2,23 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Globe,
-  LayoutDashboard,
-  LogOut,
-  Megaphone,
-} from "lucide-react";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
 import { NoratLogo } from "@/components/NoratLogo";
+import { LogOut, panelNav } from "@/lib/panel-nav";
 import { panelNavItem } from "@/lib/panel-styles";
 import { logoutPanel } from "@/lib/auth-logout";
 import { cn } from "@/lib/utils";
-
-const nav = [
-  { href: "/painel", label: "Início", icon: LayoutDashboard, exact: true },
-  { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
-  { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
-] as const;
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +26,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="landing-nav-pill mt-8 flex flex-col gap-0.5 rounded-2xl p-1.5">
-          {nav.map((item) => {
+          {panelNav.map((item) => {
             const Icon = item.icon;
             const active = item.exact
               ? pathname === item.href

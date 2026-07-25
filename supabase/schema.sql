@@ -94,8 +94,8 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, role)
-  values (new.id, new.email, 'customer')
+  insert into public.profiles (id, email, role, active)
+  values (new.id, new.email, 'analista', true)
   on conflict (id) do nothing;
   return new;
 end;
