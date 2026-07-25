@@ -12,7 +12,7 @@ const inputClass =
 
 const tabClass = (active: boolean) =>
   cn(
-    "flex-1 rounded-full px-4 py-2 text-[13px] transition-colors",
+    "flex-1 rounded-full px-4 py-2 text-sm transition-colors",
     active
       ? "bg-white/[0.06] text-white"
       : "text-white/55 hover:bg-white/[0.04] hover:text-white/80"
@@ -85,7 +85,7 @@ export function AdminLoginForm() {
           </div>
 
           <div className="mb-6 text-center">
-            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.2em] text-white/35 uppercase">
               {mode === "login" ? "Área do cliente" : "Novo workspace"}
             </p>
             <h1 className="mt-2 text-xl font-medium tracking-tight text-white/85 sm:text-2xl">
@@ -119,7 +119,7 @@ export function AdminLoginForm() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "register" && (
                 <div>
-                  <label className="mb-1.5 block text-xs text-white/40">
+                  <label className="mb-1.5 block text-sm text-white/40">
                     Empresa / projeto
                   </label>
                   <input
@@ -133,7 +133,7 @@ export function AdminLoginForm() {
               )}
 
               <div>
-                <label className="mb-1.5 block text-xs text-white/40">E-mail</label>
+                <label className="mb-1.5 block text-sm text-white/40">E-mail</label>
                 <input
                   type="email"
                   value={email}
@@ -146,7 +146,7 @@ export function AdminLoginForm() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-white/40">Senha</label>
+                <label className="mb-1.5 block text-sm text-white/40">Senha</label>
                 <input
                   type="password"
                   value={password}
@@ -161,13 +161,13 @@ export function AdminLoginForm() {
                 <p className="text-xs text-white/55">{success}</p>
               )}
 
-              {error && <p className="text-xs text-red-400/90">{error}</p>}
+              {error && <p className="text-sm text-red-400/90">{error}</p>}
 
               <div className="landing-nav-pill rounded-full p-1 pt-2">
                 <button
                   type="submit"
                   disabled={loading || !email || !password}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {loading ? (
                     <Loader2 className="animate-spin" size={16} />
@@ -182,7 +182,7 @@ export function AdminLoginForm() {
             </form>
           </div>
 
-          <p className="mt-6 text-center text-xs text-white/35">
+          <p className="mt-6 text-center text-sm text-white/35">
             Ainda não assinou?{" "}
             <Link
               href="/#planos"

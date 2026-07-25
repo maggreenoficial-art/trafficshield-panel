@@ -31,13 +31,13 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] py-3 last:border-0">
       <div>
-        <p className="text-xs text-white/40">{label}</p>
+        <p className="text-sm text-white/40">{label}</p>
         <p className="mt-1 font-mono text-sm text-accent">{value}</p>
       </div>
       <button
         type="button"
         onClick={copy}
-        className="flex shrink-0 items-center gap-1 rounded border border-white/[0.06] px-2.5 py-1.5 text-[10px] text-muted hover:border-accent hover:text-white"
+        className="flex shrink-0 items-center gap-1 rounded border border-white/[0.06] px-2.5 py-1.5 text-sm text-muted hover:border-accent hover:text-white"
       >
         {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
         {copied ? "Copiado" : "Copiar"}
@@ -57,18 +57,18 @@ export function DnsSetupModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-white/[0.06] bg-black p-6">
-        <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+        <p className="text-xs tracking-[0.2em] text-white/35 uppercase">
           Passo 2 de 4 — DNS
         </p>
         <h3 className="mt-2 text-lg font-medium">CNAME do subdomínio de campanha</h3>
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-sm text-muted">
           Crie um registro <strong className="text-white">novo</strong> no DNS de{" "}
           <strong className="text-white">{instructions.hostname}</strong>. O{" "}
           <code className="text-accent">www</code> e o domínio raiz{" "}
           <strong className="text-white">não mudam</strong> — o site continua no ar.
         </p>
 
-        <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-3 text-[10px] text-muted">
+        <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-3 text-sm text-muted">
           <strong className="text-green-400">Modelo correto (como cloakers de mercado):</strong>
           <p className="mt-1">
             <code className="text-accent">{subLabel}</code> → norat ·{" "}
@@ -89,7 +89,7 @@ export function DnsSetupModal({
           <CopyField label="TTL" value={instructions.ttl} />
         </div>
 
-        <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-[10px] text-muted">
+        <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-sm text-muted">
           <p>
             <strong className="text-white">Edge norat:</strong>{" "}
             <code className="text-accent">{instructions.target}</code>
@@ -107,7 +107,7 @@ export function DnsSetupModal({
           ) : null}
         </div>
 
-        <div className="mt-4 rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-[10px] text-muted">
+        <div className="mt-4 rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-sm text-muted">
           <strong className="text-yellow-400">Validação estrita:</strong> só fica
           &quot;Valid&quot; quando o CNAME de <code className="text-accent">{instructions.name}</code>{" "}
           apontar para <code className="text-accent">{instructions.target}</code> — não
@@ -127,7 +127,7 @@ export function DnsSetupModal({
           <button
             type="button"
             onClick={onClose}
-            className={`rounded-full border border-white/20 px-5 py-2.5 text-xs text-muted hover:text-white ${onValidate ? "" : "flex-1"}`}
+            className={`rounded-full border border-white/20 px-5 py-2.5 text-sm text-muted hover:text-white ${onValidate ? "" : "flex-1"}`}
           >
             Fechar
           </button>

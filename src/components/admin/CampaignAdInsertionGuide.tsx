@@ -26,16 +26,16 @@ export function CampaignAdInsertionGuide({
   return (
     <div className="space-y-4 rounded border border-white/[0.06] bg-white/[0.02] p-4">
       <div>
-        <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+        <p className="text-xs tracking-[0.2em] text-white/35 uppercase">
           Passo 12 — Inserir nos anúncios
         </p>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-sm text-muted">
           Como configurar no <strong className="text-white">{source.shortLabel}</strong>
         </p>
       </div>
 
       {source.separateParamsField ? (
-        <div className="space-y-3 text-[10px] text-muted">
+        <div className="space-y-3 text-sm text-muted">
           <p>
             O <strong className="text-white">{source.shortLabel}</strong> tem campo
             separado para parâmetros
@@ -56,19 +56,19 @@ export function CampaignAdInsertionGuide({
           </ol>
         </div>
       ) : (
-        <div className="space-y-3 text-[10px] text-muted">
+        <div className="space-y-3 text-sm text-muted">
           <p>
             O <strong className="text-white">{source.shortLabel}</strong> não tem
             campo separado — junte URL e parâmetros com{" "}
             <code className="text-accent">?</code>:
           </p>
-          <p className="break-all rounded border border-white/5 bg-black/40 px-3 py-2 font-mono text-[10px] text-accent">
+          <p className="break-all rounded border border-white/5 bg-black/40 px-3 py-2 font-mono text-xs text-accent">
             {fullUrl}
           </p>
         </div>
       )}
 
-      <div className="border-t border-white/[0.06] pt-3 text-[10px] text-muted">
+      <div className="border-t border-white/[0.06] pt-3 text-sm text-muted">
         <p>
           <strong className="text-white">URL PARAMS ≠ página de oferta.</strong>{" "}
           Eles validam o clique (token <code className="text-accent">vp_t</code>,{" "}
@@ -80,7 +80,7 @@ export function CampaignAdInsertionGuide({
           seus parâmetros com <code className="text-accent">&</code> (a ordem não
           importa):
         </p>
-        <p className="mt-2 break-all rounded border border-white/5 bg-black/40 px-3 py-2 font-mono text-[10px] text-accent">
+        <p className="mt-2 break-all rounded border border-white/5 bg-black/40 px-3 py-2 font-mono text-xs text-accent">
           {trackingExample}
         </p>
       </div>

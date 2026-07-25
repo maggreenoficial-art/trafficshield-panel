@@ -46,7 +46,7 @@ export function CampaignUrlDeliverables({
 
       {!compact && (
         <>
-          <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-[10px] text-muted">
+          <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-3 text-sm text-muted">
             <strong className="text-yellow-400">Importante:</strong> use URL e
             URL PARAMS <strong className="text-white">exatamente como foram gerados</strong>.
             Não altere, remova nem reordene os parâmetros.
@@ -54,13 +54,13 @@ export function CampaignUrlDeliverables({
 
           <div className="rounded border border-white/[0.06] bg-white/[0.02] p-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-white/40">
+              <p className="text-sm text-white/40">
                 URL completa (referência)
               </p>
               <button
                 type="button"
                 onClick={() => copy(fullUrl, "full")}
-                className="flex items-center gap-1 text-[10px] text-muted hover:text-white"
+                className="flex items-center gap-1 text-sm text-muted hover:text-white"
               >
                 {copiedField === "full" ? (
                   <Check size={12} className="text-green-400" />
@@ -70,7 +70,7 @@ export function CampaignUrlDeliverables({
                 {copiedField === "full" ? "Copiado" : "Copiar tudo"}
               </button>
             </div>
-            <p className="mt-2 break-all font-mono text-[10px] text-accent">
+            <p className="mt-2 break-all font-mono text-xs text-accent">
               {fullUrl}
             </p>
           </div>
@@ -99,16 +99,16 @@ function CopyField({
     <div className="rounded border border-white/[0.06] bg-white/[0.02] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold tracking-widest text-white uppercase">
+          <p className="text-xs font-semibold tracking-widest text-white uppercase">
             {label}
           </p>
-          {hint && <p className="mt-1 text-[10px] text-muted">{hint}</p>}
+          {hint && <p className="mt-1 text-sm text-muted">{hint}</p>}
         </div>
         <button
           type="button"
           onClick={onCopy}
           disabled={disabled}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-[10px] text-muted hover:border-accent hover:text-white disabled:opacity-40"
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-sm text-muted hover:border-accent hover:text-white disabled:opacity-40"
         >
           {copied ? (
             <Check size={12} className="text-green-400" />

@@ -193,13 +193,13 @@ export function TrafficOverviewView() {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.hourly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 10 }} />
-                <YAxis tick={{ fill: "#888", fontSize: 10 }} />
+                <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#888", fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{
                     background: "#111",
                     border: "1px solid #333",
-                    fontSize: 12,
+                    fontSize: 14,
                   }}
                 />
                 <Area
@@ -238,18 +238,18 @@ export function TrafficOverviewView() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.topReasons} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis type="number" tick={{ fill: "#888", fontSize: 10 }} />
+                  <XAxis type="number" tick={{ fill: "#888", fontSize: 12 }} />
                   <YAxis
                     type="category"
                     dataKey="reason"
-                    width={120}
-                    tick={{ fill: "#888", fontSize: 9 }}
+                    width={130}
+                    tick={{ fill: "#888", fontSize: 11 }}
                   />
                   <Tooltip
                     contentStyle={{
                       background: "#111",
                       border: "1px solid #333",
-                      fontSize: 12,
+                      fontSize: 14,
                     }}
                   />
                   <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
@@ -315,7 +315,7 @@ export function TrafficOverviewView() {
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2">
           <div>
-            <label className="mb-2 block text-xs text-white/40">
+            <label className="mb-2 block text-sm text-white/40">
               Sensibilidade IA ({Math.round(config.mlSensitivity * 100)}%)
             </label>
             <input
@@ -329,12 +329,12 @@ export function TrafficOverviewView() {
               }
               className="w-full accent-accent"
             />
-            <p className="mt-1 text-xs text-white/35">
+            <p className="mt-1 text-sm text-white/35">
               Ajusta o scoring adaptativo de detecção
             </p>
           </div>
           <div>
-            <label className="mb-2 block text-xs text-white/40">
+            <label className="mb-2 block text-sm text-white/40">
               Página segura (anti-plágio)
             </label>
             <input
@@ -353,7 +353,7 @@ export function TrafficOverviewView() {
             <button
               key={mode}
               onClick={() => updateConfig({ mode })}
-              className={`${panelPillBtn} px-3 py-1.5 text-xs ${
+              className={`${panelPillBtn} px-3 py-1.5 text-sm ${
                 config.mode === mode ? "bg-white/[0.06] text-white/75" : ""
               }`}
             >
@@ -373,8 +373,8 @@ export function TrafficOverviewView() {
           return (
             <div key={f.title} className={panelCardPadded}>
               <Icon size={16} className="text-white/30" strokeWidth={1.5} />
-              <h3 className="mt-3 text-sm font-medium text-white/75">{f.title}</h3>
-              <p className="mt-1 text-xs text-white/40">{f.desc}</p>
+              <h3 className="mt-3 text-base font-medium text-white/75">{f.title}</h3>
+              <p className="mt-1.5 text-sm text-white/45 sm:text-[15px]">{f.desc}</p>
             </div>
           );
         })}
@@ -383,7 +383,7 @@ export function TrafficOverviewView() {
       <div className={panelCardPadded}>
         <h2 className={panelSectionTitle}>Logs recentes</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-white/40">
                 <th className="py-3 pr-4">Hora</th>
@@ -447,11 +447,11 @@ function StatCard({
   return (
     <div className={panelCardPadded}>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-white/40">{label}</p>
+        <p className="text-sm text-white/40">{label}</p>
         <Icon size={15} className="text-white/30" strokeWidth={1.5} />
       </div>
       <p className="mt-3 text-2xl font-medium text-white/85">{value}</p>
-      <p className="mt-1 text-xs text-white/35">{sub}</p>
+      <p className="mt-1 text-sm text-white/35">{sub}</p>
     </div>
   );
 }
@@ -477,7 +477,7 @@ function Toggle({
       />
       <div>
         <p className="text-sm font-medium text-white/75">{label}</p>
-        <p className="text-xs text-white/40">{desc}</p>
+        <p className="text-sm text-white/40">{desc}</p>
       </div>
     </label>
   );
@@ -498,7 +498,7 @@ function ActionBadge({ action }: { action: string }) {
   };
   return (
     <span
-      className={`rounded px-2 py-0.5 text-[10px] ${styles[action] ?? "text-muted"}`}
+      className={`rounded px-2 py-0.5 text-xs ${styles[action] ?? "text-muted"}`}
     >
       {labels[action] ?? action}
     </span>

@@ -23,6 +23,7 @@ import { hostsMatchDomain, normalizeOriginUrl } from "@/lib/traffic-shield/origi
 import { normalizeCampaignPageUrl } from "@/lib/traffic-shield/page-url";
 import { getSiteCampaignHostname } from "@/lib/traffic-shield/site-domain";
 import { getTenantById } from "@/lib/db/tenants";
+import { provisionVercelDomain } from "@/lib/vercel/domains";
 
 type DomainRow = {
   id: string;
@@ -266,7 +267,13 @@ export async function createTrafficDomain(
   if (error) {
     throw new Error(getErrorMessage(error, "Erro ao salvar domínio no banco."));
   }
-  return rowToDomain(data as DomainRow);
+
+  const domain = rowToDomain(data as DomainRow);
+  const vercel = await provisionVercelDomain(domain.hostname);
+  if (!vercel.ok) {
+    console.warn("[norat] Vercel domain provision:", vercel.message);
+  }
+  return domain;
 }
 
 export async function getTrafficDomainByHostname(
@@ -308,7 +315,16 @@ export async function updateTrafficDomainValidation(
     .single();
 
   if (error) throw error;
-  return rowToDomain(data as DomainRow);
+  const domain = rowToDomain(data as DomainRow);
+
+  if (validation.status === "valid") {
+    const vercel = await provisionVercelDomain(domain.hostname);
+    if (!vercel.ok) {
+      console.warn("[norat] Vercel domain provision:", vercel.message);
+    }
+  }
+
+  return domain;
 }
 
 export async function deleteTrafficDomain(

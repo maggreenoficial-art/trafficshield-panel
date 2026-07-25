@@ -6,11 +6,13 @@ export interface DnsRecordInstruction {
   hostname: string;
 }
 
+import { DEFAULT_CNAME_TARGET } from "@/lib/site-config";
+
 export function getCnameTarget(): string {
   return (
     process.env.TRAFFIC_DNS_CNAME_TARGET?.trim() ||
     process.env.NEXT_PUBLIC_TRAFFIC_DNS_CNAME_TARGET?.trim() ||
-    "trafficshield-panel-iota.vercel.app"
+    DEFAULT_CNAME_TARGET
   );
 }
 

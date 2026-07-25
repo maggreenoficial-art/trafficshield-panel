@@ -41,6 +41,8 @@ body {
 .admin-main {
   padding: 1rem;
   padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 @media (max-width: 1023px) {
@@ -86,7 +88,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
   padding: 0.625rem 0.75rem;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #fff;
   outline: none;
   transition: border-color 0.15s ease;
@@ -103,8 +105,8 @@ body {
 .panel-pill-btn {
   border-radius: 9999px;
   padding: 0.5rem 1rem;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 

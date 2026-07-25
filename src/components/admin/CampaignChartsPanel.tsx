@@ -33,7 +33,7 @@ export function CampaignChartsPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-[10px] leading-relaxed text-muted">
+      <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm leading-relaxed text-muted">
         <strong className="text-yellow-400">Sem teste de redirecionamento:</strong>{" "}
         se você acessar a própria URL, cairá na{" "}
         <strong className="text-white">página segura</strong> — o acesso não vem do
@@ -42,10 +42,10 @@ export function CampaignChartsPanel({
       </div>
 
       <div>
-        <p className="text-xs text-white/40">
+        <p className="text-sm text-white/40">
           Passo 13 — Requisições em tempo real
         </p>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-1 text-sm text-muted">
           Os cliques dos seus clientes devem aparecer em{" "}
           <strong className="text-accent">Página de oferta</strong>.
         </p>
@@ -83,20 +83,20 @@ export function CampaignChartsPanel({
 
       {stats && stats.hourly.length > 0 ? (
         <div>
-          <p className="mb-3 text-xs text-white/40">
+          <p className="mb-3 text-sm text-white/40">
             Gráfico — últimas 24h
           </p>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.hourly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 9 }} />
-                <YAxis tick={{ fill: "#888", fontSize: 9 }} />
+                <XAxis dataKey="hour" tick={{ fill: "#888", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#888", fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{
                     background: "#111",
                     border: "1px solid #333",
-                    fontSize: 11,
+                    fontSize: 14,
                   }}
                 />
                 <Area
@@ -128,7 +128,7 @@ export function CampaignChartsPanel({
           </div>
         </div>
       ) : (
-        <div className="rounded border border-white/[0.06] py-12 text-center text-xs text-muted">
+        <div className="rounded border border-white/[0.06] py-12 text-center text-sm text-muted">
           Aguardando primeiras requisições da campanha ativa...
           <br />
           Publique o anúncio com a URL gerada e volte aqui para acompanhar.
@@ -157,14 +157,14 @@ function ChartStatCard({
     <div className="border border-white/[0.06] p-4">
       <div className="flex items-center gap-2 text-muted">
         <Icon size={14} className={color ?? (accent ? "text-accent" : "")} />
-        <p className="text-[10px] uppercase tracking-wider">{label}</p>
+        <p className="text-sm uppercase tracking-wider">{label}</p>
       </div>
       <p
         className={`mt-2 text-2xl font-medium ${color ?? (accent ? "text-accent" : "text-white")}`}
       >
         {value}
       </p>
-      <p className="mt-1 text-[10px] text-muted">{desc}</p>
+      <p className="mt-1 text-sm text-muted">{desc}</p>
     </div>
   );
 }

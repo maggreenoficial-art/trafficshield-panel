@@ -43,7 +43,7 @@ type MeResponse = {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 border-b border-white/[0.04] py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-xs text-white/40">{label}</span>
+      <span className="text-sm text-white/40">{label}</span>
       <span className="text-sm text-white/75">{value}</span>
     </div>
   );
@@ -180,19 +180,19 @@ export function ProfilePageView() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-            <p className="text-[10px] tracking-[0.15em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.15em] text-white/35 uppercase">
               Início
             </p>
             <p className="mt-1 text-sm text-white/80">{formatPanelDate(startsAt.toISOString())}</p>
           </div>
           <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-            <p className="text-[10px] tracking-[0.15em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.15em] text-white/35 uppercase">
               Renovação
             </p>
             <p className="mt-1 text-sm text-white/80">{formatPanelDate(endsAt.toISOString())}</p>
           </div>
           <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-            <p className="text-[10px] tracking-[0.15em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.15em] text-white/35 uppercase">
               Tempo restante
             </p>
             <p
@@ -209,7 +209,7 @@ export function ProfilePageView() {
         </div>
 
         <div className="mt-5">
-          <div className="mb-2 flex items-center justify-between text-xs text-white/40">
+          <div className="mb-2 flex items-center justify-between text-sm text-white/40">
             <span>
               {subscription.daysElapsed} de {subscription.daysTotal} dias do período
             </span>
@@ -226,7 +226,7 @@ export function ProfilePageView() {
           </div>
         </div>
 
-        <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-white/40">
+        <p className="mt-4 flex items-start gap-2 text-sm leading-relaxed text-white/40">
           <Shield size={14} className="mt-0.5 shrink-0" />
           Cliente desde {formatPanelDate(tenant.createdAt)}. Para alterar plano ou renovar
           antecipadamente, fale com o suporte norat.

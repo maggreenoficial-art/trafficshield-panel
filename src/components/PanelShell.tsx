@@ -36,7 +36,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-full px-3 py-2 text-[13px] transition-colors",
+                  "flex items-center gap-2.5 rounded-full px-3 py-2.5 text-sm transition-colors",
                   panelNavItem(active)
                 )}
               >
@@ -53,7 +53,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => logoutPanel()}
-            className="mt-1 flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-[13px] text-white/40 transition-colors hover:bg-red-500/[0.06] hover:text-red-400/90"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-full px-3 py-2.5 text-sm text-white/40 transition-colors hover:bg-red-500/[0.06] hover:text-red-400/90"
           >
             <LogOut size={15} strokeWidth={1.75} />
             Sair
@@ -69,7 +69,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
           <Link href="/painel" className="shrink-0 py-0.5">
             <NoratLogo size="sm" />
           </Link>
-          <p className="min-w-0 truncate text-right text-sm text-white/60">
+          <p className="min-w-0 truncate text-right text-base text-white/60">
             {panelPageTitle(pathname)}
           </p>
         </header>

@@ -52,7 +52,7 @@ export function AdminTableWrap({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs text-white/35 sm:hidden">
+      <p className="text-sm text-white/40 sm:hidden">
         Deslize horizontalmente para ver todas as colunas →
       </p>
       <div className={panelTableWrap}>

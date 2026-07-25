@@ -29,6 +29,7 @@ import {
   panelSectionTitle,
   panelTableWrap,
 } from "@/lib/panel-styles";
+import { getPublicCnameTarget } from "@/lib/site-config";
 
 export function DomainManager() {
   const [domains, setDomains] = useState<TrafficDomain[]>([]);
@@ -41,7 +42,7 @@ export function DomainManager() {
     domainId?: string;
     originUrl?: string | null;
   } | null>(null);
-  const [cnameTarget, setCnameTarget] = useState("");
+  const [cnameTarget, setCnameTarget] = useState(getPublicCnameTarget);
   const [hostname, setHostname] = useState("");
   const [originUrl, setOriginUrl] = useState("");
   const [label, setLabel] = useState("");
@@ -55,7 +56,7 @@ export function DomainManager() {
     const json = await res.json();
     setDomains(json.domains ?? []);
     setSlots(json.slots ?? { used: 0, limit: 10 });
-    setCnameTarget(json.dns?.cnameTarget ?? "");
+    setCnameTarget(json.dns?.cnameTarget ?? getPublicCnameTarget());
     setLoading(false);
   }, []);
 
@@ -199,7 +200,7 @@ export function DomainManager() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-xs text-white/45">
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-white/45">
         <strong className="text-white/65">Subdomínio dedicado:</strong>{" "}
         crie <code className="text-white/55">ads.seudominio.com</code> apontando para{" "}
         <code className="text-white/55">{cnameTarget || "edge norat"}</code>. O{" "}
@@ -221,7 +222,7 @@ export function DomainManager() {
       </div>
 
       <div className={panelTableWrap}>
-        <table className="w-full min-w-[720px] text-left text-xs">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-white/[0.06] bg-white/[0.02] text-white/40">
               <th className="px-4 py-3 font-medium">Domínio</th>
@@ -259,15 +260,15 @@ export function DomainManager() {
                   <td className="px-4 py-4">
                     <p className="font-medium">{domain.hostname}</p>
                     {domain.label && (
-                      <p className="mt-0.5 text-[10px] text-muted">{domain.label}</p>
+                      <p className="mt-0.5 text-sm text-muted">{domain.label}</p>
                     )}
                     {domain.originUrl && (
-                      <p className="mt-1 max-w-[220px] truncate font-mono text-[10px] text-accent/80">
+                      <p className="mt-1 max-w-[220px] truncate font-mono text-sm text-accent/80">
                         → {domain.originUrl}
                       </p>
                     )}
                     {domain.isPrimary && (
-                      <span className="mt-1 inline-block text-[10px] text-accent">
+                      <span className="mt-1 inline-block text-sm text-accent">
                         ★ Principal
                       </span>
                     )}
@@ -275,7 +276,7 @@ export function DomainManager() {
                   <td className="px-4 py-4">
                     <StatusBadge status={domain.status} />
                     {domain.validationMessage && (
-                      <p className="mt-1 max-w-[180px] text-[10px] text-muted line-clamp-2">
+                      <p className="mt-1 max-w-[180px] text-sm text-muted line-clamp-2">
                         {domain.validationMessage}
                       </p>
                     )}
@@ -352,7 +353,7 @@ export function DomainManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className={`w-full max-w-md ${panelCardPadded}`}>
             <h3 className="text-lg font-medium text-white/85">Adicionar domínio</h3>
-            <p className="mt-2 text-xs text-white/40">
+            <p className="mt-2 text-sm text-white/40">
               Use um <strong className="text-white">subdomínio novo</strong> (ex:{" "}
               <code className="text-accent">ads.radario.sbs</code>). Não use o{" "}
               <code className="text-accent">www</code> do site — ele continua na
@@ -361,7 +362,7 @@ export function DomainManager() {
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="mb-2 block text-xs text-white/40">
+                <label className="mb-2 block text-sm text-white/40">
                   Subdomínio de campanha
                 </label>
                 <input
@@ -371,13 +372,13 @@ export function DomainManager() {
                   className={panelInput}
                   autoFocus
                 />
-                <p className="mt-2 text-xs text-white/35">
+                <p className="mt-2 text-sm text-white/35">
                   DNS: registro CNAME <code className="text-white/55">ads</code> →{" "}
                   <code className="text-white/55">{cnameTarget || "edge norat"}</code>
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-xs text-white/40">
+                <label className="mb-2 block text-sm text-white/40">
                   URL de origem (opcional)
                 </label>
                 <input
@@ -386,13 +387,13 @@ export function DomainManager() {
                   placeholder="https://769a4c1b.vercel-dns.com"
                   className={panelInput}
                 />
-                <p className="mt-2 text-xs leading-relaxed text-white/35">
+                <p className="mt-2 text-sm leading-relaxed text-white/35">
                   Só necessário se quiser proxy do subdomínio para o site. No modelo
                   padrão (subdomínio dedicado) pode deixar em branco.
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-xs text-white/40">
+                <label className="mb-2 block text-sm text-white/40">
                   Apelido (opcional)
                 </label>
                 <input
@@ -404,7 +405,7 @@ export function DomainManager() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-xs text-white/40">
+            <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm text-white/40">
               <strong className="text-white/65">Como funciona:</strong>
               <ol className="mt-2 list-decimal space-y-1 pl-4">
                 <li>Cadastre ads.seudominio.com (subdomínio)</li>
@@ -413,13 +414,13 @@ export function DomainManager() {
                 <li>Valide no menu ⋯</li>
               </ol>
               {cnameTarget && (
-                <p className="mt-2 text-xs text-white/55">
+                <p className="mt-2 text-sm text-white/55">
                   Destino CNAME: <code className="text-white/70">{cnameTarget}</code>
                 </p>
               )}
             </div>
 
-            {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
             <div className="mt-6 flex gap-3">
               <div className="landing-nav-pill flex-1 rounded-full p-1">
@@ -483,7 +484,7 @@ function StatusBadge({ status }: { status: string }) {
   const Icon = c.icon;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${c.className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${c.className}`}
     >
       <Icon size={10} />
       {c.label}

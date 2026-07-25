@@ -270,14 +270,14 @@ export function CreateCampaignModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
         <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-green-500/30 bg-black">
           <div className="border-b border-white/[0.06] px-6 py-5">
-            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.2em] text-white/35 uppercase">
               Passos 11 e 12
             </p>
             <div className="mt-2 flex items-center gap-2">
               <CheckCircle2 size={20} className="text-green-400" />
               <h3 className="text-lg font-medium">Campanha salva com sucesso</h3>
             </div>
-            <p className="mt-2 text-xs text-muted">
+            <p className="mt-2 text-sm text-muted">
               <strong className="text-white">{savedResult.campaignName}</strong>{" "}
               foi criada. Copie os dois entregáveis abaixo e use no seu anúncio.
             </p>
@@ -297,7 +297,7 @@ export function CreateCampaignModal({
               />
             </div>
 
-            <p className="mt-4 text-[10px] text-muted">
+            <p className="mt-4 text-sm text-muted">
               Após publicar o anúncio, abra a campanha e vá na aba{" "}
               <strong className="text-white">Charts</strong> para acompanhar as
               requisições em tempo real (Passo 13).
@@ -321,7 +321,7 @@ export function CreateCampaignModal({
       <div className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-white/[0.06] bg-black/95 backdrop-blur-md ${step === 5 ? "max-w-3xl" : "max-w-2xl"}`}>
         <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4">
           <div>
-            <p className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+            <p className="text-xs tracking-[0.2em] text-white/35 uppercase">
               Passo {stepMeta[step].label} de 11
             </p>
             <h3 className="mt-1 text-lg font-medium">{stepMeta[step].title}</h3>
@@ -338,10 +338,10 @@ export function CreateCampaignModal({
         {step === 1 && (
           <div className="p-6">
             <section>
-              <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+              <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                 Informações básicas
               </h4>
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-sm text-muted">
                 Defina um nome, escolha onde a campanha será hospedada e a fonte
                 onde você vai anunciar.
               </p>
@@ -357,10 +357,10 @@ export function CreateCampaignModal({
                 />
 
                 <div>
-                  <label className="mb-1 block text-xs text-white/40">
+                  <label className="mb-1 block text-sm text-white/40">
                     Domínio da campanha
                   </label>
-                  <p className="mb-2 text-[10px] text-muted">
+                  <p className="mb-2 text-sm text-muted">
                     Escolha um domínio validado com CNAME — é nele que o link do
                     anúncio será hospedado (ex:{" "}
                     <code className="text-accent">ads.seudominio.com</code>).
@@ -398,20 +398,20 @@ export function CreateCampaignModal({
                               {domain.hostname}
                             </p>
                             {domain.label && (
-                              <p className="text-[10px] text-muted">
+                              <p className="text-sm text-muted">
                                 {domain.label}
                               </p>
                             )}
                           </div>
                           {domain.isPrimary && (
-                            <span className="ml-auto text-[10px] text-muted">
+                            <span className="ml-auto text-sm text-muted">
                               Principal
                             </span>
                           )}
                         </button>
                       ))
                     ) : (
-                      <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-4 text-xs text-yellow-300/90">
+                      <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-4 text-sm text-yellow-300/90">
                         Nenhum domínio validado. Cadastre e valide um domínio no
                         menu <strong>Domínios</strong> antes de criar campanhas.
                       </div>
@@ -420,10 +420,10 @@ export function CreateCampaignModal({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs text-white/40">
+                  <label className="mb-1 block text-sm text-white/40">
                     Fonte de tráfego
                   </label>
-                  <p className="mb-3 text-[10px] text-muted">
+                  <p className="mb-3 text-sm text-muted">
                     Defina a origem do tráfego para melhor rastreamento
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -449,7 +449,7 @@ export function CreateCampaignModal({
                         }`}
                       >
                         <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
                           style={{ backgroundColor: source.color }}
                         >
                           {source.shortLabel.slice(0, 2).toUpperCase()}
@@ -458,7 +458,7 @@ export function CreateCampaignModal({
                           <p className="text-sm font-medium">
                             {source.shortLabel}
                           </p>
-                          <p className="text-[10px] text-muted">{source.label}</p>
+                          <p className="text-sm text-muted">{source.label}</p>
                         </div>
                       </button>
                     ))}
@@ -467,7 +467,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel="Continuar"
@@ -481,10 +481,10 @@ export function CreateCampaignModal({
         {step === 2 && (
           <div className="p-6">
             <section>
-              <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+              <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                 Segmentação de público
               </h4>
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-sm text-muted">
                 Selecione exatamente a mesma segmentação do seu anúncio em{" "}
                 <strong className="text-white">Dispositivo</strong> e{" "}
                 <strong className="text-white">País</strong>. Se você anuncia
@@ -524,7 +524,7 @@ export function CreateCampaignModal({
                 </SelectField>
               </div>
 
-              <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
+              <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-muted">
                 <strong className="text-white">Resumo da segmentação:</strong>
                 <ul className="mt-2 space-y-1">
                   <li>
@@ -549,7 +549,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel="Continuar"
@@ -565,11 +565,11 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <Shield size={16} className="text-green-400" />
-                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+                <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                   Página segura
                 </h4>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-sm text-muted">
                 Cole em <strong className="text-white">URL da página segura</strong>{" "}
                 o endereço exibido para acessos indesejados — bots, ferramentas de
                 espionagem e concorrentes. Use o site real vinculado ao domínio da
@@ -583,7 +583,7 @@ export function CreateCampaignModal({
                 .
               </p>
 
-              <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-4 text-[10px] leading-relaxed text-muted">
+              <div className="mt-4 rounded border border-green-500/20 bg-green-500/5 p-4 text-xs leading-relaxed text-muted">
                 <strong className="text-green-400">Requisitos da página segura:</strong>
                 <ul className="mt-2 list-disc space-y-1.5 pl-4">
                   <li>
@@ -617,7 +617,7 @@ export function CreateCampaignModal({
               </div>
 
               <div className="mt-4">
-                <p className="mb-2 text-xs text-white/40">
+                <p className="mb-2 text-sm text-white/40">
                   Sugestões compatíveis
                 </p>
                 <div className="space-y-2">
@@ -634,9 +634,9 @@ export function CreateCampaignModal({
                     >
                       <div>
                         <p className="text-sm font-medium">{s.label}</p>
-                        <p className="text-[10px] text-muted">{s.desc}</p>
+                        <p className="text-sm text-muted">{s.desc}</p>
                       </div>
-                      <code className="shrink-0 text-[10px] text-accent">
+                      <code className="shrink-0 text-xs text-accent">
                         {s.url}
                       </code>
                     </button>
@@ -645,7 +645,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel="Continuar"
@@ -662,11 +662,11 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <ExternalLink size={16} className="text-accent" />
-                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+                <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                   Página de oferta
                 </h4>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-sm text-muted">
                 Cole em{" "}
                 <strong className="text-white">URL da página de oferta</strong> o
                 endereço real da sua oferta — a página exibida para o tráfego
@@ -674,7 +674,7 @@ export function CreateCampaignModal({
                 <strong className="text-white">domínio real da oferta</strong>.
               </p>
 
-              <div className="mt-4 rounded border border-accent/20 bg-white/[0.03] p-4 text-[10px] leading-relaxed text-muted">
+              <div className="mt-4 rounded border border-accent/20 bg-white/[0.03] p-4 text-xs leading-relaxed text-muted">
                 <strong className="text-accent">Isolamento recomendado:</strong>
                 <ul className="mt-2 list-disc space-y-1.5 pl-4">
                   <li>
@@ -697,7 +697,7 @@ export function CreateCampaignModal({
               </div>
 
               <div className="mt-6">
-                <label className="mb-1 block text-xs text-white/40">
+                <label className="mb-1 block text-sm text-white/40">
                   Tipo de oferta
                 </label>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -707,7 +707,7 @@ export function CreateCampaignModal({
                       type="button"
                       disabled={t.disabled}
                       onClick={() => setOfferType(t.id)}
-                      className={`rounded-full border px-4 py-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      className={`rounded-full border px-4 py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         offerType === t.id
                           ? "border-white/15 bg-white/[0.06] text-white/75"
                           : "border-white/[0.06] text-muted hover:border-white/20"
@@ -735,7 +735,7 @@ export function CreateCampaignModal({
               </div>
 
               <div className="mt-4 space-y-2">
-                <p className="text-xs text-white/40">
+                <p className="text-sm text-white/40">
                   Exemplos
                 </p>
                 <button
@@ -751,7 +751,7 @@ export function CreateCampaignModal({
                   className="flex w-full items-center justify-between border border-white/[0.06] px-4 py-3 text-left hover:border-white/20"
                 >
                   <span className="text-sm">Subdomínio isolado da oferta</span>
-                  <code className="text-[10px] text-accent">
+                  <code className="text-xs text-accent">
                     {siteOrigin
                       ? `https://oferta.${getRootDomainFromHostname(selectedDomain?.hostname ?? "")}`
                       : "https://oferta.seudominio.com"}
@@ -769,7 +769,7 @@ export function CreateCampaignModal({
                     className="flex w-full items-center justify-between border border-white/[0.06] px-4 py-3 text-left hover:border-white/20"
                   >
                     <span className="text-sm">Página no site principal</span>
-                    <code className="text-[10px] text-accent">
+                    <code className="text-xs text-accent">
                       {siteOrigin}/oferta
                     </code>
                   </button>
@@ -777,7 +777,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel="Continuar"
@@ -794,18 +794,18 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <Settings2 size={16} className="text-accent" />
-                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+                <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                   Método de entrega
                 </h4>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-sm text-muted">
                 Definido <strong className="text-white">separadamente</strong> para
                 a página segura e para a de oferta. Escolha como o acesso chega a
                 cada página.
               </p>
 
               <div className="mt-5 overflow-x-auto border border-white/[0.06]">
-                <table className="w-full min-w-[560px] text-left text-[10px]">
+                <table className="w-full min-w-[560px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.06] bg-white/[0.02] text-muted">
                       <th className="px-3 py-2.5 font-medium">Método</th>
@@ -865,14 +865,14 @@ export function CreateCampaignModal({
                   }
                 />
                 {isExternalOffer && (
-                  <p className="mt-2 text-[10px] text-yellow-400">
+                  <p className="mt-2 text-sm text-yellow-400">
                     URL externa detectada — Mirror e Unpack não estão disponíveis
                     para oferta. Usando Redirect.
                   </p>
                 )}
               </div>
 
-              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-[10px] text-muted">
+              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-3 text-sm text-muted">
                 <strong className="text-white">Padrão para{" "}
                 {TRAFFIC_SOURCES.find((s) => s.id === form.trafficSource)
                   ?.shortLabel ?? form.trafficSource}:</strong>{" "}
@@ -918,7 +918,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel="Continuar"
@@ -934,21 +934,21 @@ export function CreateCampaignModal({
             <section>
               <div className="flex items-center gap-2">
                 <GitBranch size={16} className="text-accent" />
-                <h4 className="text-[10px] tracking-[0.2em] text-white/35 uppercase">
+                <h4 className="text-xs tracking-[0.2em] text-white/35 uppercase">
                   Custom Path
                 </h4>
                 <span className="rounded bg-white/10 px-2 py-0.5 text-[8px] text-muted">
                   Opcional
                 </span>
               </div>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-sm text-muted">
                 Ative o toggle <strong className="text-white">Custom Path</strong>{" "}
                 para escolher a slug que aparece na URL da campanha (ex.:{" "}
                 <code className="text-accent">/vsl-01</code>). Se deixar desativado,
                 o sistema gera uma slug aleatória automaticamente.
               </p>
 
-              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
+              <div className="mt-4 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-muted">
                 É apenas <strong className="text-white">cosmético</strong> — não
                 afeta a lógica de filtragem, segmentação ou entrega da campanha.
               </div>
@@ -988,7 +988,7 @@ export function CreateCampaignModal({
                     autoFocus
                   />
                   <div className="rounded border border-accent/20 bg-white/[0.03] p-4">
-                    <p className="text-xs text-white/40">
+                    <p className="text-sm text-white/40">
                       Preview da URL
                     </p>
                     <p className="mt-2 break-all font-mono text-xs text-accent">
@@ -997,7 +997,7 @@ export function CreateCampaignModal({
                   </div>
                 </div>
               ) : (
-                <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-[10px] text-muted">
+                <div className="mt-5 rounded border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-muted">
                   <strong className="text-white">Slug automática:</strong> ao salvar,
                   será gerada algo como{" "}
                   <code className="text-accent">facebook-lancamento-x7k2m9</code>{" "}
@@ -1017,7 +1017,7 @@ export function CreateCampaignModal({
                         customSlug: suggestion,
                       })
                     }
-                    className="rounded-full border border-white/[0.06] px-3 py-1 text-[10px] text-muted hover:border-accent hover:text-accent"
+                    className="rounded-full border border-white/[0.06] px-3 py-1 text-sm text-muted hover:border-accent hover:text-accent"
                   >
                     /{suggestion}
                   </button>
@@ -1025,7 +1025,7 @@ export function CreateCampaignModal({
               </div>
             </section>
 
-            {error && <p className="mt-4 text-xs text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             <WizardActions
               primaryLabel={saving ? "Salvando..." : "Salvar campanha"}
@@ -1059,8 +1059,8 @@ function DeliveryMethodPicker({
 }) {
   return (
     <div>
-      <p className="text-xs text-white/40">{title}</p>
-      <p className="mt-0.5 truncate text-[10px] text-accent">{subtitle}</p>
+      <p className="text-sm text-white/40">{title}</p>
+      <p className="mt-0.5 truncate text-xs text-accent">{subtitle}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {methods.map((m) => {
           const disabled = disabledIds.includes(m.id);
@@ -1070,7 +1070,7 @@ function DeliveryMethodPicker({
               type="button"
               disabled={disabled}
               onClick={() => onSelect(m.id)}
-              className={`rounded-full border px-4 py-2 text-[10px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              className={`rounded-full border px-4 py-2 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 selected === m.id
                   ? "border-white/15 bg-white/[0.06] text-white/75"
                   : "border-white/[0.06] text-muted hover:border-white/20"
@@ -1109,7 +1109,7 @@ function WizardActions({
         <button
           type="button"
           onClick={onBack}
-          className="px-4 text-xs text-muted hover:text-white"
+          className="px-4 text-sm text-muted hover:text-white"
         >
           Voltar
         </button>
@@ -1129,7 +1129,7 @@ function WizardActions({
       <button
         type="button"
         onClick={onCancel}
-        className="px-4 text-xs text-muted hover:text-white"
+        className="px-4 text-sm text-muted hover:text-white"
       >
         Cancelar
       </button>
@@ -1152,10 +1152,10 @@ function SelectField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-white/40">
+      <label className="mb-1 block text-sm text-white/40">
         {label}
       </label>
-      {hint && <p className="mb-2 text-[10px] text-muted">{hint}</p>}
+      {hint && <p className="mb-2 text-sm text-muted">{hint}</p>}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -1182,7 +1182,7 @@ function ToggleRow({
     <label className="flex cursor-pointer items-start justify-between gap-4">
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="mt-0.5 text-[10px] text-muted">{hint}</p>
+        <p className="mt-0.5 text-sm text-muted">{hint}</p>
       </div>
       <button
         type="button"
@@ -1220,10 +1220,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-white/40">
+      <label className="mb-1 block text-sm text-white/40">
         {label}
       </label>
-      {hint && <p className="mb-2 text-[10px] text-muted">{hint}</p>}
+      {hint && <p className="mb-2 text-sm text-muted">{hint}</p>}
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}

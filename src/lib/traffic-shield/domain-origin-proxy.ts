@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { isKnownPanelHostname } from "@/lib/site-config";
 import { normalizeHostname } from "@/lib/traffic-shield/hostname-utils";
 
 const HOP_BY_HOP = new Set([
@@ -29,6 +30,7 @@ export function isPanelHostname(hostname: string): boolean {
 
   if (host === "localhost" || host === "127.0.0.1") return true;
   if (host.endsWith(".vercel.app")) return true;
+  if (isKnownPanelHostname(host)) return true;
 
   for (const raw of [
     process.env.NEXT_PUBLIC_SITE_URL,

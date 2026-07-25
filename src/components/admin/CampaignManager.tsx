@@ -163,7 +163,7 @@ export function CampaignManager() {
       </div>
 
       {!canCreateCampaigns && (
-        <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-300/90">
+        <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-300/90">
           Valide pelo menos um domínio no menu <strong>Domínios</strong> para
           criar campanhas.
         </div>
@@ -182,11 +182,11 @@ export function CampaignManager() {
         </button>
       </div>
 
-      <p className="text-xs text-white/35 sm:hidden">
+      <p className="text-sm text-white/35 sm:hidden">
         Deslize horizontalmente para ver todas as colunas →
       </p>
       <div className={panelTableWrap}>
-        <table className="w-full min-w-[900px] text-left text-xs">
+        <table className="w-full min-w-[900px] text-left text-sm">
           <thead>
             <tr className="border-b border-white/[0.06] bg-white/[0.02] text-white/40">
               <th className="px-4 py-3 font-medium">Nome</th>
@@ -238,7 +238,7 @@ export function CampaignManager() {
                     <td className="px-4 py-4">
                       <p className="font-medium">{c.name}</p>
                       {c.domainHostname && (
-                        <p className="mt-0.5 text-[10px] text-muted">
+                        <p className="mt-0.5 text-sm text-muted">
                           {c.domainHostname}
                         </p>
                       )}
@@ -254,7 +254,7 @@ export function CampaignManager() {
                         <span>{source?.shortLabel ?? c.trafficSource}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4 font-mono text-[10px] text-muted">
+                    <td className="px-4 py-4 font-mono text-sm text-muted">
                       {c.slug}
                     </td>
                     <td className="px-4 py-4 text-center text-accent">
@@ -328,7 +328,7 @@ export function CampaignManager() {
                 <h3 className="text-lg font-medium">{selected.name}</h3>
                 <StatusBadge status={selected.status} />
               </div>
-              <p className="mt-1 text-xs text-white/40">
+              <p className="mt-1 text-sm text-white/40">
                 /c/{selected.slug} ·{" "}
                 {new Date(selected.createdAt).toLocaleString("pt-BR")}
               </p>
@@ -336,7 +336,7 @@ export function CampaignManager() {
             <div className="flex gap-2">
               <button
                 onClick={() => toggleStatus(selected)}
-                className="flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5 text-[10px] uppercase hover:border-accent"
+                className="flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5 text-xs uppercase hover:border-accent"
               >
                 {selected.status === "active" ? (
                   <Pause size={12} />
@@ -347,7 +347,7 @@ export function CampaignManager() {
               </button>
               <button
                 onClick={() => handleDelete(selected.id)}
-                className="rounded-full border border-red-500/30 px-3 py-1.5 text-[10px] text-red-400 hover:bg-red-500/10"
+                className="rounded-full border border-red-500/30 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10"
               >
                 <Trash2 size={12} />
               </button>
@@ -376,7 +376,7 @@ export function CampaignManager() {
           {detailTab === "campaign" ? (
             <>
               <div className="rounded border border-white/[0.06] bg-white/5 p-4">
-                <p className="mb-4 text-xs text-white/40">
+                <p className="mb-4 text-sm text-white/40">
                   Display Source — entregáveis do anúncio
                 </p>
                 <CampaignUrlDeliverables
@@ -475,7 +475,7 @@ function StatusBadge({ status }: { status: string }) {
   const c = config[status] ?? config.draft;
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${c.className}`}
+      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${c.className}`}
     >
       {c.label}
     </span>
@@ -485,7 +485,7 @@ function StatusBadge({ status }: { status: string }) {
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-      <p className="text-xs text-white/40">{label}</p>
+      <p className="text-sm text-white/40">{label}</p>
       <p className="mt-1 truncate text-sm text-white/70">{value}</p>
     </div>
   );

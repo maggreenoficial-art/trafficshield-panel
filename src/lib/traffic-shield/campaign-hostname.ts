@@ -1,9 +1,22 @@
 import { normalizeHostname } from "@/lib/traffic-shield/hostname-utils";
 
+/** TLDs compostos comuns no BR e internacional. */
+const MULTI_PART_SUFFIXES = new Set([
+  "com.br",
+  "net.br",
+  "org.br",
+  "gov.br",
+  "edu.br",
+  "co.uk",
+  "com.au",
+  "co.nz",
+]);
+
 /** Subdomínio dedicado (ex: ads.radario.sbs) — não mexe no www/@ */
 export function isDedicatedCampaignSubdomain(hostname: string): boolean {
   const parts = normalizeHostname(hostname).split(".").filter(Boolean);
-  return parts.length >= 3;
+  const rootParts = getRootDomainFromHostname(hostname).split(".").filter(Boolean);
+  return parts.length > rootParts.length;
 }
 
 export function suggestCampaignHostname(baseDomain: string): string {
@@ -22,7 +35,13 @@ export function getCampaignSubdomainLabel(hostname: string): string {
 export function getRootDomainFromHostname(hostname: string): string {
   const parts = normalizeHostname(hostname).split(".").filter(Boolean);
   if (parts.length < 2) return hostname;
-  return parts.slice(-2).join(".");
+
+  const lastTwo = parts.slice(-2).join(".");
+  if (MULTI_PART_SUFFIXES.has(lastTwo) && parts.length >= 3) {
+    return parts.slice(-3).join(".");
+  }
+
+  return lastTwo;
 }
 
 export function validateCampaignHostnameInput(hostname: string): {
