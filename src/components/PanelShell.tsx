@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils";
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isStoryboardEditor = /^\/storyboards\/[^/]+/.test(pathname);
   const isStandalone =
-    pathname === "/" || pathname === "/login";
+    pathname === "/" || pathname === "/login" || isStoryboardEditor;
 
   if (isStandalone) {
     return <>{children}</>;

@@ -9,7 +9,8 @@ function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PATHS.some((p) => pathname === p) ||
     pathname.startsWith("/c/") ||
-    pathname.startsWith("/api/traffic/")
+    pathname.startsWith("/api/traffic/") ||
+    pathname.startsWith("/api/kie/")
   );
 }
 
