@@ -19,6 +19,7 @@ import {
   panelPillBtn,
   panelSearch,
 } from "@/lib/panel-styles";
+import { formatKieCredits } from "@/lib/kie/models";
 import { cn } from "@/lib/utils";
 
 type Storyboard = {
@@ -131,7 +132,7 @@ export function StoryboardManager() {
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-white/50">
-            {credits} créditos
+            {formatKieCredits(credits)} créditos Kie
           </span>
           <button
             type="button"

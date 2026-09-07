@@ -1,20 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requirePanelContext } from "@/lib/api/panel-context";
-import { getTenantCredits } from "@/lib/db/credits";
 import {
   createStoryboard,
   listStoryboards,
 } from "@/lib/db/storyboards";
+import { getKieAccountCredits } from "@/lib/kie/client";
 
 export async function GET(request: NextRequest) {
   const ctx = await requirePanelContext(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {
-    const [storyboards, credits] = await Promise.all([
-      listStoryboards(ctx.tenantId),
-      getTenantCredits(ctx.tenantId),
-    ]);
+    const storyboards = await listStoryboards(ctx.tenantId);
+    let credits = 0;
+    try {
+      credits = await getKieAccountCredits();
+    } catch {
+      credits = 0;
+    }
     return NextResponse.json({ storyboards, credits });
   } catch {
     return NextResponse.json(

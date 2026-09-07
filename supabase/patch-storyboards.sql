@@ -50,8 +50,9 @@ CREATE TABLE IF NOT EXISTS public.storyboard_blocks (
   result_urls jsonb NOT NULL DEFAULT '[]'::jsonb,
   kie_task_id text,
   kie_model text,
-  credits_charged integer NOT NULL DEFAULT 0,
+  credits_charged double precision NOT NULL DEFAULT 0,
   error_message text,
+  source_block_id uuid REFERENCES public.storyboard_blocks(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -1,4 +1,3 @@
-import { creditCredits } from "@/lib/db/credits";
 import { insertCreative } from "@/lib/db/creatives";
 import {
   getBlockById,
@@ -35,6 +34,10 @@ export async function syncBlockFromKie(
       resultUrl: url,
       resultUrls: info.resultUrls,
       errorMessage: null,
+      creditsCharged:
+        info.creditsConsumed != null
+          ? Number(info.creditsConsumed)
+          : block.creditsCharged,
     });
 
     if (url && !(await creativeExistsForBlock(block.id))) {
@@ -56,20 +59,10 @@ export async function syncBlockFromKie(
   }
 
   if (info.state === "fail") {
-    const updated = await updateBlock(block.tenantId, block.id, {
+    return updateBlock(block.tenantId, block.id, {
       status: "fail",
       errorMessage: info.failMsg || "Geração falhou na Kie AI.",
     });
-    if (block.creditsCharged > 0) {
-      await creditCredits({
-        tenantId: block.tenantId,
-        amount: block.creditsCharged,
-        reason: "reembolso_geracao_falhou",
-        refType: "storyboard_block",
-        refId: block.id,
-      });
-    }
-    return updated;
   }
 
   if (info.state === "generating" || info.state === "queuing") {

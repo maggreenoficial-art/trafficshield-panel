@@ -1,4 +1,4 @@
-/** Catálogo de modelos Storyboard → Kie AI */
+/** Catálogo de modelos Storyboard → Kie AI (custos em créditos Kie) */
 
 export type StoryboardMediaKind = "image" | "video";
 
@@ -15,7 +15,10 @@ export type StoryboardModelDef = {
   key: StoryboardModelKey;
   label: string;
   kind: StoryboardMediaKind;
-  /** Custo em créditos norat */
+  /**
+   * Custo base em créditos Kie (1K para imagem; 5s para vídeo).
+   * Imagem muda com resolução via estimateKieCredits().
+   */
   credits: number;
   kieModel: string;
   requiresReference: boolean;
@@ -23,12 +26,19 @@ export type StoryboardModelDef = {
   description?: string;
 };
 
+/** GPT Image 2 — preços oficiais Kie: 1K=6, 2K=10, 4K=16 */
+export const GPT_IMAGE_2_CREDITS: Record<string, number> = {
+  "1K": 6,
+  "2K": 10,
+  "4K": 16,
+};
+
 export const STORYBOARD_MODELS: StoryboardModelDef[] = [
   {
     key: "logo",
     label: "Criar Logotipo",
     kind: "image",
-    credits: 10,
+    credits: 6,
     kieModel: "gpt-image-2-text-to-image",
     requiresReference: false,
     defaultResolution: "1K",
@@ -38,7 +48,7 @@ export const STORYBOARD_MODELS: StoryboardModelDef[] = [
     key: "image",
     label: "Criar imagem",
     kind: "image",
-    credits: 10,
+    credits: 6,
     kieModel: "gpt-image-2-text-to-image",
     requiresReference: false,
     defaultResolution: "1K",
@@ -47,7 +57,7 @@ export const STORYBOARD_MODELS: StoryboardModelDef[] = [
     key: "image_hq",
     label: "Criar imagem (Alta qualidade)",
     kind: "image",
-    credits: 20,
+    credits: 10,
     kieModel: "gpt-image-2-text-to-image",
     requiresReference: false,
     defaultResolution: "2K",
@@ -59,7 +69,7 @@ export const STORYBOARD_MODELS: StoryboardModelDef[] = [
     credits: 50,
     kieModel: "kling-2.6/image-to-video",
     requiresReference: true,
-    description: "Kling 2.6 — UGC premium",
+    description: "Kling 2.6 — UGC premium (~5s)",
   },
   {
     key: "img2video_lq",
@@ -74,7 +84,7 @@ export const STORYBOARD_MODELS: StoryboardModelDef[] = [
     key: "animate",
     label: "Animar Imagem",
     kind: "video",
-    credits: 25,
+    credits: 20,
     kieModel: "bytedance/v1-lite-image-to-video",
     requiresReference: true,
     description: "Anima a imagem de referência",
@@ -83,7 +93,7 @@ export const STORYBOARD_MODELS: StoryboardModelDef[] = [
     key: "motion",
     label: "Imitar Movimento",
     kind: "video",
-    credits: 55,
+    credits: 50,
     kieModel: "kling-2.6/image-to-video",
     requiresReference: true,
     description: "Kling 2.6 — movimento natural UGC",
@@ -94,6 +104,27 @@ export function getStoryboardModel(
   key: string
 ): StoryboardModelDef | undefined {
   return STORYBOARD_MODELS.find((m) => m.key === key);
+}
+
+/** Custo estimado em créditos Kie (cobrado na conta da API). */
+export function estimateKieCredits(
+  modelKey: string,
+  resolution = "1K"
+): number {
+  const model = getStoryboardModel(modelKey);
+  if (!model) return 0;
+  if (model.kind === "image") {
+    return GPT_IMAGE_2_CREDITS[resolution] ?? GPT_IMAGE_2_CREDITS["1K"];
+  }
+  return model.credits;
+}
+
+export function formatKieCredits(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  if (Number.isInteger(value)) return String(value);
+  return value.toLocaleString("pt-BR", {
+    maximumFractionDigits: 2,
+  });
 }
 
 export const ASPECT_RATIOS = [

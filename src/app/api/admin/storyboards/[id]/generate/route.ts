@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requirePanelContext } from "@/lib/api/panel-context";
-import { debitCredits, getTenantCredits } from "@/lib/db/credits";
 import {
   createBlock,
+  getBlockById,
   getStoryboard,
   touchStoryboard,
   updateBlock,
@@ -10,8 +10,12 @@ import {
 import {
   buildKieInput,
   createKieTask,
+  getKieAccountCredits,
 } from "@/lib/kie/client";
-import { getStoryboardModel } from "@/lib/kie/models";
+import {
+  estimateKieCredits,
+  getStoryboardModel,
+} from "@/lib/kie/models";
 import { getSiteUrl } from "@/lib/site-config";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -24,10 +28,14 @@ export async function POST(request: NextRequest, context: Ctx) {
   try {
     const board = await getStoryboard(panel.tenantId, storyboardId);
     if (!board) {
-      return NextResponse.json({ error: "Storyboard não encontrado." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Storyboard não encontrado." },
+        { status: 404 }
+      );
     }
 
     const body = (await request.json()) as {
+      blockId?: string;
       modelKey?: string;
       prompt?: string;
       aspectRatio?: string;
@@ -35,6 +43,7 @@ export async function POST(request: NextRequest, context: Ctx) {
       referenceUrls?: string[];
       positionX?: number;
       positionY?: number;
+      sourceBlockId?: string | null;
     };
 
     const model = getStoryboardModel(body.modelKey ?? "");
@@ -47,59 +56,86 @@ export async function POST(request: NextRequest, context: Ctx) {
       return NextResponse.json({ error: "Prompt obrigatório." }, { status: 400 });
     }
 
-    const referenceUrls = (body.referenceUrls ?? []).filter(Boolean);
+    let referenceUrls = (body.referenceUrls ?? []).filter(Boolean);
+    const sourceBlockId = body.sourceBlockId ?? null;
+
+    if (sourceBlockId) {
+      const source = await getBlockById(panel.tenantId, sourceBlockId);
+      if (source?.resultUrl && !referenceUrls.includes(source.resultUrl)) {
+        referenceUrls = [source.resultUrl, ...referenceUrls];
+      }
+    }
+
     if (model.requiresReference && referenceUrls.length === 0) {
       return NextResponse.json(
-        { error: "Este modelo precisa de ao menos 1 imagem de referência (URL pública)." },
+        {
+          error:
+            "Conecte uma imagem de referência (plug de outra cena ou upload).",
+        },
         { status: 400 }
       );
     }
 
-    const resolution =
-      body.resolution || model.defaultResolution || "1K";
+    const resolution = body.resolution || model.defaultResolution || "1K";
     const aspectRatio = body.aspectRatio || "auto";
+    const cost = estimateKieCredits(model.key, resolution);
 
-    const balance = await getTenantCredits(panel.tenantId);
-    if (balance < model.credits) {
+    let kieCredits = 0;
+    try {
+      kieCredits = await getKieAccountCredits();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Não foi possível ler créditos Kie.";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    if (kieCredits < cost) {
       return NextResponse.json(
         {
-          error: `Créditos insuficientes. Precisa de ${model.credits}, tem ${balance}.`,
+          error: `Créditos Kie insuficientes. Precisa de ${cost}, tem ${kieCredits}.`,
+          credits: kieCredits,
         },
         { status: 402 }
       );
     }
 
-    const block = await createBlock(panel.tenantId, {
-      storyboardId,
-      modelKey: model.key,
-      prompt,
-      aspectRatio,
-      resolution,
-      referenceUrls,
-      positionX: body.positionX ?? 160 + Math.random() * 80,
-      positionY: body.positionY ?? 140 + Math.random() * 80,
-      status: "queued",
-      creditsCharged: model.credits,
-      kieModel: model.kieModel,
-    });
+    let block =
+      body.blockId
+        ? await getBlockById(panel.tenantId, body.blockId)
+        : null;
 
-    const ok = await debitCredits({
-      tenantId: panel.tenantId,
-      amount: model.credits,
-      reason: `gerar_${model.key}`,
-      refType: "storyboard_block",
-      refId: block.id,
-    });
+    if (body.blockId && !block) {
+      return NextResponse.json({ error: "Bloco não encontrado." }, { status: 404 });
+    }
 
-    if (!ok) {
-      await updateBlock(panel.tenantId, block.id, {
-        status: "fail",
-        errorMessage: "Créditos insuficientes.",
+    if (block) {
+      block = await updateBlock(panel.tenantId, block.id, {
+        modelKey: model.key,
+        prompt,
+        aspectRatio,
+        resolution,
+        referenceUrls,
+        status: "queued",
+        creditsCharged: cost,
+        kieModel: model.kieModel,
+        sourceBlockId: sourceBlockId ?? block.sourceBlockId,
+        errorMessage: null,
       });
-      return NextResponse.json(
-        { error: "Créditos insuficientes." },
-        { status: 402 }
-      );
+    } else {
+      block = await createBlock(panel.tenantId, {
+        storyboardId,
+        modelKey: model.key,
+        prompt,
+        aspectRatio,
+        resolution,
+        referenceUrls,
+        positionX: body.positionX ?? 160 + Math.random() * 80,
+        positionY: body.positionY ?? 140 + Math.random() * 80,
+        status: "queued",
+        creditsCharged: cost,
+        kieModel: model.kieModel,
+        sourceBlockId,
+      });
     }
 
     const siteUrl =
@@ -114,7 +150,6 @@ export async function POST(request: NextRequest, context: Ctx) {
       ? `${siteUrl.replace(/\/$/, "")}/api/kie/callback?token=${encodeURIComponent(callbackSecret)}`
       : undefined;
 
-    // Se há referências e o modelo de imagem permite, usa image-to-image
     let kieModel = model.kieModel;
     if (
       model.kind === "image" &&
@@ -143,26 +178,18 @@ export async function POST(request: NextRequest, context: Ctx) {
       const updated = await updateBlock(panel.tenantId, block.id, {
         status: "generating",
         kieTaskId: taskId,
+        kieModel,
       });
       await touchStoryboard(panel.tenantId, storyboardId);
 
-      const credits = await getTenantCredits(panel.tenantId);
-      return NextResponse.json({ block: updated, credits });
+      const credits = await getKieAccountCredits().catch(() => kieCredits - cost);
+      return NextResponse.json({ block: updated, credits, cost });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Falha ao criar tarefa na Kie AI.";
       await updateBlock(panel.tenantId, block.id, {
         status: "fail",
         errorMessage: message,
-      });
-      // reembolso
-      const { creditCredits } = await import("@/lib/db/credits");
-      await creditCredits({
-        tenantId: panel.tenantId,
-        amount: model.credits,
-        reason: "reembolso_falha_kie",
-        refType: "storyboard_block",
-        refId: block.id,
       });
       return NextResponse.json({ error: message }, { status: 502 });
     }

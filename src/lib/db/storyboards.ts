@@ -29,6 +29,7 @@ export type StoryboardBlock = {
   kieModel: string | null;
   creditsCharged: number;
   errorMessage: string | null;
+  sourceBlockId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -61,6 +62,7 @@ type BlockRow = {
   kie_model: string | null;
   credits_charged: number;
   error_message: string | null;
+  source_block_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -100,8 +102,9 @@ function mapBlock(row: BlockRow): StoryboardBlock {
     resultUrls: asStringArray(row.result_urls),
     kieTaskId: row.kie_task_id,
     kieModel: row.kie_model,
-    creditsCharged: row.credits_charged,
+    creditsCharged: Number(row.credits_charged) || 0,
     errorMessage: row.error_message,
+    sourceBlockId: row.source_block_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -247,15 +250,16 @@ export async function createBlock(
   input: {
     storyboardId: string;
     modelKey: string;
-    prompt: string;
-    aspectRatio: string;
-    resolution: string;
-    referenceUrls: string[];
+    prompt?: string;
+    aspectRatio?: string;
+    resolution?: string;
+    referenceUrls?: string[];
     positionX: number;
     positionY: number;
-    status: StoryboardBlock["status"];
-    creditsCharged: number;
-    kieModel: string;
+    status?: StoryboardBlock["status"];
+    creditsCharged?: number;
+    kieModel?: string;
+    sourceBlockId?: string | null;
   }
 ): Promise<StoryboardBlock> {
   const supabase = createAdminClient();
@@ -265,15 +269,16 @@ export async function createBlock(
       tenant_id: tenantId,
       storyboard_id: input.storyboardId,
       model_key: input.modelKey,
-      prompt: input.prompt,
-      aspect_ratio: input.aspectRatio,
-      resolution: input.resolution,
-      reference_urls: input.referenceUrls,
+      prompt: input.prompt ?? "",
+      aspect_ratio: input.aspectRatio ?? "auto",
+      resolution: input.resolution ?? "1K",
+      reference_urls: input.referenceUrls ?? [],
       position_x: input.positionX,
       position_y: input.positionY,
-      status: input.status,
-      credits_charged: input.creditsCharged,
-      kie_model: input.kieModel,
+      status: input.status ?? "draft",
+      credits_charged: input.creditsCharged ?? 0,
+      kie_model: input.kieModel ?? null,
+      source_block_id: input.sourceBlockId ?? null,
     })
     .select("*")
     .single();
@@ -289,10 +294,17 @@ export async function updateBlock(
     resultUrl: string | null;
     resultUrls: string[];
     kieTaskId: string | null;
+    kieModel: string | null;
     errorMessage: string | null;
     positionX: number;
     positionY: number;
     prompt: string;
+    modelKey: string;
+    aspectRatio: string;
+    resolution: string;
+    referenceUrls: string[];
+    creditsCharged: number;
+    sourceBlockId: string | null;
   }>
 ): Promise<StoryboardBlock> {
   const supabase = createAdminClient();
@@ -303,10 +315,17 @@ export async function updateBlock(
   if (patch.resultUrl !== undefined) row.result_url = patch.resultUrl;
   if (patch.resultUrls !== undefined) row.result_urls = patch.resultUrls;
   if (patch.kieTaskId !== undefined) row.kie_task_id = patch.kieTaskId;
+  if (patch.kieModel !== undefined) row.kie_model = patch.kieModel;
   if (patch.errorMessage !== undefined) row.error_message = patch.errorMessage;
   if (patch.positionX !== undefined) row.position_x = patch.positionX;
   if (patch.positionY !== undefined) row.position_y = patch.positionY;
   if (patch.prompt !== undefined) row.prompt = patch.prompt;
+  if (patch.modelKey !== undefined) row.model_key = patch.modelKey;
+  if (patch.aspectRatio !== undefined) row.aspect_ratio = patch.aspectRatio;
+  if (patch.resolution !== undefined) row.resolution = patch.resolution;
+  if (patch.referenceUrls !== undefined) row.reference_urls = patch.referenceUrls;
+  if (patch.creditsCharged !== undefined) row.credits_charged = patch.creditsCharged;
+  if (patch.sourceBlockId !== undefined) row.source_block_id = patch.sourceBlockId;
 
   const { data, error } = await supabase
     .from("storyboard_blocks")

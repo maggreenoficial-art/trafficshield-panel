@@ -72,6 +72,12 @@ async function kieFetch<T>(
   return json.data;
 }
 
+/** Saldo de créditos da conta Kie (API key). Pode ser decimal. */
+export async function getKieAccountCredits(): Promise<number> {
+  const data = await kieFetch<number>("/api/v1/chat/credit");
+  return typeof data === "number" ? data : Number(data) || 0;
+}
+
 export async function createKieTask(
   body: KieCreateTaskBody
 ): Promise<KieCreateTaskResult> {
