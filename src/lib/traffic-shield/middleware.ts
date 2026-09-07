@@ -9,6 +9,7 @@ import type {
   TrafficShieldConfig,
 } from "@/lib/traffic-shield/types";
 import { getClientIp, hashIp } from "@/lib/request";
+import { getInternalTrafficSecret } from "@/lib/security/internal-secret";
 
 const VISITOR_COOKIE = "vp-visitor";
 const CONFIG_CACHE_MS = 30_000;
@@ -57,7 +58,8 @@ function logTrafficAsync(
   origin: string,
   payload: Record<string, unknown>
 ): void {
-  const secret = process.env.TRAFFIC_INTERNAL_SECRET ?? "vp-traffic-dev";
+  const secret = getInternalTrafficSecret();
+  if (!secret) return;
   fetch(`${origin}/api/traffic/log`, {
     method: "POST",
     headers: {

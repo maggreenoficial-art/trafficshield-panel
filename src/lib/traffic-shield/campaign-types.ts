@@ -43,6 +43,7 @@ export interface TrafficDomain {
 
 export interface TrafficCampaign {
   id: string;
+  tenantId?: string;
   name: string;
   slug: string;
   domainId: string | null;
@@ -76,6 +77,22 @@ export interface TrafficCampaignClick {
   trafficSource: string | null;
   ipHash: string;
   reasons: string[];
+  queryParams?: Record<string, string>;
+  clickId?: string | null;
+  visitorKey?: string | null;
+  createdAt: string;
+}
+
+export type ConversionEvent = "purchase" | "order_bump";
+
+export interface TrafficCampaignConversion {
+  id: string;
+  campaignId: string;
+  clickRowId: string | null;
+  event: ConversionEvent;
+  value: number;
+  currency: string;
+  orderId: string | null;
   createdAt: string;
 }
 
@@ -117,8 +134,15 @@ export interface CampaignStats {
   clicksBots: number;
   totalRequests: number;
   passRate: number;
+  purchases: number;
+  orderBumps: number;
+  revenue: number;
+  aov: number;
+  cvr: number;
   hourly: { hour: string; offer: number; safe: number; bots: number }[];
   recentClicks: TrafficCampaignClick[];
+  recentConversions: TrafficCampaignConversion[];
+  postbackBaseUrl?: string;
 }
 
 export const TRAFFIC_SOURCES: {
@@ -239,11 +263,12 @@ export const DELIVERY_METHOD_GUIDE: {
     id: "mirror",
     label: "norat Mirror",
     howItWorks:
-      "Espelha o conteúdo da página na própria URL do norat, sem redirecionamento",
+      "Espelha o conteúdo da página na própria URL do norat, sem redirecionamento — inclusive URLs externas",
     whenToUse:
       "Mais seguro contra espionagem — o rato só vê a URL do norat, nunca a URL real da oferta",
     forSafe: true,
     forOffer: true,
+    badge: "Recomendado",
   },
   {
     id: "unpack",
@@ -370,15 +395,15 @@ const SOURCE_DELIVERY_DEFAULTS: Partial<
     { safe: DeliveryMethod; offer: DeliveryMethod }
   >
 > = {
-  meta: { safe: "redirect", offer: "redirect" },
-  google: { safe: "redirect", offer: "redirect" },
-  tiktok: { safe: "redirect", offer: "redirect" },
-  taboola: { safe: "pre_page", offer: "redirect" },
-  newsbreak: { safe: "pre_page", offer: "redirect" },
-  native: { safe: "pre_page", offer: "redirect" },
-  mgid: { safe: "pre_page", offer: "redirect" },
-  rumble: { safe: "redirect", offer: "redirect" },
-  other: { safe: "redirect", offer: "redirect" },
+  meta: { safe: "redirect", offer: "mirror" },
+  google: { safe: "redirect", offer: "mirror" },
+  tiktok: { safe: "redirect", offer: "mirror" },
+  taboola: { safe: "pre_page", offer: "mirror" },
+  newsbreak: { safe: "pre_page", offer: "mirror" },
+  native: { safe: "pre_page", offer: "mirror" },
+  mgid: { safe: "pre_page", offer: "mirror" },
+  rumble: { safe: "redirect", offer: "mirror" },
+  other: { safe: "redirect", offer: "mirror" },
 };
 
 export function getDefaultDeliveryMethodsForSource(source: TrafficSource): {

@@ -45,24 +45,36 @@ function hasTrafficSourceSignal(
 ): boolean {
   if (source === "other") return true;
 
+  // Plataformas pagas principais: exige click id real do anúncio
+  if (source === "meta") return Boolean(params.fbclid?.trim());
+  if (source === "google") {
+    return Boolean(
+      params.gclid?.trim() || params.wbraid?.trim() || params.gbraid?.trim()
+    );
+  }
+  if (source === "tiktok") return Boolean(params.ttclid?.trim());
+
   const keys = Object.keys(params);
   const utm = (params.utm_source ?? "").toLowerCase();
-  if (source === "meta" && keys.some((k) => k === "fbclid")) return true;
-  if (source === "google" && keys.some((k) => k === "gclid")) return true;
-  if (source === "tiktok" && keys.some((k) => k === "ttclid")) return true;
-  if (source === "taboola" && utm.includes("taboola")) return true;
-  if (source === "newsbreak" && utm.includes("newsbreak")) return true;
+  if (source === "taboola") {
+    return Boolean(params.tblci?.trim()) || utm.includes("taboola");
+  }
+  if (source === "newsbreak") {
+    return Boolean(params.nbclid?.trim()) || utm.includes("newsbreak");
+  }
   if (source === "mgid" && utm.includes("mgid")) return true;
   if (source === "rumble" && utm.includes("rumble")) return true;
 
   const checks = SOURCE_PARAMS[source];
-  return checks.some((check) => {
-    if (check.includes("=")) {
-      const [key, val] = check.split("=");
-      return params[key]?.toLowerCase().includes(val);
-    }
-    return keys.includes(check);
-  }) || (source === "native" && Boolean(utm));
+  return (
+    checks.some((check) => {
+      if (check.includes("=")) {
+        const [key, val] = check.split("=");
+        return params[key]?.toLowerCase().includes(val);
+      }
+      return keys.includes(check);
+    }) || (source === "native" && Boolean(utm))
+  );
 }
 
 export function evaluateCampaignTraffic(input: {
@@ -74,6 +86,8 @@ export function evaluateCampaignTraffic(input: {
   searchParams: Record<string, string>;
   hasVisitorCookie?: boolean;
   testMode?: "offer" | "safe" | null;
+  /** Motivos de rate-limit / replay — forçam safe */
+  abuseReasons?: string[];
 }): CampaignEvaluationResult {
   const { campaign, shieldConfig } = input;
   const reasons: string[] = [];
@@ -88,6 +102,11 @@ export function evaluateCampaignTraffic(input: {
 
   if (campaign.status !== "active") {
     return buildResult(campaign, "safe", ["campaign_inactive"], 100);
+  }
+
+  if (input.abuseReasons && input.abuseReasons.length > 0) {
+    reasons.push(...input.abuseReasons);
+    qualified = false;
   }
 
   if (campaign.uniqueTokenEnabled) {
@@ -190,11 +209,45 @@ export function buildCampaignUrl(
     params.set(key, value);
   }
 
+  // Macros dinâmicas Meta — o Ads Manager substitui ao servir o anúncio
+  if (campaign.trafficSource === "meta") {
+    params.set("utm_campaign", "{{campaign.name}}");
+    params.set("utm_content", "{{ad.id}}");
+    params.set("utm_term", "{{adset.id}}");
+    params.set("campaign_id", "{{campaign.id}}");
+    params.set("adset_id", "{{adset.id}}");
+    params.set("ad_id", "{{ad.id}}");
+  } else if (campaign.trafficSource === "google") {
+    params.set("utm_campaign", "{campaignid}");
+    params.set("utm_content", "{creative}");
+    params.set("utm_term", "{adgroupid}");
+  } else if (campaign.trafficSource === "tiktok") {
+    params.set("utm_campaign", "__CAMPAIGN_NAME__");
+    params.set("utm_content", "__CID__");
+    params.set("utm_term", "__AID__");
+  }
+
   const paramStr = params.toString();
   return {
     url: `${base}${path}`,
     params: paramStr,
   };
+}
+
+export function buildConversionPostbackUrl(input: {
+  origin: string;
+  slug: string;
+  token: string;
+  event?: "purchase" | "order_bump";
+}): string {
+  const url = new URL("/api/traffic/conversion", input.origin);
+  url.searchParams.set("campaign", input.slug);
+  url.searchParams.set("token", input.token);
+  url.searchParams.set("event", input.event ?? "purchase");
+  url.searchParams.set("value", "VALUE");
+  url.searchParams.set("order_id", "ORDER_ID");
+  url.searchParams.set("currency", "BRL");
+  return url.toString();
 }
 
 function getSourceTrackingParam(source: TrafficSource): string | null {
@@ -227,7 +280,10 @@ export function resolveDeliveryPath(
     safeDeliveryMethod?: DeliveryMethod;
     offerDeliveryMethod?: DeliveryMethod;
   }
-): { type: "redirect" | "rewrite" | "pre_page"; target: string } {
+): {
+  type: "redirect" | "rewrite" | "pre_page" | "mirror_proxy";
+  target: string;
+} {
   const destPath =
     result.destination === "offer"
       ? result.offerPageUrl
@@ -238,10 +294,12 @@ export function resolveDeliveryPath(
       ? (options?.offerDeliveryMethod ?? result.deliveryMethod)
       : (options?.safeDeliveryMethod ?? result.deliveryMethod);
 
-  if (
-    (method === "mirror" || method === "unpack") &&
-    isExternalUrl(destPath)
-  ) {
+  // Mirror de URL externa: proxy no edge (barra continua no domínio da campanha)
+  if (method === "mirror" && isExternalUrl(destPath)) {
+    return { type: "mirror_proxy", target: destPath };
+  }
+
+  if (method === "unpack" && isExternalUrl(destPath)) {
     return { type: "redirect", target: destPath };
   }
 

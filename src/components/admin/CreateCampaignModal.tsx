@@ -61,7 +61,7 @@ const emptyForm: CreateCampaignInput = {
   safePageUrl: "",
   offerPageUrl: "",
   safeDeliveryMethod: "redirect",
-  offerDeliveryMethod: "redirect",
+  offerDeliveryMethod: "mirror",
   uniqueTokenEnabled: true,
   customPathEnabled: false,
   status: "draft",
@@ -227,9 +227,7 @@ export function CreateCampaignModal({
       domainId: form.domainId,
       allowedDevices: allowedDevicesFromSelection(deviceSelection),
       allowedCountries: allowedCountriesFromSelection(countrySelection),
-      offerDeliveryMethod: isExternalOffer
-        ? "redirect"
-        : form.offerDeliveryMethod,
+      offerDeliveryMethod: form.offerDeliveryMethod ?? "mirror",
       customSlug: form.customPathEnabled
         ? normalizeCustomSlug(form.customSlug ?? "")
         : undefined,
@@ -852,22 +850,18 @@ export function CreateCampaignModal({
                   title="Página de oferta"
                   subtitle={form.offerPageUrl}
                   methods={DELIVERY_METHOD_GUIDE.filter((m) => m.forOffer)}
-                  selected={
-                    isExternalOffer
-                      ? "redirect"
-                      : (form.offerDeliveryMethod ?? "redirect")
-                  }
+                  selected={form.offerDeliveryMethod ?? "mirror"}
                   onSelect={(id) =>
                     setForm({ ...form, offerDeliveryMethod: id })
                   }
-                  disabledIds={
-                    isExternalOffer ? ["mirror", "unpack"] : []
-                  }
+                  disabledIds={isExternalOffer ? ["unpack"] : []}
                 />
                 {isExternalOffer && (
-                  <p className="mt-2 text-sm text-yellow-400">
-                    URL externa detectada — Mirror e Unpack não estão disponíveis
-                    para oferta. Usando Redirect.
+                  <p className="mt-2 text-sm text-muted">
+                    URL externa: <strong className="text-accent">Mirror</strong>{" "}
+                    recomendado — a oferta carrega sob o domínio da campanha e a
+                    URL real fica escondida. Unpack continua indisponível para
+                    URL externa.
                   </p>
                 )}
               </div>

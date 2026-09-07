@@ -4,6 +4,10 @@ import { createTenantForUser, getUserMemberships } from "@/lib/db/tenants";
 import { setTenantCookie } from "@/lib/api/panel-context";
 import { hasAdminClient } from "@/lib/supabase/admin";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+} from "@/lib/security/rate-limit";
 
 function jsonWithCookies(
   body: Record<string, unknown>,
@@ -17,10 +21,24 @@ function jsonWithCookies(
   return response;
 }
 
+function rateLimitResponse(retryAfterSec: number) {
+  return NextResponse.json(
+    { error: "Muitas tentativas. Aguarde e tente novamente." },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryAfterSec) },
+    }
+  );
+}
+
 export async function POST(request: NextRequest) {
   const cookieCarrier = NextResponse.next({ request });
 
   try {
+    const ip = clientIpFromRequest(request);
+    const limited = checkRateLimit(`auth:login:${ip}`, 12, 15 * 60 * 1000);
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSec);
+
     const { email, password } = (await request.json()) as {
       email?: string;
       password?: string;
@@ -107,6 +125,17 @@ export async function PUT(request: NextRequest) {
   const cookieCarrier = NextResponse.next({ request });
 
   try {
+    if (process.env.ALLOW_PUBLIC_SIGNUP === "0") {
+      return NextResponse.json(
+        { error: "Cadastro público desativado. Contate o suporte." },
+        { status: 403 }
+      );
+    }
+
+    const ip = clientIpFromRequest(request);
+    const limited = checkRateLimit(`auth:signup:${ip}`, 5, 60 * 60 * 1000);
+    if (!limited.ok) return rateLimitResponse(limited.retryAfterSec);
+
     const { email, password, companyName } = (await request.json()) as {
       email?: string;
       password?: string;

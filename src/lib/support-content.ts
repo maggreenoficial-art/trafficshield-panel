@@ -115,20 +115,28 @@ export const supportSections: SupportSection[] = [
         body: "Se o token único estiver ligado, o link precisa levar o parâmetro vp_t que o painel gera. Sem ele, o visitante é tratado como suspeito. Isso impede que alguém copie seu link e acesse a oferta direto.",
       },
       {
-        heading: "Fonte de tráfego",
-        body: "O clique precisa carregar os parâmetros típicos da plataforma escolhida (ex.: Meta costuma enviar fbclid). Acesso “cru”, sem parâmetros de anúncio, tende a ir para a safe.",
-      },
-      {
         heading: "País e dispositivo",
         body: "Fora do país ou do tipo de aparelho que você marcou? Página segura.",
+      },
+      {
+        heading: "Fonte de tráfego",
+        body: "Para Meta, Google e TikTok o norat exige o click id real do anúncio (fbclid, gclid ou ttclid). Só utm_source não basta. Acesso cru no navegador, sem esses parâmetros, vai para a safe.",
+      },
+      {
+        heading: "Rate-limit e anti-replay",
+        body: "Muitos acessos do mesmo IP, ou o mesmo click id reutilizado demais, são tratados como abuso e mandam para a safe. Assim o spy que guarda o link e dispara em massa perde força.",
       },
       {
         heading: "Bots e tráfego estranho",
         body: "User-agent suspeito, padrões de automação, datacenter, comportamento de scraper — o norat filtra antes de liberar a oferta.",
       },
       {
+        heading: "Token rotativo",
+        body: "Se o link completo vazou, use Rotacionar token na campanha. O link antigo deixa de liberar a oferta — cole o novo no anúncio.",
+      },
+      {
         heading: "E se eu testar no computador?",
-        body: "Normal ir para a safe se você abrir o link direto no navegador, sem parâmetros do anúncio, ou de um país/dispositivo que não configurou. Para testar a oferta, use o modo de teste que o painel indica ou simule um clique real da plataforma.",
+        body: "Normal ir para a safe se você abrir o link direto no navegador, sem parâmetros do anúncio, ou de um país/dispositivo que não configurou. Para testar a oferta, use o modo de teste que o painel indica (com o token da campanha) ou um clique real da plataforma.",
       },
     ],
   },
@@ -172,7 +180,7 @@ export const supportSections: SupportSection[] = [
       },
       {
         heading: "Qual escolher?",
-        body: "Começando agora? Redirect na safe e na oferta. Quer esconder a URL real da oferta? Mirror na oferta. Precisa de camada extra na safe? Pre Page. Tem hospedagem própria com PHP e tudo no mesmo servidor? Aí sim considere Unpack.",
+        body: "Padrão recomendado: Redirect na safe e Mirror na oferta (já vem assim no assistente). Mirror esconde a URL real da oferta. Pre Page é útil em algumas safes de native/CPM. Unpack só se você controla a hospedagem PHP.",
       },
     ],
   },
@@ -199,11 +207,19 @@ export const supportSections: SupportSection[] = [
     blocks: [
       {
         heading: "Cliques na oferta",
-        body: "Visitantes que passaram no filtro e foram para a página de vendas.",
+        body: "Visitantes que passaram no filtro e foram para a página de vendas. O norat também guarda parâmetros do anúncio (fbclid, utm, ids de campanha/ad quando a plataforma envia).",
       },
       {
         heading: "Cliques na safe",
         body: "Quem foi filtrado — revisores, bots, tráfego fora do perfil ou sem token válido.",
+      },
+      {
+        heading: "Compras e order bump (postback)",
+        body: "Na aba Charts da campanha há uma URL de postback. No checkout/thank-you, chame essa URL com value e order_id. Use event=purchase para a venda principal e event=order_bump para upsell. Assim o painel mostra receita, CVR e conversões.",
+      },
+      {
+        heading: "O que o norat NÃO puxa do Ads Manager",
+        body: "CPM, CPC e gasto da conta de anúncios não vêm no link do clique — ficam no Meta/Google Ads. O norat rastreia o funil: clique filtrado → oferta → conversão via postback.",
       },
       {
         body: "Muita safe e pouca oferta pode ser normal no início (revisão da plataforma) ou sinal de filtro apertado demais — confira país, dispositivo e se o link no anúncio está completo.",

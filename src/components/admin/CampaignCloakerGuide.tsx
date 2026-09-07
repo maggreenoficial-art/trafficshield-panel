@@ -99,7 +99,7 @@ export function CampaignCloakerGuide({
 
       <div className="space-y-2">
         <p className="text-sm text-white/40">
-          Links de teste (só para você)
+          Links de teste (só para você — em produção exigem o token da campanha)
         </p>
         <TestLink label="Forçar oferta (preview)" href={testOffer} />
         <TestLink label="Forçar segura (preview)" href={testSafe} />

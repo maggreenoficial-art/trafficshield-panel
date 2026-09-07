@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,7 +10,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, Bot, Shield, TrendingUp } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  Check,
+  Copy,
+  ShoppingBag,
+  Shield,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import type { CampaignStats } from "@/lib/traffic-shield/campaign-types";
 
 interface CampaignChartsPanelProps {
@@ -30,6 +40,18 @@ export function CampaignChartsPanel({
   const clicksBots = stats?.clicksBots ?? fallbackBots;
   const totalRequests =
     stats?.totalRequests ?? clicksOffer + clicksSafe;
+  const purchases = stats?.purchases ?? 0;
+  const orderBumps = stats?.orderBumps ?? 0;
+  const revenue = stats?.revenue ?? 0;
+  const cvr = stats?.cvr ?? 0;
+  const [copied, setCopied] = useState(false);
+
+  const copyPostback = async () => {
+    if (!stats?.postbackBaseUrl) return;
+    await navigator.clipboard.writeText(stats.postbackBaseUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -42,11 +64,9 @@ export function CampaignChartsPanel({
       </div>
 
       <div>
-        <p className="text-sm text-white/40">
-          Passo 13 — Requisições em tempo real
-        </p>
+        <p className="text-sm text-white/40">Requisições — últimas 24h</p>
         <p className="mt-1 text-sm text-muted">
-          Os cliques dos seus clientes devem aparecer em{" "}
+          Cliques qualificados aparecem em{" "}
           <strong className="text-accent">Página de oferta</strong>.
         </p>
       </div>
@@ -81,11 +101,108 @@ export function CampaignChartsPanel({
         />
       </div>
 
+      <div>
+        <p className="text-sm text-white/40">Vendas via postback — 24h</p>
+        <p className="mt-1 text-sm text-muted">
+          Dispare o postback na thank-you page / webhook do checkout.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ChartStatCard
+          icon={ShoppingBag}
+          label="Compras"
+          value={formatCount(purchases)}
+          desc={`CVR ${cvr}% sobre oferta`}
+          accent
+        />
+        <ChartStatCard
+          icon={TrendingUp}
+          label="Order bumps"
+          value={formatCount(orderBumps)}
+          desc="Upsells registrados"
+        />
+        <ChartStatCard
+          icon={Wallet}
+          label="Receita"
+          value={formatMoney(revenue)}
+          desc={`AOV ${formatMoney(stats?.aov ?? 0)}`}
+          color="text-green-400"
+        />
+        <ChartStatCard
+          icon={Activity}
+          label="CVR"
+          value={`${cvr}%`}
+          desc="Compras / cliques oferta"
+        />
+      </div>
+
+      {stats?.postbackBaseUrl && (
+        <div className="rounded border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-white/40">URL de postback (compra)</p>
+            <button
+              type="button"
+              onClick={() => void copyPostback()}
+              className="flex items-center gap-1 text-sm text-muted hover:text-white"
+            >
+              {copied ? (
+                <Check size={12} className="text-green-400" />
+              ) : (
+                <Copy size={12} />
+              )}
+              {copied ? "Copiado" : "Copiar"}
+            </button>
+          </div>
+          <p className="break-all font-mono text-xs text-accent">
+            {stats.postbackBaseUrl}
+          </p>
+          <p className="text-sm text-muted leading-relaxed">
+            Troque <code className="text-accent">VALUE</code> e{" "}
+            <code className="text-accent">ORDER_ID</code> pelos valores reais.
+            Para order bump, use{" "}
+            <code className="text-accent">event=order_bump</code>. Aceita GET ou
+            POST JSON.
+          </p>
+        </div>
+      )}
+
+      {stats && stats.recentConversions.length > 0 && (
+        <div className="overflow-x-auto rounded border border-white/[0.06]">
+          <table className="w-full min-w-[520px] text-left text-sm">
+            <thead className="border-b border-white/[0.06] text-white/40">
+              <tr>
+                <th className="px-3 py-2">Quando</th>
+                <th className="px-3 py-2">Evento</th>
+                <th className="px-3 py-2">Valor</th>
+                <th className="px-3 py-2">Pedido</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.recentConversions.map((c) => (
+                <tr key={c.id} className="border-b border-white/[0.04]">
+                  <td className="px-3 py-2 text-white/50">
+                    {new Date(c.createdAt).toLocaleString("pt-BR")}
+                  </td>
+                  <td className="px-3 py-2 text-white/75">
+                    {c.event === "order_bump" ? "Order bump" : "Compra"}
+                  </td>
+                  <td className="px-3 py-2 text-accent">
+                    {formatMoney(c.value)} {c.currency}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs text-white/45">
+                    {c.orderId ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {stats && stats.hourly.length > 0 ? (
         <div>
-          <p className="mb-3 text-sm text-white/40">
-            Gráfico — últimas 24h
-          </p>
+          <p className="mb-3 text-sm text-white/40">Gráfico — últimas 24h</p>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats.hourly}>
@@ -173,4 +290,12 @@ function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+function formatMoney(n: number): string {
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 2,
+  });
 }

@@ -37,7 +37,7 @@ export function CampaignUrlDeliverables({
       />
       <CopyField
         label="URL PARAMS"
-        hint="Parâmetros da campanha — cole no campo de parâmetros do anúncio"
+        hint="Cole no campo de parâmetros do anúncio (Meta substitui {{campaign.name}}, {{ad.id}}, etc.)"
         value={urlParams || "—"}
         copied={copiedField === "params"}
         onCopy={() => urlParams && copy(urlParams, "params")}

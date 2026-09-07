@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isKnownPanelHostname } from "@/lib/site-config";
 import { normalizeHostname } from "@/lib/traffic-shield/hostname-utils";
+import { assertPublicOriginHostname } from "@/lib/traffic-shield/origin-url";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -55,7 +56,20 @@ export async function proxyRequestToOrigin(
   originUrl: string,
   publicHost: string
 ): Promise<NextResponse> {
-  const origin = new URL(originUrl);
+  let origin: URL;
+  try {
+    origin = new URL(originUrl);
+    if (!["http:", "https:"].includes(origin.protocol)) {
+      throw new Error("protocol");
+    }
+    assertPublicOriginHostname(origin.hostname);
+  } catch {
+    return NextResponse.json(
+      { error: "URL de origem inválida ou não permitida." },
+      { status: 400 }
+    );
+  }
+
   const target = new URL(
     `${request.nextUrl.pathname}${request.nextUrl.search}`,
     origin
@@ -105,6 +119,68 @@ export async function proxyRequestToOrigin(
       responseHeaders.set(key, value);
     }
   });
+
+  return new NextResponse(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: responseHeaders,
+  });
+}
+
+/** Mirror: busca a URL absoluta da oferta/safe e devolve o HTML no domínio da campanha. */
+export async function proxyAbsoluteUrl(
+  request: NextRequest,
+  absoluteUrl: string
+): Promise<NextResponse> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return NextResponse.json(
+      { error: "Método não suportado no mirror." },
+      { status: 405 }
+    );
+  }
+
+  let target: URL;
+  try {
+    target = new URL(absoluteUrl);
+    if (!["http:", "https:"].includes(target.protocol)) {
+      throw new Error("protocol");
+    }
+    assertPublicOriginHostname(target.hostname);
+  } catch {
+    return NextResponse.json(
+      { error: "URL de mirror inválida ou não permitida." },
+      { status: 400 }
+    );
+  }
+
+  const headers = new Headers();
+  const ua = request.headers.get("user-agent");
+  const accept = request.headers.get("accept");
+  const acceptLang = request.headers.get("accept-language");
+  if (ua) headers.set("user-agent", ua);
+  if (accept) headers.set("accept", accept);
+  if (acceptLang) headers.set("accept-language", acceptLang);
+  headers.set("x-norat-mirror", "1");
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(target.toString(), {
+      method: request.method,
+      headers,
+      redirect: "follow",
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Não foi possível carregar a página no mirror." },
+      { status: 502 }
+    );
+  }
+
+  const responseHeaders = new Headers();
+  const contentType = upstream.headers.get("content-type");
+  if (contentType) responseHeaders.set("content-type", contentType);
+  responseHeaders.set("cache-control", "private, no-store");
+  responseHeaders.set("x-norat-mirror", "1");
 
   return new NextResponse(upstream.body, {
     status: upstream.status,

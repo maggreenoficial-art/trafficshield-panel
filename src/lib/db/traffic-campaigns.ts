@@ -10,10 +10,12 @@ import {
 } from "@/lib/traffic-shield/hostname-utils";
 import type {
   CampaignStats,
+  ConversionEvent,
   CreateCampaignInput,
   DomainStatus,
   TrafficCampaign,
   TrafficCampaignClick,
+  TrafficCampaignConversion,
   TrafficDomain,
 } from "@/lib/traffic-shield/campaign-types";
 import { normalizeCustomSlug } from "@/lib/traffic-shield/campaign-types";
@@ -71,6 +73,20 @@ type ClickRow = {
   traffic_source: string | null;
   ip_hash: string;
   reasons: string[];
+  query_params?: Record<string, string> | null;
+  click_id?: string | null;
+  visitor_key?: string | null;
+  created_at: string;
+};
+
+type ConversionRow = {
+  id: string;
+  campaign_id: string;
+  click_row_id: string | null;
+  event: string;
+  value: number | string;
+  currency: string;
+  order_id: string | null;
   created_at: string;
 };
 
@@ -92,6 +108,7 @@ function rowToDomain(row: DomainRow): TrafficDomain {
 function rowToCampaign(row: CampaignRow): TrafficCampaign {
   return {
     id: row.id,
+    tenantId: row.tenant_id ?? undefined,
     name: row.name,
     slug: row.slug,
     domainId: row.domain_id,
@@ -130,6 +147,22 @@ function rowToClick(row: ClickRow): TrafficCampaignClick {
     trafficSource: row.traffic_source,
     ipHash: row.ip_hash,
     reasons: row.reasons ?? [],
+    queryParams: (row.query_params as Record<string, string>) ?? {},
+    clickId: row.click_id ?? null,
+    visitorKey: row.visitor_key ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+function rowToConversion(row: ConversionRow): TrafficCampaignConversion {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    clickRowId: row.click_row_id,
+    event: row.event as TrafficCampaignConversion["event"],
+    value: Number(row.value) || 0,
+    currency: row.currency || "BRL",
+    orderId: row.order_id,
     createdAt: row.created_at,
   };
 }
@@ -453,7 +486,7 @@ export async function createTrafficCampaign(
       offer_page_url: normalizeCampaignPageUrl(input.offerPageUrl),
       delivery_method:
         input.safeDeliveryMethod ?? input.deliveryMethod ?? "redirect",
-      offer_delivery_method: input.offerDeliveryMethod ?? "redirect",
+      offer_delivery_method: input.offerDeliveryMethod ?? "mirror",
       unique_token_enabled: input.uniqueTokenEnabled ?? true,
       unique_token: generateToken(),
       custom_path_enabled: input.customPathEnabled ?? false,
@@ -517,6 +550,26 @@ export async function updateTrafficCampaign(
   return rowToCampaign(data as CampaignRow);
 }
 
+export async function rotateCampaignToken(
+  tenantId: string,
+  id: string
+): Promise<TrafficCampaign> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("traffic_campaigns")
+    .update({
+      unique_token: generateToken(),
+      unique_token_enabled: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .select("*, traffic_domains(hostname)")
+    .single();
+  if (error) throw error;
+  return rowToCampaign(data as CampaignRow);
+}
+
 export async function deleteTrafficCampaign(
   tenantId: string,
   id: string
@@ -539,20 +592,35 @@ export async function logCampaignClick(input: {
   trafficSource?: string;
   ipHash: string;
   reasons: string[];
-}): Promise<void> {
-  if (!hasAdminClient()) return;
+  queryParams?: Record<string, string>;
+  clickId?: string | null;
+  visitorKey?: string | null;
+}): Promise<string | null> {
+  if (!hasAdminClient()) return null;
   const supabase = createAdminClient();
 
-  await supabase.from("traffic_campaign_clicks").insert({
-    tenant_id: input.tenantId ?? null,
-    campaign_id: input.campaignId,
-    destination: input.destination,
-    country: input.country ?? null,
-    device: input.device ?? null,
-    traffic_source: input.trafficSource ?? null,
-    ip_hash: input.ipHash,
-    reasons: input.reasons,
-  });
+  const { data, error } = await supabase
+    .from("traffic_campaign_clicks")
+    .insert({
+      tenant_id: input.tenantId ?? null,
+      campaign_id: input.campaignId,
+      destination: input.destination,
+      country: input.country ?? null,
+      device: input.device ?? null,
+      traffic_source: input.trafficSource ?? null,
+      ip_hash: input.ipHash,
+      reasons: input.reasons,
+      query_params: input.queryParams ?? {},
+      click_id: input.clickId ?? null,
+      visitor_key: input.visitorKey ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.warn("[norat] logCampaignClick", error.message);
+    return null;
+  }
 
   const field = input.destination === "offer" ? "clicks_offer" : "clicks_safe";
   const { data: current } = await supabase
@@ -570,6 +638,101 @@ export async function logCampaignClick(input: {
       })
       .eq("id", input.campaignId);
   }
+
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+export async function findOfferClickForAttribution(input: {
+  campaignId: string;
+  clickId?: string | null;
+  visitorKey?: string | null;
+  fbclid?: string | null;
+}): Promise<string | null> {
+  if (!hasAdminClient()) return null;
+  const supabase = createAdminClient();
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  if (input.clickId) {
+    const { data } = await supabase
+      .from("traffic_campaign_clicks")
+      .select("id")
+      .eq("campaign_id", input.campaignId)
+      .eq("destination", "offer")
+      .eq("click_id", input.clickId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  if (input.fbclid) {
+    const { data } = await supabase
+      .from("traffic_campaign_clicks")
+      .select("id")
+      .eq("campaign_id", input.campaignId)
+      .eq("destination", "offer")
+      .contains("query_params", { fbclid: input.fbclid })
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  if (input.visitorKey) {
+    const { data } = await supabase
+      .from("traffic_campaign_clicks")
+      .select("id")
+      .eq("campaign_id", input.campaignId)
+      .eq("destination", "offer")
+      .eq("visitor_key", input.visitorKey)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  return null;
+}
+
+export async function logCampaignConversion(input: {
+  tenantId?: string | null;
+  campaignId: string;
+  clickRowId?: string | null;
+  event: ConversionEvent;
+  value: number;
+  currency?: string;
+  orderId?: string | null;
+  meta?: Record<string, unknown>;
+}): Promise<{ ok: true; id: string; duplicate?: boolean } | { ok: false; error: string }> {
+  if (!hasAdminClient()) return { ok: false, error: "Banco indisponível." };
+  const supabase = createAdminClient();
+
+  const { data, error } = await supabase
+    .from("traffic_campaign_conversions")
+    .insert({
+      tenant_id: input.tenantId ?? null,
+      campaign_id: input.campaignId,
+      click_row_id: input.clickRowId ?? null,
+      event: input.event,
+      value: input.value,
+      currency: input.currency ?? "BRL",
+      order_id: input.orderId ?? null,
+      meta: input.meta ?? {},
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: true, id: "", duplicate: true };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  return { ok: true, id: (data as { id: string }).id };
 }
 
 function isBotClick(reasons: string[]): boolean {
@@ -593,18 +756,24 @@ export async function getCampaignStats(
     clicksBots: 0,
     totalRequests: 0,
     passRate: 0,
+    purchases: 0,
+    orderBumps: 0,
+    revenue: 0,
+    aov: 0,
+    cvr: 0,
     hourly: [],
     recentClicks: [],
+    recentConversions: [],
   };
   if (!hasAdminClient()) return empty;
 
   const supabase = createAdminClient();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [campaignRes, clicksRes] = await Promise.all([
+  const [campaignRes, clicksRes, conversionsRes] = await Promise.all([
     supabase
       .from("traffic_campaigns")
-      .select("clicks_offer, clicks_safe")
+      .select("clicks_offer, clicks_safe, slug, unique_token")
       .eq("id", campaignId)
       .eq("tenant_id", tenantId)
       .single(),
@@ -616,16 +785,36 @@ export async function getCampaignStats(
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(500),
+    supabase
+      .from("traffic_campaign_conversions")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .eq("tenant_id", tenantId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const campaign = campaignRes.data;
   const clicks = ((clicksRes.data ?? []) as ClickRow[]).map(rowToClick);
+  const conversions = ((conversionsRes.data ?? []) as ConversionRow[]).map(
+    rowToConversion
+  );
   const clicksOffer = campaign?.clicks_offer ?? 0;
   const clicksSafe = campaign?.clicks_safe ?? 0;
   const clicksBots = clicks.filter(
     (c) => c.destination === "safe" && isBotClick(c.reasons)
   ).length;
   const totalRequests = clicksOffer + clicksSafe;
+
+  const purchases = conversions.filter((c) => c.event === "purchase").length;
+  const orderBumps = conversions.filter((c) => c.event === "order_bump").length;
+  const revenue = conversions.reduce((sum, c) => sum + c.value, 0);
+  const aov = purchases > 0 ? Math.round((revenue / purchases) * 100) / 100 : 0;
+  const cvr =
+    clicksOffer > 0
+      ? Math.round((purchases / clicksOffer) * 1000) / 10
+      : 0;
 
   const hourlyMap = new Map<
     string,
@@ -650,9 +839,21 @@ export async function getCampaignStats(
       totalRequests > 0
         ? Math.round((clicksOffer / totalRequests) * 1000) / 10
         : 0,
+    purchases,
+    orderBumps,
+    revenue: Math.round(revenue * 100) / 100,
+    aov,
+    cvr,
     hourly: [...hourlyMap.entries()]
       .map(([hour, counts]) => ({ hour, ...counts }))
       .sort((a, b) => a.hour.localeCompare(b.hour)),
     recentClicks: clicks.slice(0, 30),
+    recentConversions: conversions.slice(0, 20),
   };
+}
+
+export async function getCampaignBySlugForPostback(
+  slug: string
+): Promise<TrafficCampaign | null> {
+  return getCampaignBySlug(slug);
 }

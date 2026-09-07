@@ -10,6 +10,7 @@ import {
   Trash2,
   Play,
   Pause,
+  KeyRound,
 } from "lucide-react";
 import type {
   CampaignStats,
@@ -20,6 +21,10 @@ import {
   DELIVERY_METHODS,
   TRAFFIC_SOURCES,
 } from "@/lib/traffic-shield/campaign-types";
+import {
+  getCampaignHealthAlert,
+  getWorkspaceHealthAlert,
+} from "@/lib/traffic-shield/campaign-health";
 import { CreateCampaignModal } from "@/components/admin/CreateCampaignModal";
 import { CampaignUrlDeliverables } from "@/components/admin/CampaignUrlDeliverables";
 import { CampaignAdInsertionGuide } from "@/components/admin/CampaignAdInsertionGuide";
@@ -46,6 +51,7 @@ export function CampaignManager() {
   const [urlParams, setUrlParams] = useState("");
   const [detailTab, setDetailTab] = useState<"campaign" | "charts">("campaign");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [rotatingToken, setRotatingToken] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +109,16 @@ export function CampaignManager() {
 
   const validDomainCount = domains.filter((d) => d.status === "valid").length;
   const canCreateCampaigns = validDomainCount > 0;
+  const workspaceAlert = useMemo(
+    () => getWorkspaceHealthAlert(campaigns),
+    [campaigns]
+  );
+  const selectedAlert = useMemo(() => {
+    if (!selectedId) return null;
+    const c = campaigns.find((x) => x.id === selectedId);
+    if (!c) return null;
+    return getCampaignHealthAlert(c.clicksOffer, c.clicksSafe);
+  }, [campaigns, selectedId]);
 
   const handleCreated = async (
     id: string,
@@ -137,6 +153,38 @@ export function CampaignManager() {
     await load();
   };
 
+  const handleRotateToken = async (id: string) => {
+    if (
+      !confirm(
+        "Gerar novo token? O link antigo no anúncio deixa de liberar a oferta. Você precisará colar o link novo."
+      )
+    ) {
+      return;
+    }
+    setRotatingToken(true);
+    try {
+      const res = await fetch(`/api/admin/traffic/campaigns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rotate_token" }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error ?? "Erro ao rotacionar token.");
+        return;
+      }
+      if (json.campaignUrl) setCampaignUrl(json.campaignUrl);
+      if (json.urlParams) setUrlParams(json.urlParams);
+      await load();
+      alert(
+        json.message ??
+          "Token regenerado. Atualize o link completo no anúncio."
+      );
+    } finally {
+      setRotatingToken(false);
+    }
+  };
+
   const selected = campaigns.find((c) => c.id === selectedId);
 
   if (loading && campaigns.length === 0) {
@@ -166,6 +214,19 @@ export function CampaignManager() {
         <div className="rounded border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-300/90">
           Valide pelo menos um domínio no menu <strong>Domínios</strong> para
           criar campanhas.
+        </div>
+      )}
+
+      {workspaceAlert && (
+        <div
+          className={`rounded border p-4 text-sm leading-relaxed ${
+            workspaceAlert.level === "warn"
+              ? "border-yellow-500/25 bg-yellow-500/5 text-yellow-200/90"
+              : "border-white/10 bg-white/[0.03] text-white/55"
+          }`}
+        >
+          <strong className="text-white/80">Saúde das campanhas — </strong>
+          {workspaceAlert.message}
         </div>
       )}
 
@@ -333,7 +394,19 @@ export function CampaignManager() {
                 {new Date(selected.createdAt).toLocaleString("pt-BR")}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleRotateToken(selected.id)}
+                disabled={rotatingToken}
+                className="flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5 text-xs uppercase hover:border-accent disabled:opacity-40"
+              >
+                {rotatingToken ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <KeyRound size={12} />
+                )}
+                Rotacionar token
+              </button>
               <button
                 onClick={() => toggleStatus(selected)}
                 className="flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5 text-xs uppercase hover:border-accent"
@@ -375,6 +448,18 @@ export function CampaignManager() {
 
           {detailTab === "campaign" ? (
             <>
+              {selectedAlert && (
+                <div
+                  className={`rounded border p-4 text-sm leading-relaxed ${
+                    selectedAlert.level === "warn"
+                      ? "border-yellow-500/25 bg-yellow-500/5 text-yellow-200/90"
+                      : "border-white/10 bg-white/[0.03] text-white/55"
+                  }`}
+                >
+                  {selectedAlert.message}
+                </div>
+              )}
+
               <div className="rounded border border-white/[0.06] bg-white/5 p-4">
                 <p className="mb-4 text-sm text-white/40">
                   Display Source — entregáveis do anúncio
@@ -384,6 +469,11 @@ export function CampaignManager() {
                   urlParams={urlParams}
                   compact
                 />
+                <p className="mt-3 text-sm text-white/40">
+                  Se o link vazou ou suspeita de spy: use{" "}
+                  <strong className="text-white/70">Rotacionar token</strong> e
+                  cole o link novo no anúncio.
+                </p>
               </div>
 
               <CampaignAdInsertionGuide

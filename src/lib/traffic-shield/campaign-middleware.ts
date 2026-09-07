@@ -1,6 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getCampaignBySlug } from "@/lib/db/traffic-campaigns";
+import {
+  getCampaignBySlug,
+  logCampaignClick,
+} from "@/lib/db/traffic-campaigns";
 import { getTrafficConfig } from "@/lib/db/traffic";
 import {
   detectDevice,
@@ -14,11 +17,45 @@ import {
 import { TRAFFIC_CONFIG_KEY } from "@/lib/traffic-shield/config";
 import { getClientIp, hashIp } from "@/lib/request";
 import { VISITOR_COOKIE } from "@/lib/traffic-shield/middleware";
-import { getRequestHostname } from "@/lib/traffic-shield/domain-origin-proxy";
+import {
+  getRequestHostname,
+  proxyAbsoluteUrl,
+} from "@/lib/traffic-shield/domain-origin-proxy";
 import { getTrafficDomainByHostname } from "@/lib/db/traffic-campaigns";
 import { createAdminClient, hasAdminClient } from "@/lib/supabase/admin";
+import type { TrafficCampaign } from "@/lib/traffic-shield/campaign-types";
+import { assessCampaignAbuse } from "@/lib/traffic-shield/click-protection";
+import {
+  appendTrackedParamsToUrl,
+  CLICK_COOKIE,
+  CLICK_COOKIE_MAX_AGE,
+  extractClickIdFromParams,
+  extractTrackedParams,
+  generateVisitorKey,
+  VISITOR_COOKIE_KEY,
+} from "@/lib/traffic-shield/tracking-params";
 
 const CAMPAIGN_CACHE_MS = 30_000;
+
+function resolveCampaignTestMode(
+  params: Record<string, string>,
+  campaign: TrafficCampaign
+): "offer" | "safe" | null {
+  const raw = params.vp_test;
+  if (raw !== "offer" && raw !== "safe") return null;
+
+  const allowOpen =
+    process.env.NODE_ENV !== "production" ||
+    process.env.TRAFFIC_ALLOW_TEST_MODE === "1";
+
+  if (allowOpen) return raw;
+
+  if (!campaign.uniqueTokenEnabled) return null;
+  const token = params.vp_t ?? params.twr_t;
+  if (token && token === campaign.uniqueToken) return raw;
+
+  return null;
+}
 
 type CampaignCache = {
   slug: string;
@@ -30,6 +67,10 @@ type CampaignCache = {
 const globalCache = globalThis as typeof globalThis & {
   __campaignCache?: Map<string, CampaignCache>;
 };
+
+export function invalidateCampaignCache(): void {
+  globalCache.__campaignCache?.clear();
+}
 
 async function loadShieldConfig(
   tenantId?: string
@@ -76,19 +117,28 @@ async function loadCampaign(slug: string, tenantId?: string) {
   return entry;
 }
 
-function logCampaignClickAsync(
-  origin: string,
-  payload: Record<string, unknown>
-): void {
-  const secret = process.env.TRAFFIC_INTERNAL_SECRET ?? "vp-traffic-dev";
-  fetch(`${origin}/api/traffic/campaign-log`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-traffic-internal": secret,
-    },
-    body: JSON.stringify(payload),
-  }).catch(() => undefined);
+function attachTrackingCookies(
+  response: NextResponse,
+  opts: { clickRowId: string | null; visitorKey: string; destination: string }
+): NextResponse {
+  const secure = process.env.NODE_ENV === "production";
+  response.cookies.set(VISITOR_COOKIE_KEY, opts.visitorKey, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    path: "/",
+    maxAge: CLICK_COOKIE_MAX_AGE,
+  });
+  if (opts.destination === "offer" && opts.clickRowId) {
+    response.cookies.set(CLICK_COOKIE, opts.clickRowId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure,
+      path: "/",
+      maxAge: CLICK_COOKIE_MAX_AGE,
+    });
+  }
+  return response;
 }
 
 export async function handleCampaignRoute(
@@ -121,10 +171,28 @@ export async function handleCampaignRoute(
     params[k] = v;
   });
 
+  const trackedParams = extractTrackedParams(params);
+  const platformClickId = extractClickIdFromParams(params);
+  const visitorKey =
+    request.cookies.get(VISITOR_COOKIE_KEY)?.value || generateVisitorKey();
+
   const geo = (request as NextRequest & { geo?: { country?: string } }).geo;
-  const testMode = (params.vp_test as "offer" | "safe" | undefined) ?? null;
+  const testMode = resolveCampaignTestMode(params, campaign);
   const ip = getClientIp(request);
   const ua = request.headers.get("user-agent") ?? "";
+  const ipHash = hashIp(ip ?? "unknown");
+  const token = params.vp_t ?? params.twr_t ?? null;
+
+  const abuse =
+    testMode
+      ? { ok: true, reasons: [] as string[] }
+      : assessCampaignAbuse({
+          campaignId: campaign.id,
+          ipHash,
+          token,
+          source: campaign.trafficSource,
+          params,
+        });
 
   const result = evaluateCampaignTraffic({
     campaign,
@@ -135,17 +203,21 @@ export async function handleCampaignRoute(
     searchParams: params,
     hasVisitorCookie: request.cookies.has(VISITOR_COOKIE),
     testMode,
+    abuseReasons: abuse.ok ? undefined : abuse.reasons,
   });
 
-  logCampaignClickAsync(request.nextUrl.origin, {
+  const clickRowId = await logCampaignClick({
     tenantId,
     campaignId: campaign.id,
     destination: result.destination,
     country: geo?.country,
     device: detectDevice(ua),
     trafficSource: campaign.trafficSource,
-    ipHash: hashIp(ip ?? "unknown"),
+    ipHash,
     reasons: result.reasons,
+    queryParams: trackedParams,
+    clickId: platformClickId,
+    visitorKey,
   });
 
   const delivery = resolveDeliveryPath(result, slug, {
@@ -160,12 +232,29 @@ export async function handleCampaignRoute(
       "vp_to",
       result.destination === "offer" ? result.offerPageUrl : result.safePageUrl
     );
+    appendTrackedParamsToUrl(preUrl, trackedParams);
     searchParams.forEach((v, k) => {
-      if (!["vp_t", "twr_t", "vp_test"].includes(k)) {
+      if (!["vp_t", "twr_t", "vp_test"].includes(k) && !preUrl.searchParams.has(k)) {
         preUrl.searchParams.set(k, v);
       }
     });
-    return NextResponse.redirect(preUrl);
+    return attachTrackingCookies(NextResponse.redirect(preUrl), {
+      clickRowId,
+      visitorKey,
+      destination: result.destination,
+    });
+  }
+
+  if (delivery.type === "mirror_proxy") {
+    const response = await proxyAbsoluteUrl(request, delivery.target);
+    response.headers.set("x-campaign-dest", result.destination);
+    response.headers.set("x-campaign-slug", slug);
+    response.headers.set("x-campaign-delivery", "mirror");
+    return attachTrackingCookies(response, {
+      clickRowId,
+      visitorKey,
+      destination: result.destination,
+    });
   }
 
   if (delivery.type === "rewrite") {
@@ -174,18 +263,27 @@ export async function handleCampaignRoute(
     const response = NextResponse.rewrite(rewriteUrl);
     response.headers.set("x-campaign-dest", result.destination);
     response.headers.set("x-campaign-slug", slug);
-    return response;
+    return attachTrackingCookies(response, {
+      clickRowId,
+      visitorKey,
+      destination: result.destination,
+    });
   }
 
   const destUrl = /^https?:\/\//i.test(delivery.target)
     ? new URL(delivery.target)
     : new URL(delivery.target, request.url);
+  appendTrackedParamsToUrl(destUrl, trackedParams);
   searchParams.forEach((v, k) => {
-    if (!["vp_t", "twr_t", "vp_test"].includes(k)) {
+    if (!["vp_t", "twr_t", "vp_test"].includes(k) && !destUrl.searchParams.has(k)) {
       destUrl.searchParams.set(k, v);
     }
   });
-  return NextResponse.redirect(destUrl);
+  return attachTrackingCookies(NextResponse.redirect(destUrl), {
+    clickRowId,
+    visitorKey,
+    destination: result.destination,
+  });
 }
 
 function handlePrePage(

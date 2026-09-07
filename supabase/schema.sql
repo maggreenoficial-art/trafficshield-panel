@@ -83,10 +83,29 @@ create table if not exists public.traffic_campaign_clicks (
   traffic_source text,
   ip_hash text not null,
   reasons text[] not null default '{}',
+  query_params jsonb not null default '{}'::jsonb,
+  click_id text,
+  visitor_key text,
   created_at timestamptz not null default now()
 );
 
 create index if not exists traffic_campaign_clicks_campaign_idx on public.traffic_campaign_clicks(campaign_id);
+
+create table if not exists public.traffic_campaign_conversions (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid,
+  campaign_id uuid not null references public.traffic_campaigns(id) on delete cascade,
+  click_row_id uuid references public.traffic_campaign_clicks(id) on delete set null,
+  event text not null check (event in ('purchase', 'order_bump')),
+  value numeric(12, 2) not null default 0,
+  currency text not null default 'BRL',
+  order_id text,
+  meta jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists traffic_campaign_conversions_campaign_idx
+  on public.traffic_campaign_conversions (campaign_id);
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -112,6 +131,7 @@ alter table public.traffic_logs enable row level security;
 alter table public.traffic_domains enable row level security;
 alter table public.traffic_campaigns enable row level security;
 alter table public.traffic_campaign_clicks enable row level security;
+alter table public.traffic_campaign_conversions enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles
@@ -119,4 +139,9 @@ create policy "profiles_select_own" on public.profiles
 
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
-  for update using (auth.uid() = id);
+  for update
+  using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    and role = (select p.role from public.profiles p where p.id = auth.uid())
+  );
