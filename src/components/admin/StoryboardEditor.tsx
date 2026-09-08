@@ -135,14 +135,16 @@ export function StoryboardEditor({ id }: { id: string }) {
 
   async function spawnBlock(
     mode: "image" | "video" | "any",
-    source?: Block
+    source?: Block,
+    modelKeyOverride?: string
   ) {
     const defaultKey =
-      mode === "video"
+      modelKeyOverride ||
+      (mode === "video"
         ? "grok_15"
         : mode === "image"
           ? "image"
-          : "image";
+          : "image");
 
     const baseX = source ? source.positionX + BLOCK_W + 80 : 120 + blocks.length * 36;
     const baseY = source ? source.positionY : 100 + blocks.length * 28;
@@ -348,6 +350,16 @@ export function StoryboardEditor({ id }: { id: string }) {
                 setBlocks((prev) => prev.filter((x) => x.id !== b.id))
               }
               onPlugVideo={() => void spawnBlock("video", b)}
+              onPlugNextTake={() =>
+                void spawnBlock(
+                  "video",
+                  b,
+                  getStoryboardModel(b.modelKey)?.kind === "video"
+                    ? b.modelKey
+                    : "grok_15"
+                )
+              }
+              onPlugImage={() => void spawnBlock("image", b)}
               onDragStart={(e) => startBlockDrag(e, b)}
             />
           ))}
@@ -444,6 +456,8 @@ function FlowBlock({
   onCredits,
   onDelete,
   onPlugVideo,
+  onPlugNextTake,
+  onPlugImage,
   onDragStart,
 }: {
   block: Block;
@@ -453,6 +467,8 @@ function FlowBlock({
   onCredits: (n: number) => void;
   onDelete: () => void;
   onPlugVideo: () => void;
+  onPlugNextTake: () => void;
+  onPlugImage: () => void;
   onDragStart: (e: React.PointerEvent) => void;
 }) {
   const isDraft = block.status === "draft" || block.status === "fail";
@@ -553,6 +569,32 @@ function FlowBlock({
                 <Cable size={13} />
                 Plugar em vídeo (mesmo avatar)
               </button>
+            )}
+            {done && model?.kind === "video" && (
+              <div className="border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={onPlugNextTake}
+                  className="flex w-full items-center justify-center gap-1.5 px-3 py-2.5 text-xs text-sky-300 hover:bg-sky-500/10"
+                >
+                  <Cable size={13} />
+                  Plugar próximo take
+                </button>
+                <button
+                  type="button"
+                  onClick={onPlugVideo}
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.04] px-3 py-2 text-[11px] text-white/45 hover:bg-white/[0.04] hover:text-white/70"
+                >
+                  Outro modelo de vídeo
+                </button>
+                <button
+                  type="button"
+                  onClick={onPlugImage}
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.04] px-3 py-2 text-[11px] text-white/45 hover:bg-white/[0.04] hover:text-white/70"
+                >
+                  Plugar nova imagem
+                </button>
+              </div>
             )}
             {done && (
               <p className="border-t border-white/[0.04] px-3 py-1.5 text-[10px] text-white/30">

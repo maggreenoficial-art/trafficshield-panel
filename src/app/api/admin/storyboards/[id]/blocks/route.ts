@@ -5,10 +5,42 @@ import {
   getBlockById,
   getStoryboard,
   touchStoryboard,
+  type StoryboardBlock,
 } from "@/lib/db/storyboards";
 import { getStoryboardModel, estimateKieCredits } from "@/lib/kie/models";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|mov|webm)(\?|$)/i.test(url);
+}
+
+/** Sobe a cadeia até achar uma imagem usável como referência (avatar / take). */
+async function resolveImageRefsFromSource(
+  tenantId: string,
+  source: StoryboardBlock
+): Promise<string[]> {
+  const fromRefs = source.referenceUrls.filter((u) => u && !isVideoUrl(u));
+  if (fromRefs.length) return fromRefs;
+
+  if (source.resultUrl && !isVideoUrl(source.resultUrl)) {
+    return [source.resultUrl];
+  }
+
+  let current: StoryboardBlock | null = source;
+  for (let i = 0; i < 8 && current?.sourceBlockId; i++) {
+    const parent = await getBlockById(tenantId, current.sourceBlockId);
+    if (!parent) break;
+    if (parent.resultUrl && !isVideoUrl(parent.resultUrl)) {
+      return [parent.resultUrl];
+    }
+    const parentRefs = parent.referenceUrls.filter((u) => u && !isVideoUrl(u));
+    if (parentRefs.length) return parentRefs;
+    current = parent;
+  }
+
+  return [];
+}
 
 /** Cria bloco draft no canvas (plug-and-play). */
 export async function POST(request: NextRequest, context: Ctx) {
@@ -46,9 +78,7 @@ export async function POST(request: NextRequest, context: Ctx) {
           { status: 400 }
         );
       }
-      if (source.resultUrl) {
-        referenceUrls = [source.resultUrl];
-      }
+      referenceUrls = await resolveImageRefsFromSource(panel.tenantId, source);
     }
 
     const offset = 40 + Math.floor(Math.random() * 40);
