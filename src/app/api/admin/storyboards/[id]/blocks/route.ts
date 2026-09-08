@@ -62,10 +62,10 @@ export async function POST(request: NextRequest, context: Ctx) {
       positionX: body.positionX ?? 140 + offset,
       positionY: body.positionY ?? 120 + offset,
       status: "draft",
-      creditsCharged: estimateKieCredits(
-        model.key,
-        model.defaultResolution || "1K"
-      ),
+      creditsCharged: estimateKieCredits(model.key, {
+        resolution: model.defaultResolution || "1K",
+        duration: model.defaultDuration,
+      }),
       kieModel: model.kieModel,
       sourceBlockId,
     });

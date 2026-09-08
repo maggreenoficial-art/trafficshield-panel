@@ -22,6 +22,8 @@ import {
   IMAGE_RESOLUTIONS,
   STORYBOARD_MODELS,
   STORYBOARD_SELECT_CLASS,
+  VIDEO_DURATIONS,
+  VIDEO_RESOLUTIONS,
   estimateKieCredits,
   formatKieCredits,
   getStoryboardModel,
@@ -137,7 +139,7 @@ export function StoryboardEditor({ id }: { id: string }) {
   ) {
     const defaultKey =
       mode === "video"
-        ? "img2video_hq"
+        ? "grok_15"
         : mode === "image"
           ? "image"
           : "image";
@@ -458,7 +460,9 @@ function FlowBlock({
     block.status === "queued" || block.status === "generating";
   const done = block.status === "success" && block.resultUrl;
   const model = getStoryboardModel(block.modelKey);
-  const cost = estimateKieCredits(block.modelKey, block.resolution);
+  const cost = estimateKieCredits(block.modelKey, {
+    resolution: block.resolution,
+  });
 
   async function remove() {
     if (!confirm("Remover este bloco?")) return;
@@ -578,11 +582,12 @@ function DraftForm({
   onCredits: (n: number) => void;
 }) {
   const [modelKey, setModelKey] = useState<StoryboardModelKey>(
-    (block.modelKey as StoryboardModelKey) || "image"
+    (getStoryboardModel(block.modelKey)?.key as StoryboardModelKey) || "image"
   );
   const [prompt, setPrompt] = useState(block.prompt);
   const [aspectRatio, setAspectRatio] = useState(block.aspectRatio || "auto");
   const [resolution, setResolution] = useState(block.resolution || "1K");
+  const [duration, setDuration] = useState(8);
   const [refUrls, setRefUrls] = useState<string[]>(block.referenceUrls ?? []);
   const [sourceBlockId, setSourceBlockId] = useState<string | null>(
     block.sourceBlockId
@@ -591,21 +596,30 @@ function DraftForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(block.errorMessage || "");
   const fileRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLInputElement>(null);
 
   const model = getStoryboardModel(modelKey);
-  const liveCost = estimateKieCredits(modelKey, resolution);
   const isImage = model?.kind === "image";
-  const needsMotionVideo = Boolean(model?.requiresMotionVideo);
+  const liveCost = estimateKieCredits(modelKey, {
+    resolution: isImage
+      ? resolution
+      : resolution === "1K" || resolution === "2K" || resolution === "4K"
+        ? model?.defaultResolution || "720p"
+        : resolution,
+    duration,
+  });
   const plugSources = allBlocks.filter(
     (b) => b.id !== block.id && b.status === "success" && b.resultUrl
   );
 
   useEffect(() => {
-    if (model?.defaultResolution && modelKey !== block.modelKey) {
+    if (!model) return;
+    if (model.kind === "video") {
+      setResolution(model.defaultResolution || "720p");
+      setDuration(model.defaultDuration || 8);
+    } else if (model.defaultResolution) {
       setResolution(model.defaultResolution);
     }
-  }, [model?.defaultResolution, modelKey, block.modelKey]);
+  }, [modelKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function uploadFiles(
     files: FileList | null,
@@ -634,7 +648,6 @@ function DraftForm({
       setUploading(false);
       if (inputEl) inputEl.value = "";
       if (fileRef.current) fileRef.current.value = "";
-      if (videoRef.current) videoRef.current.value = "";
     }
   }
 
@@ -662,6 +675,7 @@ function DraftForm({
             prompt,
             aspectRatio,
             resolution,
+            duration: isImage ? undefined : duration,
             referenceUrls: refUrls,
             sourceBlockId,
           }),
@@ -680,12 +694,9 @@ function DraftForm({
 
   const canGenerate = isImage
     ? Boolean(prompt.trim())
-    : needsMotionVideo
-      ? refUrls.some((u) => /\.(png|jpe?g|webp)(\?|$)/i.test(u)) &&
-        refUrls.some((u) => /\.(mp4|mov|webm)(\?|$)/i.test(u))
-      : model?.requiresReference
-        ? refUrls.length > 0
-        : Boolean(prompt.trim());
+    : model?.requiresReference
+      ? refUrls.length > 0
+      : Boolean(prompt.trim());
 
   return (
     <div className="space-y-2.5 p-3">
@@ -696,11 +707,18 @@ function DraftForm({
           value={modelKey}
           onChange={(e) => setModelKey(e.target.value as StoryboardModelKey)}
         >
-          {STORYBOARD_MODELS.map((m) => (
-            <option key={m.key} value={m.key}>
-              {m.label} · {estimateKieCredits(m.key, m.defaultResolution || "1K")} cr
-            </option>
-          ))}
+          {STORYBOARD_MODELS.map((m) => {
+            const cr = estimateKieCredits(m.key, {
+              resolution: m.defaultResolution || "1K",
+              duration: m.defaultDuration,
+            });
+            return (
+              <option key={m.key} value={m.key}>
+                {m.label}
+                {m.hasNativeAudio ? " · áudio" : ""} · {formatKieCredits(cr)} cr
+              </option>
+            );
+          })}
         </select>
         {model?.description && (
           <p className="mt-1 text-[10px] text-white/35">{model.description}</p>
@@ -708,8 +726,8 @@ function DraftForm({
       </div>
 
       <p className="text-[10px] text-sky-400/90">
-        {needsMotionVideo
-          ? "Precisa de 1 imagem + 1 vídeo de movimento"
+        {model?.kind === "video"
+          ? "Vídeo com áudio nativo — pluga a imagem da cena ou envia referência"
           : model?.requiresReference
             ? "Plugue uma cena ou envie referência"
             : "Referências opcionais (até 16)"}
@@ -745,69 +763,42 @@ function DraftForm({
         className="hidden"
         onChange={(e) => void uploadFiles(e.target.files, e.target)}
       />
-      <input
-        ref={videoRef}
-        type="file"
-        accept="video/mp4,video/quicktime,video/webm"
-        className="hidden"
-        onChange={(e) => void uploadFiles(e.target.files, e.target)}
-      />
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={uploading || refUrls.length >= 16}
-          onClick={() => fileRef.current?.click()}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/15 px-2 py-2 text-[11px] text-white/50 hover:text-white/80 disabled:opacity-50"
-        >
-          {uploading ? (
-            <Loader2 className="animate-spin" size={12} />
-          ) : (
-            <Upload size={12} />
-          )}
-          Imagem
-        </button>
-        {needsMotionVideo && (
-          <button
-            type="button"
-            disabled={uploading || refUrls.length >= 16}
-            onClick={() => videoRef.current?.click()}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-sky-400/30 px-2 py-2 text-[11px] text-sky-200/70 hover:text-sky-100 disabled:opacity-50"
-          >
-            <Video size={12} />
-            Vídeo movimento
-          </button>
+      <button
+        type="button"
+        disabled={uploading || refUrls.length >= 16}
+        onClick={() => fileRef.current?.click()}
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/15 px-2 py-2 text-[11px] text-white/50 hover:text-white/80 disabled:opacity-50"
+      >
+        {uploading ? (
+          <Loader2 className="animate-spin" size={12} />
+        ) : (
+          <Upload size={12} />
         )}
-      </div>
+        Enviar imagem
+      </button>
 
       {refUrls.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {refUrls.map((url) => {
-            const isVid = /\.(mp4|mov|webm)(\?|$)/i.test(url);
-            return (
-              <div
-                key={url}
-                className="relative h-11 w-11 overflow-hidden rounded-md border border-white/10"
+          {refUrls.map((url) => (
+            <div
+              key={url}
+              className="relative h-11 w-11 overflow-hidden rounded-md border border-white/10"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                className="absolute right-0 top-0 rounded bg-black/70 p-0.5"
+                onClick={() => setRefUrls((p) => p.filter((u) => u !== url))}
               >
-                {isVid ? (
-                  <video src={url} className="h-full w-full object-cover" muted />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt="" className="h-full w-full object-cover" />
-                )}
-                <button
-                  type="button"
-                  className="absolute right-0 top-0 rounded bg-black/70 p-0.5"
-                  onClick={() => setRefUrls((p) => p.filter((u) => u !== url))}
-                >
-                  <X size={9} />
-                </button>
-              </div>
-            );
-          })}
+                <X size={9} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {isImage && (
+      {isImage ? (
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="mb-1 block text-[10px] text-white/40">
@@ -842,6 +833,63 @@ function DraftForm({
             </select>
           </div>
         </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-[10px] text-white/40">
+              Resolução
+            </label>
+            <select
+              className={STORYBOARD_SELECT_CLASS}
+              value={
+                VIDEO_RESOLUTIONS.includes(
+                  resolution as (typeof VIDEO_RESOLUTIONS)[number]
+                )
+                  ? resolution
+                  : "720p"
+              }
+              onChange={(e) => setResolution(e.target.value)}
+            >
+              {VIDEO_RESOLUTIONS.map((r) => (
+                <option key={r} value={r}>
+                  {r} ·{" "}
+                  {formatKieCredits(
+                    estimateKieCredits(modelKey, { resolution: r, duration })
+                  )}{" "}
+                  cr
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-white/40">
+              Duração
+            </label>
+            <select
+              className={STORYBOARD_SELECT_CLASS}
+              value={String(duration)}
+              onChange={(e) => setDuration(Number(e.target.value))}
+            >
+              {VIDEO_DURATIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d}s ·{" "}
+                  {formatKieCredits(
+                    estimateKieCredits(modelKey, {
+                      resolution:
+                        VIDEO_RESOLUTIONS.includes(
+                          resolution as (typeof VIDEO_RESOLUTIONS)[number]
+                        )
+                          ? resolution
+                          : "720p",
+                      duration: d,
+                    })
+                  )}{" "}
+                  cr
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       )}
 
       <textarea
@@ -863,7 +911,7 @@ function DraftForm({
         {busy ? (
           <Loader2 className="animate-spin" size={14} />
         ) : (
-          `Gerar Criativo (${liveCost || cost} créditos)`
+          `Gerar Criativo (${formatKieCredits(liveCost || cost)} créditos)`
         )}
       </button>
     </div>

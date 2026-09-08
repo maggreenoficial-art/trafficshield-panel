@@ -40,6 +40,7 @@ export async function POST(request: NextRequest, context: Ctx) {
       prompt?: string;
       aspectRatio?: string;
       resolution?: string;
+      duration?: number;
       referenceUrls?: string[];
       positionX?: number;
       positionY?: number;
@@ -77,24 +78,16 @@ export async function POST(request: NextRequest, context: Ctx) {
       );
     }
 
-    if (model.requiresMotionVideo) {
-      const hasVideo = referenceUrls.some((u) =>
-        /\.(mp4|mov|webm)(\?|$)/i.test(u)
-      );
-      if (!hasVideo) {
-        return NextResponse.json(
-          {
-            error:
-              "Imitar movimento precisa de um vídeo de referência (upload .mp4).",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    const resolution = body.resolution || model.defaultResolution || "1K";
+    const resolution =
+      body.resolution ||
+      model.defaultResolution ||
+      (model.kind === "video" ? "720p" : "1K");
     const aspectRatio = body.aspectRatio || "auto";
-    const cost = estimateKieCredits(model.key, resolution);
+    const duration =
+      typeof body.duration === "number"
+        ? body.duration
+        : model.defaultDuration ?? 8;
+    const cost = estimateKieCredits(model.key, { resolution, duration });
 
     let kieCredits = 0;
     try {
@@ -183,6 +176,7 @@ export async function POST(request: NextRequest, context: Ctx) {
         aspectRatio,
         resolution,
         referenceUrls,
+        duration,
       });
 
       const { taskId } = await createKieTask({

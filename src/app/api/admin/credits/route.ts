@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const costs = Object.fromEntries(
       STORYBOARD_MODELS.map((m) => [
         m.key,
-        estimateKieCredits(m.key, m.defaultResolution || "1K"),
+        estimateKieCredits(m.key, {
+          resolution: m.defaultResolution || "1K",
+          duration: m.defaultDuration,
+        }),
       ])
     );
     return NextResponse.json({

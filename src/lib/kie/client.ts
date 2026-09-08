@@ -129,9 +129,17 @@ export function buildKieInput(opts: {
   aspectRatio: string;
   resolution: string;
   referenceUrls: string[];
+  duration?: number;
 }): Record<string, unknown> {
-  const { modelKey, kieModel, prompt, aspectRatio, resolution, referenceUrls } =
-    opts;
+  const {
+    modelKey,
+    kieModel,
+    prompt,
+    aspectRatio,
+    resolution,
+    referenceUrls,
+    duration = 8,
+  } = opts;
 
   if (kieModel === "gpt-image-2-text-to-image") {
     const input: Record<string, unknown> = {
@@ -154,68 +162,59 @@ export function buildKieInput(opts: {
     };
   }
 
-  if (kieModel === "kling-2.6/image-to-video") {
+  // Grok Imagine Video 1.5 — áudio nativo
+  if (kieModel === "grok-imagine-video-1-5-preview") {
     if (!referenceUrls[0]) {
-      throw new Error("Envie ao menos 1 imagem de referência para vídeo.");
-    }
-    return {
-      prompt,
-      image_urls: [referenceUrls[0]],
-      sound: false,
-      duration: "5",
-    };
-  }
-
-  if (kieModel === "bytedance/v1-lite-image-to-video") {
-    if (!referenceUrls[0]) {
-      throw new Error("Envie ao menos 1 imagem de referência para vídeo.");
-    }
-    return {
-      prompt,
-      image_url: referenceUrls[0],
-      resolution: "720p",
-      duration: "5",
-      camera_fixed: false,
-    };
-  }
-
-  if (kieModel === "wan/2-2-a14b-image-to-video-turbo") {
-    if (!referenceUrls[0]) {
-      throw new Error("Envie uma imagem para animar.");
-    }
-    return {
-      image_url: referenceUrls[0],
-      prompt:
-        prompt ||
-        "Subtle natural motion, cinematic, keep the same person and face identity",
-      resolution: "720p",
-      enable_prompt_expansion: false,
-    };
-  }
-
-  if (kieModel === "kling-2.6/motion-control") {
-    const imageUrl = referenceUrls.find((u) =>
-      /\.(png|jpe?g|webp)(\?|$)/i.test(u)
-    ) || referenceUrls[0];
-    const videoUrl = referenceUrls.find((u) =>
-      /\.(mp4|mov|webm)(\?|$)/i.test(u)
-    ) || referenceUrls[1];
-    if (!imageUrl) {
-      throw new Error("Imitar movimento precisa de 1 imagem de referência.");
-    }
-    if (!videoUrl) {
-      throw new Error(
-        "Imitar movimento precisa de 1 vídeo de referência (movimento)."
-      );
+      throw new Error("Envie ao menos 1 imagem de referência para o Grok 1.5.");
     }
     return {
       prompt:
         prompt ||
-        "No distortion, the character movements match the reference video.",
-      input_urls: [imageUrl],
-      video_urls: [videoUrl],
-      mode: "720p",
-      character_orientation: "image",
+        "Natural motion, keep the same person and face, cinematic, with synced dialogue and ambient audio",
+      image_urls: referenceUrls.slice(0, resolution === "1080p" ? 1 : 7),
+      aspect_ratio: aspectRatio === "auto" ? "auto" : aspectRatio || "auto",
+      resolution: resolution || "720p",
+      duration: Math.min(15, Math.max(1, Math.round(duration))),
+    };
+  }
+
+  // Seedance 1.5 Pro — áudio nativo obrigatório no painel
+  if (kieModel === "bytedance/seedance-1.5-pro") {
+    if (!referenceUrls[0]) {
+      throw new Error("Envie ao menos 1 imagem para o Seedance 1.5 Pro.");
+    }
+    const aspect =
+      aspectRatio && aspectRatio !== "auto" ? aspectRatio : "9:16";
+    return {
+      prompt:
+        prompt ||
+        "Cinematic UGC, keep the same person, natural speech with lip-sync and ambient sound",
+      input_urls: referenceUrls.slice(0, 2),
+      aspect_ratio: aspect,
+      resolution: resolution || "720p",
+      duration: Math.min(12, Math.max(4, Math.round(duration))),
+      fixed_lens: false,
+      generate_audio: true,
+    };
+  }
+
+  // Seedance 2.0 — áudio nativo
+  if (kieModel === "bytedance/seedance-2") {
+    if (!referenceUrls[0]) {
+      throw new Error("Envie ao menos 1 imagem para o Seedance 2.0.");
+    }
+    const aspect =
+      aspectRatio && aspectRatio !== "auto" ? aspectRatio : "9:16";
+    return {
+      prompt:
+        prompt ||
+        "Cinematic scene, keep identity, natural dialogue and ambient audio",
+      first_frame_url: referenceUrls[0],
+      reference_image_urls: referenceUrls.slice(0, 9),
+      generate_audio: true,
+      resolution: resolution || "720p",
+      aspect_ratio: aspect,
+      duration: Math.min(15, Math.max(4, Math.round(duration))),
     };
   }
 
