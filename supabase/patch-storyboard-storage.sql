@@ -4,8 +4,8 @@ VALUES (
   'storyboard-assets',
   'storyboard-assets',
   true,
-  31457280,
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']::text[]
+  104857600,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'video/mp4', 'video/quicktime', 'video/webm']::text[]
 )
 ON CONFLICT (id) DO UPDATE SET
   public = EXCLUDED.public,

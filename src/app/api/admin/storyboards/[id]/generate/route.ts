@@ -52,7 +52,8 @@ export async function POST(request: NextRequest, context: Ctx) {
     }
 
     const prompt = body.prompt?.trim() ?? "";
-    if (!prompt) {
+    const modelNeedsPrompt = model.kind === "image";
+    if (modelNeedsPrompt && !prompt) {
       return NextResponse.json({ error: "Prompt obrigatório." }, { status: 400 });
     }
 
@@ -74,6 +75,21 @@ export async function POST(request: NextRequest, context: Ctx) {
         },
         { status: 400 }
       );
+    }
+
+    if (model.requiresMotionVideo) {
+      const hasVideo = referenceUrls.some((u) =>
+        /\.(mp4|mov|webm)(\?|$)/i.test(u)
+      );
+      if (!hasVideo) {
+        return NextResponse.json(
+          {
+            error:
+              "Imitar movimento precisa de um vídeo de referência (upload .mp4).",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const resolution = body.resolution || model.defaultResolution || "1K";

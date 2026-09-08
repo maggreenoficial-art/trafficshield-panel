@@ -70,6 +70,18 @@ body {
   backdrop-filter: blur(12px);
 }
 
+/* Storyboard selects — options legíveis no tema escuro */
+.sb-select {
+  color-scheme: dark;
+  background-color: #151b26;
+  color: #f3f4f6;
+}
+.sb-select option,
+.sb-select optgroup {
+  background-color: #151b26;
+  color: #f3f4f6;
+}
+
 /* Painel — tokens minimalistas (espelham landing) */
 .panel-card {
   border: 1px solid rgba(255, 255, 255, 0.06);

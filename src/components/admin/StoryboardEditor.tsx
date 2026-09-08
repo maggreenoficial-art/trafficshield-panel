@@ -5,14 +5,12 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Cable,
-  ChevronDown,
   Crosshair,
   Diamond,
   Hand,
   ImageIcon,
   Loader2,
   Plus,
-  Sparkles,
   Upload,
   Video,
   X,
@@ -23,6 +21,7 @@ import {
   ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
   STORYBOARD_MODELS,
+  STORYBOARD_SELECT_CLASS,
   estimateKieCredits,
   formatKieCredits,
   getStoryboardModel,
@@ -30,7 +29,7 @@ import {
 } from "@/lib/kie/models";
 import { cn } from "@/lib/utils";
 
-const BLOCK_W = 320;
+const BLOCK_W = 300;
 
 type Block = {
   id: string;
@@ -309,18 +308,17 @@ export function StoryboardEditor({ id }: { id: string }) {
           <svg className="pointer-events-none absolute inset-0 h-[4000px] w-[4000px] overflow-visible">
             {connections.map(({ from, to }) => {
               const x1 = from.positionX + BLOCK_W;
-              const y1 = from.positionY + 118;
+              const y1 = from.positionY + 160;
               const x2 = to.positionX;
-              const y2 = to.positionY + 118;
+              const y2 = to.positionY + 160;
               const cx = (x1 + x2) / 2;
               return (
                 <path
                   key={`${from.id}-${to.id}`}
                   d={`M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`}
                   fill="none"
-                  stroke="rgba(56,189,248,0.5)"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
+                  stroke="rgba(56,189,248,0.45)"
+                  strokeWidth={2}
                 />
               );
             })}
@@ -436,20 +434,6 @@ function ToolBtn({
   );
 }
 
-function Port({ side }: { side: "left" | "right" }) {
-  return (
-    <div
-      className={cn(
-        "pointer-events-none absolute top-[118px] z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center",
-        side === "left" ? "-left-2.5" : "-right-2.5"
-      )}
-    >
-      <span className="absolute h-5 w-5 rounded-full bg-sky-400/15 blur-[2px]" />
-      <span className="relative h-3 w-3 rounded-full border-2 border-sky-300/90 bg-[#0a0e16] shadow-[0_0_10px_rgba(56,189,248,0.45)]" />
-    </div>
-  );
-}
-
 function FlowBlock({
   block,
   storyboardId,
@@ -496,17 +480,24 @@ function FlowBlock({
       }}
       onPointerDown={onDragStart}
     >
-      <Port side="left" />
-      <Port side="right" />
+      {/* input port */}
+      <div className="absolute -left-2 top-[152px] h-3 w-3 rounded-full border-2 border-sky-400/80 bg-[#07090d]" />
+      {/* output port */}
+      <div className="absolute -right-2 top-[152px] h-3 w-3 rounded-full border-2 border-sky-400/80 bg-sky-400/40" />
 
-      <div className="group relative overflow-hidden rounded-[22px] border border-white/[0.08] bg-gradient-to-b from-[#121821] to-[#0a0d14] shadow-[0_20px_50px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.04]">
-        <button
-          type="button"
-          onClick={() => void remove()}
-          className="absolute right-2.5 top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white/45 opacity-0 backdrop-blur transition-opacity hover:bg-black/70 hover:text-white group-hover:opacity-100"
-        >
-          <X size={13} />
-        </button>
+      <div className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0c1018] shadow-xl">
+        <div className="flex cursor-grab items-center justify-between border-b border-white/[0.06] px-3 py-2 active:cursor-grabbing">
+          <span className="truncate text-xs text-white/55">
+            {isDraft ? "Bloco de criação" : model?.label ?? block.modelKey}
+          </span>
+          <button
+            type="button"
+            onClick={() => void remove()}
+            className="text-white/35 hover:text-white"
+          >
+            <X size={14} />
+          </button>
+        </div>
 
         {isDraft ? (
           <DraftForm
@@ -519,66 +510,51 @@ function FlowBlock({
           />
         ) : (
           <div>
-            <div className="relative aspect-[4/3] overflow-hidden bg-[#151b26]">
-              <div
-                className="absolute inset-0 opacity-[0.35]"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.08) 1px, transparent 0)",
-                  backgroundSize: "14px 14px",
-                }}
-              />
+            <div className="flex aspect-square items-center justify-center bg-white/[0.02]">
               {pending ? (
-                <div className="relative z-[1] flex h-full flex-col items-center justify-center gap-2 text-white/45">
-                  <Loader2 className="animate-spin text-sky-300" size={24} />
-                  <span className="text-xs tracking-wide">Gerando cena...</span>
+                <div className="flex flex-col items-center gap-2 text-white/40">
+                  <Loader2 className="animate-spin" size={22} />
+                  <span className="text-xs">Gerando...</span>
                 </div>
               ) : done ? (
                 model?.kind === "video" ? (
                   <video
                     src={block.resultUrl!}
                     controls
-                    className="relative z-[1] h-full w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={block.resultUrl!}
                     alt=""
-                    className="relative z-[1] h-full w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 )
               ) : (
-                <p className="relative z-[1] flex h-full items-center justify-center px-4 text-center text-xs text-red-300/80">
+                <p className="px-3 text-center text-xs text-red-300/80">
                   {block.errorMessage || "Sem resultado"}
                 </p>
               )}
-              <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[2]">
-                <div className="truncate rounded-full bg-sky-500/90 px-3 py-1.5 text-center text-[11px] font-medium text-white shadow-lg shadow-sky-900/30 backdrop-blur">
-                  {model?.label ?? block.modelKey}
-                </div>
-              </div>
             </div>
-            <div className="space-y-2 p-3.5">
-              <p className="line-clamp-2 text-[12px] leading-relaxed text-white/45">
-                {block.prompt}
+            <p className="line-clamp-2 px-3 py-2 text-xs text-white/40">
+              {block.prompt}
+            </p>
+            {done && model?.kind === "image" && (
+              <button
+                type="button"
+                onClick={onPlugVideo}
+                className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.06] px-3 py-2.5 text-xs text-sky-300 hover:bg-sky-500/10"
+              >
+                <Cable size={13} />
+                Plugar em vídeo (mesmo avatar)
+              </button>
+            )}
+            {done && (
+              <p className="border-t border-white/[0.04] px-3 py-1.5 text-[10px] text-white/30">
+                Consumiu {formatKieCredits(block.creditsCharged)} créditos Kie
               </p>
-              {done && model?.kind === "image" && (
-                <button
-                  type="button"
-                  onClick={onPlugVideo}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-full border border-sky-400/25 bg-sky-400/10 px-3 py-2.5 text-[12px] font-medium text-sky-200 transition-colors hover:bg-sky-400/20"
-                >
-                  <Cable size={13} />
-                  Plugar em vídeo
-                </button>
-              )}
-              {done && (
-                <p className="text-center text-[10px] text-white/30">
-                  −{formatKieCredits(block.creditsCharged)} créditos Kie
-                </p>
-              )}
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -615,10 +591,12 @@ function DraftForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(block.errorMessage || "");
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
 
   const model = getStoryboardModel(modelKey);
   const liveCost = estimateKieCredits(modelKey, resolution);
   const isImage = model?.kind === "image";
+  const needsMotionVideo = Boolean(model?.requiresMotionVideo);
   const plugSources = allBlocks.filter(
     (b) => b.id !== block.id && b.status === "success" && b.resultUrl
   );
@@ -629,7 +607,10 @@ function DraftForm({
     }
   }, [model?.defaultResolution, modelKey, block.modelKey]);
 
-  async function uploadFiles(files: FileList | null) {
+  async function uploadFiles(
+    files: FileList | null,
+    inputEl?: HTMLInputElement | null
+  ) {
     if (!files?.length) return;
     setUploading(true);
     setErr("");
@@ -651,7 +632,9 @@ function DraftForm({
       setErr(e instanceof Error ? e.message : "Erro no upload");
     } finally {
       setUploading(false);
+      if (inputEl) inputEl.value = "";
       if (fileRef.current) fileRef.current.value = "";
+      if (videoRef.current) videoRef.current.value = "";
     }
   }
 
@@ -695,218 +678,194 @@ function DraftForm({
     }
   }
 
+  const canGenerate = isImage
+    ? Boolean(prompt.trim())
+    : needsMotionVideo
+      ? refUrls.some((u) => /\.(png|jpe?g|webp)(\?|$)/i.test(u)) &&
+        refUrls.some((u) => /\.(mp4|mov|webm)(\?|$)/i.test(u))
+      : model?.requiresReference
+        ? refUrls.length > 0
+        : Boolean(prompt.trim());
+
   return (
-    <div>
-      {/* Preview stage */}
-      <div className="relative aspect-[4/3] cursor-grab overflow-hidden bg-[#1a2230] active:cursor-grabbing">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(160deg, #2a3344 0%, #151b26 45%, #0f131c 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0)",
-            backgroundSize: "16px 16px",
-          }}
-        />
-
-        {refUrls[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={refUrls[0]}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover opacity-50"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            {model?.kind === "video" ? (
-              <Video className="text-white/15" size={40} strokeWidth={1.25} />
-            ) : (
-              <ImageIcon className="text-white/15" size={40} strokeWidth={1.25} />
-            )}
-          </div>
+    <div className="space-y-2.5 p-3">
+      <div>
+        <label className="mb-1 block text-[10px] text-white/40">Modelo</label>
+        <select
+          className={STORYBOARD_SELECT_CLASS}
+          value={modelKey}
+          onChange={(e) => setModelKey(e.target.value as StoryboardModelKey)}
+        >
+          {STORYBOARD_MODELS.map((m) => (
+            <option key={m.key} value={m.key}>
+              {m.label} · {estimateKieCredits(m.key, m.defaultResolution || "1K")} cr
+            </option>
+          ))}
+        </select>
+        {model?.description && (
+          <p className="mt-1 text-[10px] text-white/35">{model.description}</p>
         )}
+      </div>
 
-        {/* Model pill (banner) */}
-        <div className="absolute inset-x-0 top-1/2 z-[2] flex -translate-y-1/2 justify-center px-4">
-          <div className="relative w-full max-w-[92%]">
+      <p className="text-[10px] text-sky-400/90">
+        {needsMotionVideo
+          ? "Precisa de 1 imagem + 1 vídeo de movimento"
+          : model?.requiresReference
+            ? "Plugue uma cena ou envie referência"
+            : "Referências opcionais (até 16)"}
+      </p>
+
+      {plugSources.length > 0 && (
+        <select
+          className={cn(STORYBOARD_SELECT_CLASS, "border-sky-500/25")}
+          value={sourceBlockId ?? ""}
+          onChange={(e) => {
+            if (!e.target.value) {
+              setSourceBlockId(null);
+              return;
+            }
+            plugFrom(e.target.value);
+          }}
+        >
+          <option value="">Conectar cena anterior...</option>
+          {plugSources.map((s) => (
+            <option key={s.id} value={s.id}>
+              {getStoryboardModel(s.modelKey)?.label ?? s.modelKey} ·{" "}
+              {(s.prompt || "sem prompt").slice(0, 28)}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        className="hidden"
+        onChange={(e) => void uploadFiles(e.target.files, e.target)}
+      />
+      <input
+        ref={videoRef}
+        type="file"
+        accept="video/mp4,video/quicktime,video/webm"
+        className="hidden"
+        onChange={(e) => void uploadFiles(e.target.files, e.target)}
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={uploading || refUrls.length >= 16}
+          onClick={() => fileRef.current?.click()}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/15 px-2 py-2 text-[11px] text-white/50 hover:text-white/80 disabled:opacity-50"
+        >
+          {uploading ? (
+            <Loader2 className="animate-spin" size={12} />
+          ) : (
+            <Upload size={12} />
+          )}
+          Imagem
+        </button>
+        {needsMotionVideo && (
+          <button
+            type="button"
+            disabled={uploading || refUrls.length >= 16}
+            onClick={() => videoRef.current?.click()}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-sky-400/30 px-2 py-2 text-[11px] text-sky-200/70 hover:text-sky-100 disabled:opacity-50"
+          >
+            <Video size={12} />
+            Vídeo movimento
+          </button>
+        )}
+      </div>
+
+      {refUrls.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {refUrls.map((url) => {
+            const isVid = /\.(mp4|mov|webm)(\?|$)/i.test(url);
+            return (
+              <div
+                key={url}
+                className="relative h-11 w-11 overflow-hidden rounded-md border border-white/10"
+              >
+                {isVid ? (
+                  <video src={url} className="h-full w-full object-cover" muted />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                )}
+                <button
+                  type="button"
+                  className="absolute right-0 top-0 rounded bg-black/70 p-0.5"
+                  onClick={() => setRefUrls((p) => p.filter((u) => u !== url))}
+                >
+                  <X size={9} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isImage && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-[10px] text-white/40">
+              Proporção
+            </label>
             <select
-              className="w-full appearance-none truncate rounded-full border border-white/10 bg-sky-500 py-2.5 pl-4 pr-9 text-center text-[12px] font-medium text-white shadow-[0_8px_24px_rgba(14,165,233,0.35)] outline-none transition hover:bg-sky-400"
-              value={modelKey}
-              onChange={(e) => setModelKey(e.target.value as StoryboardModelKey)}
+              className={STORYBOARD_SELECT_CLASS}
+              value={aspectRatio}
+              onChange={(e) => setAspectRatio(e.target.value)}
             >
-              {STORYBOARD_MODELS.map((m) => (
-                <option key={m.key} value={m.key} className="bg-[#0f141d] text-white">
-                  {m.label}
+              {ASPECT_RATIOS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={14}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/80"
-            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-white/40">
+              Resolução
+            </label>
+            <select
+              className={STORYBOARD_SELECT_CLASS}
+              value={resolution}
+              onChange={(e) => setResolution(e.target.value)}
+            >
+              {IMAGE_RESOLUTIONS.map((r) => (
+                <option key={r} value={r}>
+                  {r} · {estimateKieCredits(modelKey, r)} cr
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      )}
 
-        {/* Refs strip */}
-        {(refUrls.length > 0 || plugSources.length > 0) && (
-          <div className="absolute inset-x-0 bottom-0 z-[2] flex items-end gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-3 pb-2.5 pt-8">
-            {refUrls.map((url) => (
-              <div
-                key={url}
-                className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-white/20 shadow"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  className="absolute inset-0 flex items-center justify-center bg-black/0 text-transparent transition hover:bg-black/55 hover:text-white"
-                  onClick={() => setRefUrls((p) => p.filter((u) => u !== url))}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              disabled={uploading || refUrls.length >= 16}
-              onClick={() => fileRef.current?.click()}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-white/25 bg-white/5 text-white/55 hover:text-white"
-            >
-              {uploading ? (
-                <Loader2 className="animate-spin" size={12} />
-              ) : (
-                <Plus size={14} />
-              )}
-            </button>
-          </div>
+      <textarea
+        className="w-full rounded-lg border border-white/[0.08] bg-[#151b26] px-2 py-2 text-xs text-white outline-none placeholder:text-white/25"
+        rows={3}
+        placeholder="Descreva o que você quer gerar..."
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+      />
+
+      {err && <p className="text-[11px] text-red-300">{err}</p>}
+
+      <button
+        type="button"
+        disabled={busy || !canGenerate}
+        onClick={() => void submit()}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 py-2.5 text-xs font-medium text-white disabled:opacity-50"
+      >
+        {busy ? (
+          <Loader2 className="animate-spin" size={14} />
+        ) : (
+          `Gerar Criativo (${liveCost || cost} créditos)`
         )}
-      </div>
-
-      <div className="space-y-2.5 p-3.5">
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            className="hidden"
-            onChange={(e) => void uploadFiles(e.target.files)}
-          />
-          {refUrls.length === 0 && (
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/50 transition hover:border-white/15 hover:text-white/80"
-            >
-              <Upload size={11} />
-              Referência
-            </button>
-          )}
-          {plugSources.length > 0 && (
-            <div className="relative min-w-0 flex-1">
-              <Cable
-                size={11}
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sky-300/70"
-              />
-              <select
-                className="w-full appearance-none truncate rounded-full border border-sky-400/20 bg-sky-400/10 py-1 pl-7 pr-6 text-[11px] text-sky-100 outline-none"
-                value={sourceBlockId ?? ""}
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    setSourceBlockId(null);
-                    return;
-                  }
-                  plugFrom(e.target.value);
-                }}
-              >
-                <option value="">Plugar cena...</option>
-                {plugSources.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {(getStoryboardModel(s.modelKey)?.label ?? s.modelKey).slice(
-                      0,
-                      22
-                    )}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {isImage && (
-          <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1">
-              <span className="px-0.5 text-[10px] tracking-wide text-white/35 uppercase">
-                Proporção
-              </span>
-              <select
-                className="w-full rounded-xl border border-white/[0.07] bg-white/[0.03] px-2.5 py-2 text-[12px] text-white/85 outline-none focus:border-sky-400/40"
-                value={aspectRatio}
-                onChange={(e) => setAspectRatio(e.target.value)}
-              >
-                {ASPECT_RATIOS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="px-0.5 text-[10px] tracking-wide text-white/35 uppercase">
-                Resolução
-              </span>
-              <select
-                className="w-full rounded-xl border border-white/[0.07] bg-white/[0.03] px-2.5 py-2 text-[12px] text-white/85 outline-none focus:border-sky-400/40"
-                value={resolution}
-                onChange={(e) => setResolution(e.target.value)}
-              >
-                {IMAGE_RESOLUTIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r} · {estimateKieCredits(modelKey, r)} cr
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
-
-        <textarea
-          className="min-h-[72px] w-full resize-y rounded-xl border border-white/[0.07] bg-black/25 px-3 py-2.5 text-[12px] leading-relaxed text-white/90 outline-none placeholder:text-white/25 focus:border-sky-400/35"
-          rows={3}
-          placeholder="Descreva o que você quer gerar..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-
-        {err && (
-          <p className="rounded-lg border border-red-400/20 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-200">
-            {err}
-          </p>
-        )}
-
-        <button
-          type="button"
-          disabled={busy || !prompt.trim()}
-          onClick={() => void submit()}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-b from-sky-400 to-sky-600 py-3 text-[13px] font-semibold text-white shadow-[0_10px_28px_rgba(14,165,233,0.35)] transition hover:from-sky-300 hover:to-sky-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-        >
-          {busy ? (
-            <Loader2 className="animate-spin" size={15} />
-          ) : (
-            <>
-              <Sparkles size={14} className="opacity-90" />
-              Gerar Criativo ({liveCost || cost} créditos)
-            </>
-          )}
-        </button>
-      </div>
+      </button>
     </div>
   );
 }

@@ -179,5 +179,45 @@ export function buildKieInput(opts: {
     };
   }
 
-  return { prompt };
+  if (kieModel === "wan/2-2-a14b-image-to-video-turbo") {
+    if (!referenceUrls[0]) {
+      throw new Error("Envie uma imagem para animar.");
+    }
+    return {
+      image_url: referenceUrls[0],
+      prompt:
+        prompt ||
+        "Subtle natural motion, cinematic, keep the same person and face identity",
+      resolution: "720p",
+      enable_prompt_expansion: false,
+    };
+  }
+
+  if (kieModel === "kling-2.6/motion-control") {
+    const imageUrl = referenceUrls.find((u) =>
+      /\.(png|jpe?g|webp)(\?|$)/i.test(u)
+    ) || referenceUrls[0];
+    const videoUrl = referenceUrls.find((u) =>
+      /\.(mp4|mov|webm)(\?|$)/i.test(u)
+    ) || referenceUrls[1];
+    if (!imageUrl) {
+      throw new Error("Imitar movimento precisa de 1 imagem de referência.");
+    }
+    if (!videoUrl) {
+      throw new Error(
+        "Imitar movimento precisa de 1 vídeo de referência (movimento)."
+      );
+    }
+    return {
+      prompt:
+        prompt ||
+        "No distortion, the character movements match the reference video.",
+      input_urls: [imageUrl],
+      video_urls: [videoUrl],
+      mode: "720p",
+      character_orientation: "image",
+    };
+  }
+
+  throw new Error(`Modelo Kie não configurado: ${kieModel}`);
 }
