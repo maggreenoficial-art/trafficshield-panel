@@ -55,6 +55,44 @@ type Board = {
   name: string;
 };
 
+type OrgLabel = {
+  type: "cena" | "take";
+  index: number;
+  text: string;
+};
+
+/** Ordem narrativa ≈ esquerda → direita no canvas. */
+function buildOrgLabels(blocks: Block[]): Map<string, OrgLabel> {
+  const sorted = [...blocks].sort(
+    (a, b) =>
+      a.positionX - b.positionX ||
+      a.positionY - b.positionY ||
+      a.id.localeCompare(b.id)
+  );
+  let cena = 0;
+  let take = 0;
+  const map = new Map<string, OrgLabel>();
+  for (const b of sorted) {
+    const kind = getStoryboardModel(b.modelKey)?.kind;
+    if (kind === "image") {
+      cena += 1;
+      map.set(b.id, { type: "cena", index: cena, text: `Cena ${cena}` });
+    } else if (kind === "video") {
+      take += 1;
+      map.set(b.id, { type: "take", index: take, text: `Take ${take}` });
+    }
+  }
+  return map;
+}
+
+function estimateBoardSeconds(blocks: Block[]): number {
+  return blocks.reduce((sum, b) => {
+    const model = getStoryboardModel(b.modelKey);
+    if (model?.kind !== "video") return sum;
+    return sum + (model.defaultDuration || 8);
+  }, 0);
+}
+
 export function StoryboardEditor({ id }: { id: string }) {
   const [board, setBoard] = useState<Board | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -244,6 +282,21 @@ export function StoryboardEditor({ id }: { id: string }) {
       .filter(Boolean) as { from: Block; to: Block }[];
   }, [blocks]);
 
+  const orgLabels = useMemo(() => buildOrgLabels(blocks), [blocks]);
+  const boardStats = useMemo(() => {
+    let cenas = 0;
+    let takes = 0;
+    for (const label of orgLabels.values()) {
+      if (label.type === "cena") cenas += 1;
+      else takes += 1;
+    }
+    return {
+      cenas,
+      takes,
+      seconds: estimateBoardSeconds(blocks),
+    };
+  }, [blocks, orgLabels]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#07090d] text-white/50">
@@ -269,6 +322,16 @@ export function StoryboardEditor({ id }: { id: string }) {
             <h1 className="text-lg font-semibold tracking-tight text-white">
               {board?.name ?? "Storyboard"}
             </h1>
+            {(boardStats.cenas > 0 || boardStats.takes > 0) && (
+              <p className="mt-0.5 text-[11px] text-white/40">
+                {boardStats.cenas > 0 ? `${boardStats.cenas} cena${boardStats.cenas === 1 ? "" : "s"}` : null}
+                {boardStats.cenas > 0 && boardStats.takes > 0 ? " · " : null}
+                {boardStats.takes > 0
+                  ? `${boardStats.takes} take${boardStats.takes === 1 ? "" : "s"}`
+                  : null}
+                {boardStats.takes > 0 ? ` · ~${boardStats.seconds}s` : null}
+              </p>
+            )}
           </div>
         </div>
 
@@ -340,6 +403,8 @@ export function StoryboardEditor({ id }: { id: string }) {
               block={b}
               storyboardId={id}
               allBlocks={blocks}
+              orgLabel={orgLabels.get(b.id) ?? null}
+              orgLabels={orgLabels}
               onChange={(next) =>
                 setBlocks((prev) =>
                   prev.map((x) => (x.id === next.id ? next : x))
@@ -452,6 +517,8 @@ function FlowBlock({
   block,
   storyboardId,
   allBlocks,
+  orgLabel,
+  orgLabels,
   onChange,
   onCredits,
   onDelete,
@@ -463,6 +530,8 @@ function FlowBlock({
   block: Block;
   storyboardId: string;
   allBlocks: Block[];
+  orgLabel: OrgLabel | null;
+  orgLabels: Map<string, OrgLabel>;
   onChange: (b: Block) => void;
   onCredits: (n: number) => void;
   onDelete: () => void;
@@ -479,6 +548,10 @@ function FlowBlock({
   const cost = estimateKieCredits(block.modelKey, {
     resolution: block.resolution,
   });
+  const nextTakeIndex =
+    [...orgLabels.values()].filter((l) => l.type === "take").length + 1;
+  const nextCenaIndex =
+    [...orgLabels.values()].filter((l) => l.type === "cena").length + 1;
 
   async function remove() {
     if (!confirm("Remover este bloco?")) return;
@@ -506,14 +579,36 @@ function FlowBlock({
       <div className="absolute -right-2 top-[152px] h-3 w-3 rounded-full border-2 border-sky-400/80 bg-sky-400/40" />
 
       <div className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0c1018] shadow-xl">
-        <div className="flex cursor-grab items-center justify-between border-b border-white/[0.06] px-3 py-2 active:cursor-grabbing">
-          <span className="truncate text-xs text-white/55">
-            {isDraft ? "Bloco de criação" : model?.label ?? block.modelKey}
-          </span>
+        <div className="flex cursor-grab items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2 active:cursor-grabbing">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              {orgLabel && (
+                <span
+                  className={cn(
+                    "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium tracking-wide",
+                    orgLabel.type === "take"
+                      ? "bg-violet-500/20 text-violet-200"
+                      : "bg-emerald-500/20 text-emerald-200"
+                  )}
+                >
+                  {orgLabel.text}
+                </span>
+              )}
+              <span className="truncate text-xs text-white/55">
+                {isDraft
+                  ? orgLabel?.type === "take"
+                    ? "Novo take"
+                    : orgLabel?.type === "cena"
+                      ? "Nova cena"
+                      : "Bloco de criação"
+                  : model?.label ?? block.modelKey}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => void remove()}
-            className="text-white/35 hover:text-white"
+            className="shrink-0 text-white/35 hover:text-white"
           >
             <X size={14} />
           </button>
@@ -524,6 +619,7 @@ function FlowBlock({
             block={block}
             storyboardId={storyboardId}
             allBlocks={allBlocks}
+            orgLabels={orgLabels}
             cost={cost}
             onChange={onChange}
             onCredits={onCredits}
@@ -567,18 +663,25 @@ function FlowBlock({
                 className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.06] px-3 py-2.5 text-xs text-sky-300 hover:bg-sky-500/10"
               >
                 <Cable size={13} />
-                Plugar em vídeo (mesmo avatar)
+                Plugar Take {nextTakeIndex} (mesmo avatar)
               </button>
             )}
             {done && model?.kind === "video" && (
               <div className="border-t border-white/[0.06]">
                 <button
                   type="button"
-                  onClick={onPlugNextTake}
+                  onClick={onPlugImage}
                   className="flex w-full items-center justify-center gap-1.5 px-3 py-2.5 text-xs text-sky-300 hover:bg-sky-500/10"
                 >
                   <Cable size={13} />
-                  Plugar próximo take
+                  Nova cena {nextCenaIndex} → próximo take
+                </button>
+                <button
+                  type="button"
+                  onClick={onPlugNextTake}
+                  className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.04] px-3 py-2 text-[11px] text-white/45 hover:bg-white/[0.04] hover:text-white/70"
+                >
+                  Take {nextTakeIndex} (mesma pose / ref)
                 </button>
                 <button
                   type="button"
@@ -586,13 +689,6 @@ function FlowBlock({
                   className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.04] px-3 py-2 text-[11px] text-white/45 hover:bg-white/[0.04] hover:text-white/70"
                 >
                   Outro modelo de vídeo
-                </button>
-                <button
-                  type="button"
-                  onClick={onPlugImage}
-                  className="flex w-full items-center justify-center gap-1.5 border-t border-white/[0.04] px-3 py-2 text-[11px] text-white/45 hover:bg-white/[0.04] hover:text-white/70"
-                >
-                  Plugar nova imagem
                 </button>
               </div>
             )}
@@ -612,6 +708,7 @@ function DraftForm({
   block,
   storyboardId,
   allBlocks,
+  orgLabels,
   cost,
   onChange,
   onCredits,
@@ -619,6 +716,7 @@ function DraftForm({
   block: Block;
   storyboardId: string;
   allBlocks: Block[];
+  orgLabels: Map<string, OrgLabel>;
   cost: number;
   onChange: (b: Block) => void;
   onCredits: (n: number) => void;
@@ -769,10 +867,10 @@ function DraftForm({
 
       <p className="text-[10px] text-sky-400/90">
         {model?.kind === "video"
-          ? "Vídeo com áudio nativo — pluga a imagem da cena ou envia referência"
+          ? "Take com áudio nativo — pluga a Cena (imagem) ou envia referência. Para variar pose, use outra Cena."
           : model?.requiresReference
-            ? "Plugue uma cena ou envie referência"
-            : "Referências opcionais (até 16)"}
+            ? "Cena de referência — depois pluga em um Take de vídeo"
+            : "Cena / imagem do anúncio (varia pose entre takes)"}
       </p>
 
       {plugSources.length > 0 && (
@@ -787,13 +885,20 @@ function DraftForm({
             plugFrom(e.target.value);
           }}
         >
-          <option value="">Conectar cena anterior...</option>
-          {plugSources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {getStoryboardModel(s.modelKey)?.label ?? s.modelKey} ·{" "}
-              {(s.prompt || "sem prompt").slice(0, 28)}
-            </option>
-          ))}
+          <option value="">Conectar cena / take anterior...</option>
+          {plugSources.map((s) => {
+            const label = orgLabels.get(s.id);
+            const kindLabel =
+              getStoryboardModel(s.modelKey)?.kind === "video"
+                ? "vídeo"
+                : "imagem";
+            return (
+              <option key={s.id} value={s.id}>
+                {label?.text ?? kindLabel} ·{" "}
+                {(s.prompt || "sem prompt").slice(0, 28)}
+              </option>
+            );
+          })}
         </select>
       )}
 
