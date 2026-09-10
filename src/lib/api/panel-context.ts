@@ -84,6 +84,18 @@ export async function requirePanelContext(
   return ctx;
 }
 
+/** Storyboards / Criativos: só admin da plataforma. */
+export async function requirePlatformAdmin(
+  request: NextRequest
+): Promise<PanelContext | NextResponse> {
+  const ctx = await requirePanelContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+  if (!ctx.isPlatformAdmin) {
+    return panelForbidden("Disponível apenas para administradores.");
+  }
+  return ctx;
+}
+
 export function setTenantCookie(
   response: NextResponse,
   tenantId: string

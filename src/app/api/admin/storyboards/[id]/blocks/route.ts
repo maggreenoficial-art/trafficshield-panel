@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   createBlock,
   getBlockById,
@@ -44,7 +44,7 @@ async function resolveImageRefsFromSource(
 
 /** Cria bloco draft no canvas (plug-and-play). */
 export async function POST(request: NextRequest, context: Ctx) {
-  const panel = await requirePanelContext(request);
+  const panel = await requirePlatformAdmin(request);
   if (panel instanceof NextResponse) return panel;
   const { id: storyboardId } = await context.params;
 

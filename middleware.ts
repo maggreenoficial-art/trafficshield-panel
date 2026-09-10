@@ -1,9 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { canAccessPanel, updateSession } from "@/lib/supabase/middleware";
+import {
+  canAccessPanel,
+  isAdminUser,
+  updateSession,
+} from "@/lib/supabase/middleware";
 import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 
 const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
+
+const ADMIN_ONLY_PATH_PREFIXES = ["/storyboards", "/criativos"];
 
 function isPublicPath(pathname: string): boolean {
   return (
@@ -11,6 +17,12 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/c/") ||
     pathname.startsWith("/api/traffic/") ||
     pathname.startsWith("/api/kie/")
+  );
+}
+
+function isAdminOnlyPath(pathname: string): boolean {
+  return ADMIN_ONLY_PATH_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
 }
 
@@ -47,6 +59,13 @@ export async function middleware(request: NextRequest) {
       const login = new URL("/login", request.url);
       login.searchParams.set("from", pathname);
       return NextResponse.redirect(login);
+    }
+
+    if (user && isAdminOnlyPath(pathname)) {
+      const admin = await isAdminUser(supabase, user.id);
+      if (!admin) {
+        return NextResponse.redirect(new URL("/painel", request.url));
+      }
     }
 
     return supabaseResponse;

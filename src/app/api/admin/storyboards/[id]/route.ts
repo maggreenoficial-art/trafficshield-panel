@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   deleteStoryboard,
   getStoryboard,
@@ -11,7 +11,7 @@ import { syncBlockFromKie } from "@/lib/kie/sync-block";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, context: Ctx) {
-  const panel = await requirePanelContext(request);
+  const panel = await requirePlatformAdmin(request);
   if (panel instanceof NextResponse) return panel;
 
   const { id } = await context.params;
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest, context: Ctx) {
 }
 
 export async function DELETE(request: NextRequest, context: Ctx) {
-  const panel = await requirePanelContext(request);
+  const panel = await requirePlatformAdmin(request);
   if (panel instanceof NextResponse) return panel;
   const { id } = await context.params;
 

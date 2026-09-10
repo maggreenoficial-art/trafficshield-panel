@@ -15,17 +15,35 @@ export type PanelNavItem = {
   label: string;
   icon: LucideIcon;
   exact: boolean;
+  /** Só contas admin da plataforma (ex.: Storyboards / Criativos) */
+  adminOnly?: boolean;
 };
 
 export const panelNav: PanelNavItem[] = [
   { href: "/painel", label: "Início", icon: LayoutDashboard, exact: true },
   { href: "/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
-  { href: "/storyboards", label: "Storyboards", icon: Clapperboard, exact: false },
-  { href: "/criativos", label: "Criativos", icon: Images, exact: false },
+  {
+    href: "/storyboards",
+    label: "Storyboards",
+    icon: Clapperboard,
+    exact: false,
+    adminOnly: true,
+  },
+  {
+    href: "/criativos",
+    label: "Criativos",
+    icon: Images,
+    exact: false,
+    adminOnly: true,
+  },
   { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
   { href: "/suporte", label: "Suporte", icon: LifeBuoy, exact: false },
   { href: "/perfil", label: "Conta", icon: User, exact: false },
 ];
+
+export function getPanelNav(isPlatformAdmin: boolean): PanelNavItem[] {
+  return panelNav.filter((item) => !item.adminOnly || isPlatformAdmin);
+}
 
 export { LogOut };
 

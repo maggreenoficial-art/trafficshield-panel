@@ -1,19 +1,40 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
 import { NoratLogo } from "@/components/NoratLogo";
-import { LogOut, panelNav } from "@/lib/panel-nav";
+import { LogOut, getPanelNav } from "@/lib/panel-nav";
 import { panelNavItem } from "@/lib/panel-styles";
 import { logoutPanel } from "@/lib/auth-logout";
 import { cn } from "@/lib/utils";
 
 export function PanelShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const isStoryboardEditor = /^\/storyboards\/[^/]+/.test(pathname);
   const isStandalone =
     pathname === "/" || pathname === "/login" || isStoryboardEditor;
+  const nav = getPanelNav(isPlatformAdmin);
+
+  useEffect(() => {
+    if (isStandalone) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/me");
+        if (!res.ok) return;
+        const data = (await res.json()) as { isPlatformAdmin?: boolean };
+        if (!cancelled) setIsPlatformAdmin(Boolean(data.isPlatformAdmin));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isStandalone]);
 
   if (isStandalone) {
     return <>{children}</>;
@@ -27,7 +48,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav className="landing-nav-pill mt-8 flex flex-col gap-0.5 rounded-2xl p-1.5">
-          {panelNav.map((item) => {
+          {nav.map((item) => {
             const Icon = item.icon;
             const active = item.exact
               ? pathname === item.href
@@ -76,7 +97,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="admin-main flex-1 overflow-x-hidden">{children}</main>
-        <PanelMobileNav />
+        <PanelMobileNav items={nav} />
       </div>
     </div>
   );

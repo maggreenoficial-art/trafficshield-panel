@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import { getKieAccountCredits } from "@/lib/kie/client";
 import {
   estimateKieCredits,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/kie/models";
 
 export async function GET(request: NextRequest) {
-  const ctx = await requirePanelContext(request);
+  const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {

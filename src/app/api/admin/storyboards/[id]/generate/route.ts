@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   createBlock,
   getBlockById,
@@ -21,7 +21,7 @@ import { getSiteUrl } from "@/lib/site-config";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: Ctx) {
-  const panel = await requirePanelContext(request);
+  const panel = await requirePlatformAdmin(request);
   if (panel instanceof NextResponse) return panel;
   const { id: storyboardId } = await context.params;
 

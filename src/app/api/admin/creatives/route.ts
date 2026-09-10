@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   countCreatives,
   createFolder,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/db/creatives";
 
 export async function GET(request: NextRequest) {
-  const ctx = await requirePanelContext(request);
+  const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const ctx = await requirePanelContext(request);
+  const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {

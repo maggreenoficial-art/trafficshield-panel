@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requirePanelContext } from "@/lib/api/panel-context";
+import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseUrl } from "@/lib/supabase/env";
 
@@ -16,7 +16,7 @@ const IMAGE_TYPES = new Set([
 const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime", "video/webm"]);
 
 export async function POST(request: NextRequest) {
-  const ctx = await requirePanelContext(request);
+  const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {

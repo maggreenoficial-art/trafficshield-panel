@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, panelNav, panelPageTitle } from "@/lib/panel-nav";
+import { LogOut, panelPageTitle, type PanelNavItem } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 import { logoutPanel } from "@/lib/auth-logout";
 
 export { panelPageTitle };
 
-export function PanelMobileNav() {
+export function PanelMobileNav({ items }: { items: PanelNavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -18,7 +18,7 @@ export function PanelMobileNav() {
       aria-label="Navegação do painel"
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
-        {panelNav.map(({ href, label, icon: Icon, exact }) => {
+        {items.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact
             ? pathname === href
             : pathname.startsWith(href);
