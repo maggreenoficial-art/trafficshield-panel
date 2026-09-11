@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseUrl } from "@/lib/supabase/env";
+import { stripImageMetadata } from "@/lib/media/strip-image-metadata";
 
 const BUCKET = "storyboard-assets";
 const MAX_IMAGE = 30 * 1024 * 1024;
@@ -43,7 +44,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ext = isVideo
+    const raw = Buffer.from(await file.arrayBuffer());
+    let uploadBuffer: Buffer = raw;
+    let contentType = file.type;
+    let ext = isVideo
       ? file.type === "video/webm"
         ? "webm"
         : file.type === "video/quicktime"
@@ -55,13 +59,21 @@ export async function POST(request: NextRequest) {
           ? "webp"
           : "jpg";
 
+    if (isImage) {
+      const cleaned = await stripImageMetadata(raw);
+      uploadBuffer = Buffer.from(cleaned.buffer);
+      contentType = cleaned.contentType;
+      ext = cleaned.extension;
+    }
+
     const path = `${ctx.tenantId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
     const supabase = createAdminClient();
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
-      contentType: file.type,
-      upsert: false,
-    });
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, uploadBuffer, {
+        contentType,
+        upsert: false,
+      });
 
     if (error) {
       return NextResponse.json(
@@ -82,6 +94,7 @@ export async function POST(request: NextRequest) {
       url,
       path,
       mediaType: isVideo ? "video" : "image",
+      metadataStripped: isImage,
     });
   } catch {
     return NextResponse.json({ error: "Falha no upload." }, { status: 500 });

@@ -15,7 +15,7 @@ export type PanelNavItem = {
   label: string;
   icon: LucideIcon;
   exact: boolean;
-  /** Só contas admin da plataforma (ex.: Storyboards / Criativos) */
+  /** Só contas admin da plataforma (ex.: Storyboards) */
   adminOnly?: boolean;
 };
 
@@ -34,7 +34,6 @@ export const panelNav: PanelNavItem[] = [
     label: "Criativos",
     icon: Images,
     exact: false,
-    adminOnly: true,
   },
   { href: "/dominios", label: "Domínios", icon: Globe, exact: false },
   { href: "/suporte", label: "Suporte", icon: LifeBuoy, exact: false },
