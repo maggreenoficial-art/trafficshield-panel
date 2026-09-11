@@ -25,8 +25,10 @@ import {
 import { cn } from "@/lib/utils";
 import {
   downloadBlob,
-  stripImageInBrowser,
-} from "@/lib/media/strip-image-client";
+  isImageCreative,
+  isVideoCreative,
+  stripCreativeMetadata,
+} from "@/lib/media/strip-creative-client";
 
 type FolderItem = {
   id: string;
@@ -111,12 +113,11 @@ export function CreativesPageView() {
 
   async function stripFiles(files: FileList | File[] | null) {
     if (!files?.length) return;
-    const list = Array.from(files).filter((f) => {
-      if (/^image\/(jpeg|jpg|png|webp)$/i.test(f.type)) return true;
-      return /\.(jpe?g|png|webp)$/i.test(f.name);
-    });
+    const list = Array.from(files).filter(
+      (f) => isImageCreative(f) || isVideoCreative(f)
+    );
     if (!list.length) {
-      setError("Selecione imagens JPEG, PNG ou WEBP.");
+      setError("Selecione imagens (JPEG/PNG/WEBP) ou vídeos (MP4/MOV/WEBM).");
       return;
     }
 
@@ -133,7 +134,7 @@ export function CreativesPageView() {
       const file = list[i];
       const jobId = jobs[i].id;
       try {
-        const cleaned = await stripImageInBrowser(file);
+        const cleaned = await stripCreativeMetadata(file);
         downloadBlob(cleaned.blob, cleaned.filename);
         setStripJobs((prev) =>
           prev.map((j) =>
@@ -173,12 +174,12 @@ export function CreativesPageView() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-medium text-white">
-              Remover metadados da imagem
+              Remover metadados
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-white/45">
-              Tira EXIF, GPS, software e rastros de edição. Use antes de enviar o
-              criativo para o Meta/Google — reduz risco de vínculo com contas
-              anteriores. O arquivo limpo baixa automaticamente.
+              Tira EXIF, GPS, título, encoder e rastros de edição de imagens e
+              vídeos. Use antes de enviar o criativo para o Meta/Google. O
+              arquivo limpo baixa automaticamente.
             </p>
           </div>
         </div>
@@ -186,7 +187,7 @@ export function CreativesPageView() {
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
           multiple
           className="hidden"
           onChange={(e) => void stripFiles(e.target.files)}
@@ -205,9 +206,9 @@ export function CreativesPageView() {
           )}
           {stripping
             ? "Limpando e baixando..."
-            : "Arraste ou clique para selecionar imagens"}
+            : "Arraste ou clique para selecionar imagens ou vídeos"}
           <span className="text-[11px] text-white/30">
-            JPEG, PNG ou WEBP · até 30MB cada · várias de uma vez
+            JPEG, PNG, WEBP · MP4, MOV, WEBM · várias de uma vez
           </span>
         </button>
 
