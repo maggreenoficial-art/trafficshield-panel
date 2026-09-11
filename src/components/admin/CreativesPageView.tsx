@@ -23,6 +23,10 @@ import {
   panelSearch,
 } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
+import {
+  downloadBlob,
+  stripImageInBrowser,
+} from "@/lib/media/strip-image-client";
 
 type FolderItem = {
   id: string;
@@ -107,9 +111,10 @@ export function CreativesPageView() {
 
   async function stripFiles(files: FileList | File[] | null) {
     if (!files?.length) return;
-    const list = Array.from(files).filter((f) =>
-      /^image\/(jpeg|jpg|png|webp)$/i.test(f.type)
-    );
+    const list = Array.from(files).filter((f) => {
+      if (/^image\/(jpeg|jpg|png|webp)$/i.test(f.type)) return true;
+      return /\.(jpe?g|png|webp)$/i.test(f.name);
+    });
     if (!list.length) {
       setError("Selecione imagens JPEG, PNG ou WEBP.");
       return;
@@ -128,30 +133,8 @@ export function CreativesPageView() {
       const file = list[i];
       const jobId = jobs[i].id;
       try {
-        const form = new FormData();
-        form.append("file", file);
-        const res = await fetch("/api/admin/creatives/strip-metadata", {
-          method: "POST",
-          body: form,
-        });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
-          throw new Error(data.error || "Falha ao limpar");
-        }
-        const blob = await res.blob();
-        const disposition = res.headers.get("Content-Disposition") || "";
-        const match = disposition.match(/filename="([^"]+)"/);
-        const filename = match?.[1] || file.name.replace(/\.[^.]+$/, "") + "-limpo.jpg";
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+        const cleaned = await stripImageInBrowser(file);
+        downloadBlob(cleaned.blob, cleaned.filename);
         setStripJobs((prev) =>
           prev.map((j) =>
             j.id === jobId ? { ...j, status: "done" } : j

@@ -13,9 +13,9 @@ export type StrippedImage = {
 export async function stripImageMetadata(
   input: Buffer
 ): Promise<StrippedImage> {
-  const image = sharp(input, { failOn: "none" }).rotate();
-  const meta = await image.metadata();
+  const meta = await sharp(input, { failOn: "none" }).metadata();
   const format = meta.format;
+  const image = sharp(input, { failOn: "none", limitInputPixels: false }).rotate();
 
   if (format === "png") {
     const buffer = await image.png({ compressionLevel: 9, force: true }).toBuffer();
@@ -27,7 +27,6 @@ export async function stripImageMetadata(
     return { buffer, contentType: "image/webp", extension: "webp" };
   }
 
-  // JPEG / outros → JPEG limpo (sem EXIF)
   const buffer = await image.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
   return { buffer, contentType: "image/jpeg", extension: "jpg" };
 }
