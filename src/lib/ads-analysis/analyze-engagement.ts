@@ -1,4 +1,9 @@
 import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
+import {
+  buildThemeReport,
+  type CampaignChampion,
+  type ThemeChampion,
+} from "@/lib/ads-analysis/theme-champions";
 
 export type AnalysisLevel = "campaign" | "adset" | "ad";
 
@@ -49,6 +54,8 @@ export type TripleEngagementAnalysis = {
   adset: EngagementAnalysis;
   ad: EngagementAnalysis;
   insights: CampaignInsight[];
+  themes: ThemeChampion[];
+  campaignChampions: CampaignChampion[];
 };
 
 function rate(num: number, den: number) {
@@ -342,6 +349,24 @@ export function analyzeTriple(
     });
   }
 
+  const themeReport = buildThemeReport(ad.ads);
+  for (const theme of themeReport.themes) {
+    if (!theme.champion) {
+      insights.push({
+        tone: "info",
+        title: `${theme.label}: sem match`,
+        body: "Nenhum anúncio/conjunto/campanha com esse tema no nome. Confira se o criativo está batizado (ex.: JAIR, FLAVIO, EVANG, MULHER, BIO).",
+      });
+      continue;
+    }
+    const c = theme.champion;
+    insights.push({
+      tone: "good",
+      title: `Campeão · ${theme.label}`,
+      body: `${c.ad !== "—" ? c.ad : c.label} · ${c.adset !== "—" ? c.adset : c.campaign} · ER ${pct(c.engagementRate)} · ${c.engagements.toLocaleString("pt-BR")} engaj. no post · CPE ${brl(c.costPerEngagement)} · ${theme.count} criativos no tema.`,
+    });
+  }
+
   insights.push(...ad.insights.filter((i) => i.title !== "Como decidir"));
   insights.push({
     tone: "info",
@@ -349,5 +374,12 @@ export function analyzeTriple(
     body: "Campanha = se o objetivo/estrutura vale a pena. Conjunto = público e lance. Anúncio = criativo do post. Pause anúncio fraco antes de matar o conjunto; pause conjunto fraco antes de matar a campanha.",
   });
 
-  return { campaign, adset, ad, insights };
+  return {
+    campaign,
+    adset,
+    ad,
+    insights,
+    themes: themeReport.themes,
+    campaignChampions: themeReport.campaigns,
+  };
 }

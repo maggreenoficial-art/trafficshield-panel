@@ -31,6 +31,7 @@ import {
   type EngagementAnalysis,
   type TripleEngagementAnalysis,
 } from "@/lib/ads-analysis/analyze-engagement";
+import { THEME_LABELS } from "@/lib/ads-analysis/theme-champions";
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -241,6 +242,106 @@ export function CampaignAnalysisView() {
                   </p>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium text-white/80">
+              Campeões por tema (engajamento com o post)
+            </h2>
+            <p className="text-xs text-white/40">
+              Jair e Flávio ficam separados. O campeão é o criativo com melhor
+              ER + volume de engajamento no post.
+            </p>
+            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+              {analysis.themes.map((theme) => {
+                const c = theme.champion;
+                return (
+                  <div key={theme.theme} className={cn(panelCardPadded, "space-y-2")}>
+                    <p className="text-[11px] uppercase tracking-wide text-sky-300/80">
+                      {theme.label}
+                    </p>
+                    {c ? (
+                      <>
+                        <p className="text-sm font-medium text-white">
+                          {c.ad !== "—" ? c.ad : c.label}
+                        </p>
+                        <p className="text-xs text-white/45">
+                          {c.campaign}
+                          {c.adset !== "—" ? ` · ${c.adset}` : ""}
+                        </p>
+                        <p className="text-xs text-white/60">
+                          ER {pct(c.engagementRate)} · {num(c.engagements)} engaj. ·{" "}
+                          {brl(c.spend)} · CPE{" "}
+                          {c.costPerEngagement ? brl(c.costPerEngagement) : "—"}
+                        </p>
+                        <p className="text-[11px] text-white/35">
+                          {theme.count} criativos no tema · ER médio do tema{" "}
+                          {pct(theme.engagementRate)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-white/40">
+                        Sem criativo com esse tema no nome.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium text-white/80">
+              Criativo campeão de cada campanha
+            </h2>
+            <div className={panelTableWrap}>
+              <table className="min-w-[720px] w-full text-left">
+                <thead className={panelTableHead}>
+                  <tr>
+                    {["Campanha", "Criativo campeão", "Temas", "ER", "Engaj.", "CPE"].map(
+                      (h) => (
+                        <th key={h} className="px-3 py-2.5 font-medium">
+                          {h}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {analysis.campaignChampions.map((row) => (
+                    <tr
+                      key={row.campaign}
+                      className="border-t border-white/[0.05] text-white/70"
+                    >
+                      <td className="max-w-[220px] truncate px-3 py-2.5 text-white/90">
+                        {row.campaign}
+                      </td>
+                      <td className="max-w-[260px] truncate px-3 py-2.5">
+                        {row.champion.ad !== "—"
+                          ? row.champion.ad
+                          : row.champion.label}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-white/50">
+                        {row.themes.length
+                          ? row.themes.map((t) => THEME_LABELS[t]).join(" · ")
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-sky-200">
+                        {pct(row.champion.engagementRate)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {num(row.champion.engagements)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {row.champion.costPerEngagement
+                          ? brl(row.champion.costPerEngagement)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
 
