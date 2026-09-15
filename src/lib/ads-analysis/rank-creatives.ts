@@ -112,10 +112,15 @@ export function parseGrokRankingJson(text: string): GrokCreativeRanking {
       ranking: [],
     };
   }
-  const parsed = JSON.parse(raw.slice(start, end + 1)) as {
-    opinion?: unknown;
-    ranking?: unknown;
-  };
+  let parsed: { opinion?: unknown; ranking?: unknown };
+  try {
+    parsed = JSON.parse(raw.slice(start, end + 1)) as {
+      opinion?: unknown;
+      ranking?: unknown;
+    };
+  } catch {
+    return { opinion: text.trim(), ranking: [] };
+  }
   const ranking = Array.isArray(parsed.ranking)
     ? parsed.ranking
         .map((item, i) => {

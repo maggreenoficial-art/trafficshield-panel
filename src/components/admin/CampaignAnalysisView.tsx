@@ -236,12 +236,23 @@ export function CampaignAnalysisView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ads: analysis.ad.ads,
           analysisId: savedId || undefined,
+          ads: savedId ? undefined : analysis.ad.ads,
         }),
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; grok?: GrokCreativeRanking } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        throw new Error(
+          /an error occurred/i.test(raw)
+            ? "O Grok demorou demais no servidor. Espere o deploy e tente de novo."
+            : raw.replace(/\s+/g, " ").trim().slice(0, 220) || "Grok falhou."
+        );
+      }
       if (!res.ok) throw new Error(data.error || "Grok falhou.");
+      if (!data.grok) throw new Error("Grok não devolveu ranking.");
       setGrok(data.grok);
       setAnalysis((prev) => (prev ? { ...prev, grok: data.grok } : prev));
     } catch (e) {
@@ -805,7 +816,7 @@ export function CampaignAnalysisView() {
                 {grokBusy && (
                   <p className="flex items-center justify-center gap-2 px-4 py-8 text-xs text-white/50">
                     <Loader2 className="animate-spin" size={14} />
-                    Grok 4.6 analisando os criativos…
+                    Grok 4.6 analisando os criativos (pode levar até 2 min)…
                   </p>
                 )}
                 {grok && !grokBusy && (
