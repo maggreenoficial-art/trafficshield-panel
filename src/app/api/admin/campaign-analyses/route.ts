@@ -3,6 +3,7 @@ import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   getCampaignAnalysis,
   listCampaignAnalyses,
+  patchCampaignAnalysisResult,
   saveCampaignAnalysis,
 } from "@/lib/db/campaign-analyses";
 import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
@@ -70,5 +71,29 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const ctx = await requirePlatformAdmin(request);
+  if (ctx instanceof NextResponse) return ctx;
+
+  try {
+    const body = (await request.json()) as {
+      id?: string;
+      result?: TripleEngagementAnalysis;
+    };
+    if (!body.id || !body.result) {
+      return NextResponse.json({ error: "Dados incompletos." }, { status: 400 });
+    }
+    const existing = await getCampaignAnalysis(ctx.tenantId, body.id);
+    if (!existing) {
+      return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+    }
+    await patchCampaignAnalysisResult(ctx.tenantId, body.id, body.result);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro ao atualizar.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

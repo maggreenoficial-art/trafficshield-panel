@@ -33,7 +33,7 @@ export type KieTaskInfo = {
   progress?: number;
 };
 
-function getApiKey(): string {
+export function getApiKey(): string {
   const key = process.env.KIE_AI_API_KEY?.trim();
   if (!key) {
     throw new Error("KIE_AI_API_KEY não configurada no servidor.");

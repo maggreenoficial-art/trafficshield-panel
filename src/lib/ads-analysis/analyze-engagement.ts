@@ -2,8 +2,11 @@ import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
 import {
   buildThemeReport,
   type CampaignChampion,
+  type CreativeTheme,
   type ThemeChampion,
+  type ThemeOverrides,
 } from "@/lib/ads-analysis/theme-champions";
+import type { GrokCreativeRanking } from "@/lib/ads-analysis/rank-creatives";
 
 export type AnalysisLevel = "campaign" | "adset" | "ad";
 
@@ -17,6 +20,7 @@ export type AnalyzedAd = AdsEngagementRow & {
   hold75: number;
   thruplayRate: number;
   verdict: "winner" | "ok" | "fatigue" | "weak";
+  themes?: CreativeTheme[];
 };
 
 export type CampaignInsight = {
@@ -56,6 +60,8 @@ export type TripleEngagementAnalysis = {
   insights: CampaignInsight[];
   themes: ThemeChampion[];
   campaignChampions: CampaignChampion[];
+  grok?: GrokCreativeRanking;
+  themeOverrides?: ThemeOverrides;
 };
 
 function rate(num: number, den: number) {
@@ -302,7 +308,8 @@ export function analyzeEngagement(
 export function analyzeTriple(
   campaignRows: AdsEngagementRow[],
   adsetRows: AdsEngagementRow[],
-  adRows: AdsEngagementRow[]
+  adRows: AdsEngagementRow[],
+  themeOverrides?: ThemeOverrides
 ): TripleEngagementAnalysis {
   const campaign = analyzeEngagement(campaignRows, "campaign");
   const adset = analyzeEngagement(adsetRows, "adset");
@@ -349,13 +356,19 @@ export function analyzeTriple(
     });
   }
 
-  const themeReport = buildThemeReport(ad.ads);
+  const themeReport = buildThemeReport(
+    ad.ads,
+    campaign.ads,
+    adset.ads,
+    themeOverrides
+  );
+  ad.ads = themeReport.ads;
   for (const theme of themeReport.themes) {
     if (!theme.champion) {
       insights.push({
         tone: "info",
         title: `${theme.label}: sem match`,
-        body: "Nenhum anúncio/conjunto/campanha com esse tema no nome. Confira se o criativo está batizado (ex.: JAIR, FLAVIO, EVANG, MULHER, BIO).",
+        body: "Nenhum criativo neste tema. Envie o CSV filtrado do tema ou marque a campanha em Ajustar temas.",
       });
       continue;
     }
@@ -381,5 +394,6 @@ export function analyzeTriple(
     insights,
     themes: themeReport.themes,
     campaignChampions: themeReport.campaigns,
+    themeOverrides,
   };
 }

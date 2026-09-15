@@ -124,3 +124,18 @@ export async function saveCampaignAnalysis(
   if (error) throw error;
   return mapRecord(data as Row);
 }
+
+export async function patchCampaignAnalysisResult(
+  tenantId: string,
+  id: string,
+  result: TripleEngagementAnalysis
+): Promise<void> {
+  if (!hasAdminClient()) return;
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("campaign_analyses")
+    .update({ result })
+    .eq("tenant_id", tenantId)
+    .eq("id", id);
+  if (error) throw error;
+}
