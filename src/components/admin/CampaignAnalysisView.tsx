@@ -88,10 +88,10 @@ export function CampaignAnalysisView() {
       { label: "Anúncios", value: String(t.ads), icon: BarChart3 },
       { label: "Impressões", value: num(t.impressions), icon: Sparkles },
       { label: "Gasto", value: brl(t.spend), icon: FileSpreadsheet },
-      { label: "Engajamentos", value: num(t.engagements), icon: ThumbsUp },
+      { label: "Engaj. post", value: num(t.engagements), icon: ThumbsUp },
       { label: "ER médio", value: pct(t.engagementRate), icon: MessageCircle },
       {
-        label: "Custo / engaj.",
+        label: "Custo / engaj. post",
         value: t.costPerEngagement ? brl(t.costPerEngagement) : "—",
         icon: Share2,
       },
@@ -107,10 +107,13 @@ export function CampaignAnalysisView() {
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
         <p className="text-xs leading-relaxed text-white/45">
-          No Meta Ads: Relatórios → colunas de{" "}
-          <strong className="text-white/70">Engajamento com a publicação</strong>{" "}
-          (reações, comentários, shares, saves, visualizações 3s, ThruPlay,
-          impressões, valor usado) → Exportar CSV. Cole o arquivo aqui.
+          Exporte o CSV do Gerenciador com estas colunas: Campanha, Veiculação,
+          Ações, Engajamento com a Página, Reações ao post, Comentários no post,
+          Salvamentos do post, Compartilhamentos do post, Seguidores no
+          Instagram, Valor gasto, ThruPlays, Visualizações, Frequência,
+          Impressões, Alcance, CPM, Custo por engajamento com o post,
+          Engajamentos com o post, Reproduções 50% e 75%, Nome do conjunto,
+          Orçamento.
         </p>
         <input
           ref={fileRef}
@@ -187,20 +190,31 @@ export function CampaignAnalysisView() {
               Ranking por taxa de engajamento
             </h2>
             <div className={panelTableWrap}>
-              <table className="min-w-[960px] w-full text-left">
+              <table className="min-w-[1280px] w-full text-left">
                 <thead className={panelTableHead}>
                   <tr>
                     {[
-                      "Anúncio",
+                      "Conjunto",
                       "Campanha",
+                      "Veiculação",
                       "Imp.",
+                      "Alcance",
+                      "Freq.",
                       "Gasto",
-                      "Engaj.",
+                      "Orçamento",
+                      "Engaj. post",
                       "ER",
                       "CPE",
+                      "Reações",
                       "Coment.",
+                      "Saves",
                       "Shares",
-                      "Hook 3s",
+                      "Views",
+                      "50%",
+                      "75%",
+                      "ThruPlay",
+                      "Página",
+                      "Seg. IG",
                       "Status",
                     ].map((h) => (
                       <th key={h} className="px-3 py-2.5 font-medium">
@@ -214,17 +228,27 @@ export function CampaignAnalysisView() {
                     const v = verdictLabel[ad.verdict];
                     return (
                       <tr
-                        key={`${ad.campaign}-${ad.adset}-${ad.ad}`}
+                        key={`${ad.campaign}-${ad.adset}-${ad.delivery}`}
                         className="border-t border-white/[0.05] text-white/70"
                       >
-                        <td className="max-w-[220px] truncate px-3 py-2.5 text-white/90">
-                          {ad.ad}
+                        <td className="max-w-[200px] truncate px-3 py-2.5 text-white/90">
+                          {ad.adset}
                         </td>
-                        <td className="max-w-[180px] truncate px-3 py-2.5 text-white/45">
+                        <td className="max-w-[160px] truncate px-3 py-2.5 text-white/45">
                           {ad.campaign}
                         </td>
+                        <td className="max-w-[120px] truncate px-3 py-2.5">
+                          {ad.delivery}
+                        </td>
                         <td className="px-3 py-2.5">{num(ad.impressions)}</td>
+                        <td className="px-3 py-2.5">{num(ad.reach)}</td>
+                        <td className="px-3 py-2.5">
+                          {ad.frequency ? ad.frequency.toFixed(2) : "—"}
+                        </td>
                         <td className="px-3 py-2.5">{brl(ad.spend)}</td>
+                        <td className="px-3 py-2.5">
+                          {ad.budget ? brl(ad.budget) : "—"}
+                        </td>
                         <td className="px-3 py-2.5">{num(ad.engagements)}</td>
                         <td className="px-3 py-2.5 text-sky-200">
                           {pct(ad.engagementRate)}
@@ -232,11 +256,20 @@ export function CampaignAnalysisView() {
                         <td className="px-3 py-2.5">
                           {ad.costPerEngagement ? brl(ad.costPerEngagement) : "—"}
                         </td>
+                        <td className="px-3 py-2.5">{num(ad.reactions)}</td>
                         <td className="px-3 py-2.5">{num(ad.comments)}</td>
+                        <td className="px-3 py-2.5">{num(ad.saves)}</td>
                         <td className="px-3 py-2.5">{num(ad.shares)}</td>
+                        <td className="px-3 py-2.5">{num(ad.views)}</td>
                         <td className="px-3 py-2.5">
-                          {ad.video3s ? pct(ad.hookRate) : "—"}
+                          {ad.views ? pct(ad.hold50) : "—"}
                         </td>
+                        <td className="px-3 py-2.5">
+                          {ad.views ? pct(ad.hold75) : "—"}
+                        </td>
+                        <td className="px-3 py-2.5">{num(ad.thruplay)}</td>
+                        <td className="px-3 py-2.5">{num(ad.pageEngagement)}</td>
+                        <td className="px-3 py-2.5">{num(ad.igFollowers)}</td>
                         <td className="px-3 py-2.5">
                           <span
                             className={cn(

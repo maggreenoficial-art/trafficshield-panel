@@ -1,11 +1,14 @@
 import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
 
 export type AnalyzedAd = AdsEngagementRow & {
+  label: string;
   engagementRate: number;
   qualityRate: number;
   costPerEngagement: number;
-  hookRate: number;
-  holdRate: number;
+  viewRate: number;
+  hold50: number;
+  hold75: number;
+  thruplayRate: number;
   verdict: "winner" | "ok" | "fatigue" | "weak";
 };
 
@@ -21,10 +24,17 @@ export type EngagementAnalysis = {
     impressions: number;
     reach: number;
     spend: number;
+    budget: number;
     engagements: number;
     comments: number;
     shares: number;
-    video3s: number;
+    saves: number;
+    views: number;
+    video50: number;
+    video75: number;
+    thruplay: number;
+    igFollowers: number;
+    pageEngagement: number;
     engagementRate: number;
     costPerEngagement: number;
   };
@@ -35,6 +45,11 @@ export type EngagementAnalysis = {
 function rate(num: number, den: number) {
   if (!den) return 0;
   return num / den;
+}
+
+function rowLabel(r: AdsEngagementRow) {
+  if (r.adset && r.adset !== "—") return r.adset;
+  return r.campaign;
 }
 
 function verdictFor(ad: AnalyzedAd, avgEr: number): AnalyzedAd["verdict"] {
@@ -61,28 +76,36 @@ function pct(n: number) {
 export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis {
   const merged = new Map<string, AdsEngagementRow>();
   for (const row of rows) {
-    const key = `${row.campaign}||${row.adset}||${row.ad}`;
+    const key = `${row.campaign}||${row.adset}||${row.delivery}`;
     const prev = merged.get(key);
     if (!prev) {
       merged.set(key, { ...row });
       continue;
     }
+    const impressions = prev.impressions + row.impressions;
+    const spend = prev.spend + row.spend;
+    const engagements = prev.engagements + row.engagements;
     merged.set(key, {
       ...prev,
-      impressions: prev.impressions + row.impressions,
+      impressions,
       reach: Math.max(prev.reach, row.reach),
-      spend: prev.spend + row.spend,
-      clicks: prev.clicks + row.clicks,
-      engagements: prev.engagements + row.engagements,
+      spend,
+      budget: Math.max(prev.budget, row.budget),
+      actions: prev.actions + row.actions,
+      pageEngagement: prev.pageEngagement + row.pageEngagement,
+      engagements,
+      costPerPostEngagement: rate(spend, engagements),
       reactions: prev.reactions + row.reactions,
       comments: prev.comments + row.comments,
       shares: prev.shares + row.shares,
       saves: prev.saves + row.saves,
-      video3s: prev.video3s + row.video3s,
+      igFollowers: prev.igFollowers + row.igFollowers,
+      views: prev.views + row.views,
+      video50: prev.video50 + row.video50,
+      video75: prev.video75 + row.video75,
       thruplay: prev.thruplay + row.thruplay,
       frequency: Math.max(prev.frequency, row.frequency),
-      ctr: rate(prev.clicks + row.clicks, prev.impressions + row.impressions) * 100,
-      cpm: rate((prev.spend + row.spend) * 1000, prev.impressions + row.impressions),
+      cpm: rate(spend * 1000, impressions),
     });
   }
 
@@ -91,20 +114,34 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
       acc.impressions += r.impressions;
       acc.reach += r.reach;
       acc.spend += r.spend;
+      acc.budget += r.budget;
       acc.engagements += r.engagements;
       acc.comments += r.comments;
       acc.shares += r.shares;
-      acc.video3s += r.video3s;
+      acc.saves += r.saves;
+      acc.views += r.views;
+      acc.video50 += r.video50;
+      acc.video75 += r.video75;
+      acc.thruplay += r.thruplay;
+      acc.igFollowers += r.igFollowers;
+      acc.pageEngagement += r.pageEngagement;
       return acc;
     },
     {
       impressions: 0,
       reach: 0,
       spend: 0,
+      budget: 0,
       engagements: 0,
       comments: 0,
       shares: 0,
-      video3s: 0,
+      saves: 0,
+      views: 0,
+      video50: 0,
+      video75: 0,
+      thruplay: 0,
+      igFollowers: 0,
+      pageEngagement: 0,
     }
   );
 
@@ -115,11 +152,14 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
       const quality = r.comments + r.shares + r.saves;
       const analyzed: AnalyzedAd = {
         ...r,
+        label: rowLabel(r),
         engagementRate: rate(r.engagements, r.impressions),
         qualityRate: rate(quality, r.impressions),
-        costPerEngagement: rate(r.spend, r.engagements),
-        hookRate: rate(r.video3s, r.impressions),
-        holdRate: rate(r.thruplay, r.video3s),
+        costPerEngagement: r.costPerPostEngagement || rate(r.spend, r.engagements),
+        viewRate: rate(r.views, r.impressions),
+        hold50: rate(r.video50, r.views),
+        hold75: rate(r.video75, r.views),
+        thruplayRate: rate(r.thruplay, r.views || r.impressions),
         verdict: "ok",
       };
       analyzed.verdict = verdictFor(analyzed, avgEr);
@@ -129,7 +169,8 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
 
   const insights: CampaignInsight[] = [];
   const best = ads[0];
-  const worst = [...ads].reverse().find((a) => a.impressions >= 500) ?? ads[ads.length - 1];
+  const worst =
+    [...ads].reverse().find((a) => a.impressions >= 500) ?? ads[ads.length - 1];
   const winners = ads.filter((a) => a.verdict === "winner");
   const weak = ads.filter((a) => a.verdict === "weak");
   const fatigue = ads.filter((a) => a.verdict === "fatigue");
@@ -137,8 +178,8 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
   if (best && best.impressions >= 200) {
     insights.push({
       tone: "good",
-      title: "Melhor post / criativo",
-      body: `${best.ad} lidera o engajamento (${pct(best.engagementRate)} de ER, ${best.engagements.toLocaleString("pt-BR")} ações). ${best.comments || best.shares ? "Tem comentário/compartilhamento — sinal de conteúdo que as pessoas querem opinar." : "Volume de reação ok; teste CTA no comentário para subir qualidade."}`,
+      title: "Melhor conjunto / veiculação",
+      body: `${best.label} lidera engajamento com o post (${pct(best.engagementRate)} ER, ${best.engagements.toLocaleString("pt-BR")} engajamentos, CPE ${brl(best.costPerEngagement)}). ${best.comments || best.shares || best.saves ? "Tem comentário, share ou save — conteúdo que a pessoa quer guardar ou opinar." : "Quase só reação. Peça comentário no copy para subir qualidade."}`,
     });
   }
 
@@ -146,15 +187,18 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
     insights.push({
       tone: "good",
       title: "Escalar o que prende",
-      body: `${winners.length} anúncio(s) acima da média de engajamento. Suba verba neles e clone a estrutura (gancho, formato, primeiros 3s) em variações novas — não só o mesmo criativo.`,
+      body: `${winners.length} linha(s) acima da média. Suba orçamento nelas e clone o formato. Não aumente verba em conjunto com ER baixo só porque ainda tem orçamento.`,
     });
   }
 
   if (weak.length) {
     insights.push({
       tone: "bad",
-      title: "Criativos mortos no feed",
-      body: `${weak.slice(0, 3).map((w) => w.ad).join(", ")} gastam impressão e quase não geram ação no post. Pause ou troque o criativo; manter no ar só treina o algoritmo no errado.`,
+      title: "Post morto no feed",
+      body: `${weak
+        .slice(0, 3)
+        .map((w) => w.label)
+        .join(", ")} geram impressão e quase não engajam. Pause ou troque criativo — orçamento nessas linhas só treina o algoritmo no errado.`,
     });
   }
 
@@ -162,15 +206,17 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
     insights.push({
       tone: "warn",
       title: "Possível fadiga",
-      body: `${fatigue.map((f) => `${f.ad} (freq. ${f.frequency.toFixed(1)})`).join("; ")}. Frequência alta com ER abaixo da média: a mesma pessoa já viu demais. Rode criativo novo no mesmo conjunto.`,
+      body: `${fatigue
+        .map((f) => `${f.label} (freq. ${f.frequency.toFixed(1)})`)
+        .join("; ")}. Frequência alta + ER abaixo da média: o mesmo público já viu demais.`,
     });
   }
 
-  if (worst && best && worst.ad !== best.ad && worst.spend > 0) {
+  if (worst && best && worst.label !== best.label && worst.spend > 0) {
     insights.push({
       tone: "warn",
       title: "Dinheiro no criativo errado",
-      body: `${worst.ad} está na lanterna (ER ${pct(worst.engagementRate)}, ${brl(worst.spend)}). Compare o gancho com ${best.ad} e realoque verba.`,
+      body: `${worst.label} está fraco (ER ${pct(worst.engagementRate)}, ${brl(worst.spend)} gastos). Realoque para ${best.label}.`,
     });
   }
 
@@ -178,33 +224,41 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
     ads.reduce((s, a) => s + a.comments + a.shares + a.saves, 0),
     totalsBase.engagements
   );
-  if (totalsBase.engagements >= 50) {
+  if (totalsBase.engagements >= 30) {
     insights.push({
       tone: qualityShare >= 0.12 ? "good" : "info",
-      title: "Qualidade do engajamento",
+      title: "Qualidade (comentário / save / share)",
       body:
         qualityShare >= 0.12
-          ? `${pct(qualityShare)} das ações são comentário, share ou save — isso pesa mais que like. Continue pedindo opinião / salvamento no copy.`
-          : `${pct(qualityShare)} das ações são “profundas” (comentário/share/save). Muita reação rasa. Teste pergunta no primeiro comentário e gancho polêmico-útil.`,
+          ? `${pct(qualityShare)} das ações no post são profundas. Isso vale mais que like para o algoritmo de engajamento.`
+          : `${pct(qualityShare)} das ações são profundas. Muita reação rasa. Teste pergunta no primeiro comentário.`,
     });
   }
 
-  if (totalsBase.video3s > 0) {
-    const hook = rate(totalsBase.video3s, totalsBase.impressions);
+  if (totalsBase.igFollowers > 0 || totalsBase.pageEngagement > 0) {
     insights.push({
-      tone: hook >= 0.25 ? "good" : "warn",
-      title: "Hook dos vídeos (3s)",
-      body:
-        hook >= 0.25
-          ? `Hook ${pct(hook)}: as pessoas param. Mantenha os 3 primeiros segundos iguais em estilo e varie o resto.`
-          : `Hook ${pct(hook)} está baixo. Troque os 3s iniciais (rosto falando o problema, texto gigante, corte seco). Sem hook, o resto do vídeo não existe.`,
+      tone: "info",
+      title: "Página e Instagram",
+      body: `${totalsBase.pageEngagement.toLocaleString("pt-BR")} engajamentos com a Página e ${totalsBase.igFollowers.toLocaleString("pt-BR")} seguidores no Instagram. Se o objetivo é crescer perfil, priorize linhas com follow barato — não só like no post.`,
+    });
+  }
+
+  if (totalsBase.views > 0) {
+    const viewRate = rate(totalsBase.views, totalsBase.impressions);
+    const hold50 = rate(totalsBase.video50, totalsBase.views);
+    const hold75 = rate(totalsBase.video75, totalsBase.views);
+    const thru = rate(totalsBase.thruplay, totalsBase.views);
+    insights.push({
+      tone: hold50 >= 0.25 || thru >= 0.15 ? "good" : "warn",
+      title: "Retenção do vídeo (50% / 75% / ThruPlay)",
+      body: `Visualizações/impressão ${pct(viewRate)}. Chegam em 50%: ${pct(hold50)} · 75%: ${pct(hold75)} · ThruPlay: ${pct(thru)}. Se 50% está baixo, o meio do vídeo perde a pessoa — corte mais cedo. Se só o ThruPlay cai, o final está fraco.`,
     });
   }
 
   insights.push({
     tone: "info",
-    title: "Como usar isso no Ads",
-    body: "Objetivo de engajamento com a publicação: o vencedor deve ter ER alto e CPE baixo. Se o objetivo for mensagem/venda depois, use os posts que geram comentário — não só like.",
+    title: "Como decidir",
+    body: "Vencedor de engajamento: ER alto + CPE baixo + comentário/save. Vídeo bom: visualizações altas e retenção 50/75% firme. Orçamento deve ir para essas linhas, não para a que só tem impressão barata.",
   });
 
   return {

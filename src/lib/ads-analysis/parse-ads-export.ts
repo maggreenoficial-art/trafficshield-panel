@@ -1,74 +1,84 @@
 export type AdsEngagementRow = {
   campaign: string;
   adset: string;
-  ad: string;
+  delivery: string;
   impressions: number;
   reach: number;
   spend: number;
-  clicks: number;
-  ctr: number;
+  budget: number;
+  actions: number;
+  pageEngagement: number;
   engagements: number;
+  costPerPostEngagement: number;
   reactions: number;
   comments: number;
   shares: number;
   saves: number;
-  video3s: number;
+  igFollowers: number;
+  views: number;
+  video50: number;
+  video75: number;
   thruplay: number;
   frequency: number;
   cpm: number;
 };
 
-const HEADER_ALIASES: Record<keyof Omit<AdsEngagementRow, never>, string[]> = {
-  campaign: ["nome da campanha", "campaign name", "campaign", "campanha"],
+/** Nomes exatamente como no Gerenciador (PT), mais variações comuns. */
+const HEADER_ALIASES: Record<keyof AdsEngagementRow, string[]> = {
+  campaign: ["campanha", "nome da campanha", "campaign name"],
   adset: [
-    "nome do conjunto de anúncios",
     "nome do conjunto de anuncios",
+    "nome do conjunto de anúncios",
+    "conjunto de anuncios",
     "ad set name",
-    "ad set",
-    "conjunto de anúncios",
   ],
-  ad: ["nome do anúncio", "nome do anuncio", "ad name", "anúncio", "anuncio", "ad"],
-  impressions: ["impressões", "impressoes", "impressions"],
+  delivery: ["veiculacao", "veiculação", "delivery"],
+  impressions: ["impressoes", "impressões", "impressions"],
   reach: ["alcance", "reach"],
-  spend: [
-    "valor usado (brl)",
-    "valor usado",
-    "amount spent",
-    "gasto",
-    "spend",
-    "valor gasto",
+  spend: ["valor gasto", "valor usado", "amount spent"],
+  budget: ["orcamento", "orçamento", "budget"],
+  actions: ["acoes", "ações", "actions"],
+  pageEngagement: [
+    "engajamento com a pagina",
+    "engajamento com a página",
+    "page engagement",
   ],
-  clicks: [
-    "cliques no link",
-    "link clicks",
-    "clicks (all)",
-    "cliques (todos)",
-    "cliques",
-  ],
-  ctr: ["ctr (link)", "ctr (todos)", "ctr"],
   engagements: [
-    "engajamento com a publicação",
+    "engajamentos com o post",
+    "engajamento com o post",
     "engajamento com a publicacao",
     "post engagements",
-    "post engagement",
-    "ações na publicação",
-    "acoes na publicacao",
   ],
-  reactions: ["reações", "reacoes", "reactions", "post reactions"],
-  comments: ["comentários", "comentarios", "comments", "post comments"],
-  shares: ["compartilhamentos", "shares", "post shares"],
-  saves: ["salvamentos", "saves", "post saves"],
-  video3s: [
-    "visualizações de vídeo de 3 segundos",
-    "visualizacoes de video de 3 segundos",
-    "3-second video views",
-    "video views",
-    "reproduções de vídeo",
-    "reproducoes de video",
+  costPerPostEngagement: [
+    "custo por engajamento com o post",
+    "cost per post engagement",
   ],
-  frequency: ["frequência", "frequencia", "frequency"],
-  thruplay: ["thruplays", "thruplay", "reproduções thruplay"],
-  cpm: ["cpm (custo por 1.000 impressões)", "cpm"],
+  reactions: ["reacoes ao post", "reações ao post", "post reactions"],
+  comments: ["comentarios no post", "comentários no post", "post comments"],
+  shares: [
+    "compartilhamentos do post",
+    "post shares",
+  ],
+  saves: ["salvamentos do post", "post saves"],
+  igFollowers: [
+    "seguidores no instagram",
+    "instagram follows",
+    "instagram followers",
+  ],
+  views: ["visualizacoes", "visualizações", "video views"],
+  video50: [
+    "reproducoes de 50% do video",
+    "reproduções de 50% do vídeo",
+    "video watches at 50%",
+  ],
+  video75: [
+    "reproducoes de 75% do video",
+    "reproduções de 75% do vídeo",
+    "video watches at 75%",
+  ],
+  thruplay: ["thruplays", "thruplay"],
+  frequency: ["frequencia", "frequência", "frequency"],
+  cpm: ["cpm (custo por 1.000 impressoes)", "cpm (custo por 1.000 impressões)", "cpm"],
 };
 
 function normalizeHeader(value: string) {
@@ -131,17 +141,37 @@ function splitCsvLine(line: string, delimiter: string): string[] {
   return out.map((c) => c.trim());
 }
 
-function mapHeaderIndex(headers: string[]): Partial<Record<keyof AdsEngagementRow, number>> {
+function scoreHeader(header: string, alias: string): number {
+  if (header === alias) return 100;
+  if (header.startsWith(alias) || alias.startsWith(header)) return 80;
+  if (header.includes(alias) && alias.length >= 8) return 60;
+  return 0;
+}
+
+function mapHeaderIndex(
+  headers: string[]
+): Partial<Record<keyof AdsEngagementRow, number>> {
   const map: Partial<Record<keyof AdsEngagementRow, number>> = {};
   const normalized = headers.map(normalizeHeader);
+  const used = new Set<number>();
+  const keys = Object.keys(HEADER_ALIASES) as (keyof AdsEngagementRow)[];
 
-  (Object.keys(HEADER_ALIASES) as (keyof AdsEngagementRow)[]).forEach((key) => {
+  const candidates: { key: keyof AdsEngagementRow; idx: number; score: number }[] =
+    [];
+  for (const key of keys) {
     const aliases = HEADER_ALIASES[key].map(normalizeHeader);
-    const idx = normalized.findIndex((h) =>
-      aliases.some((a) => h === a || h.startsWith(a) || a.startsWith(h))
-    );
-    if (idx >= 0) map[key] = idx;
-  });
+    normalized.forEach((h, idx) => {
+      const score = Math.max(...aliases.map((a) => scoreHeader(h, a)));
+      if (score > 0) candidates.push({ key, idx, score });
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score || b.key.length - a.key.length);
+  for (const c of candidates) {
+    if (map[c.key] !== undefined || used.has(c.idx)) continue;
+    map[c.key] = c.idx;
+    used.add(c.idx);
+  }
 
   return map;
 }
@@ -176,7 +206,7 @@ export function parseAdsManagerExport(text: string): {
     const cols = splitCsvLine(lines[i], d);
     const mapped = mapHeaderIndex(cols);
     const hits = Object.keys(mapped).length;
-    if (hits >= 3) {
+    if (hits >= 4) {
       headerIdx = i;
       delimiter = d;
       headerMap = mapped;
@@ -187,17 +217,18 @@ export function parseAdsManagerExport(text: string): {
 
   if (headerIdx < 0) {
     throw new Error(
-      "Não encontrei as colunas do Gerenciador. Exporte o CSV com Engajamento com a publicação, Impressões e Nome do anúncio."
+      "Não encontrei as 22 colunas do Gerenciador. Confira se o CSV tem Engajamentos com o post, Impressões e Campanha."
     );
   }
 
   const rows: AdsEngagementRow[] = [];
   for (let i = headerIdx + 1; i < lines.length; i++) {
     const cols = splitCsvLine(lines[i], delimiter);
-    const ad = String(cell(cols, headerMap.ad));
     const campaign = String(cell(cols, headerMap.campaign));
-    if (!ad && !campaign) continue;
-    const low = `${ad} ${campaign}`.toLowerCase();
+    const adset = String(cell(cols, headerMap.adset));
+    const delivery = String(cell(cols, headerMap.delivery));
+    if (!campaign && !adset) continue;
+    const low = `${campaign} ${adset}`.toLowerCase();
     if (low === "total" || low.startsWith("total ")) continue;
 
     const reactions = Number(cell(cols, headerMap.reactions, true));
@@ -209,21 +240,30 @@ export function parseAdsManagerExport(text: string): {
       engagements = reactions + comments + shares + saves;
     }
 
+    const spend = Number(cell(cols, headerMap.spend, true));
+    let cpe = Number(cell(cols, headerMap.costPerPostEngagement, true));
+    if (!cpe && engagements) cpe = spend / engagements;
+
     rows.push({
       campaign: campaign || "—",
-      adset: String(cell(cols, headerMap.adset) || "—"),
-      ad: ad || campaign || `Linha ${rows.length + 1}`,
+      adset: adset || "—",
+      delivery: delivery || "—",
       impressions: Number(cell(cols, headerMap.impressions, true)),
       reach: Number(cell(cols, headerMap.reach, true)),
-      spend: Number(cell(cols, headerMap.spend, true)),
-      clicks: Number(cell(cols, headerMap.clicks, true)),
-      ctr: Number(cell(cols, headerMap.ctr, true)),
+      spend,
+      budget: Number(cell(cols, headerMap.budget, true)),
+      actions: Number(cell(cols, headerMap.actions, true)),
+      pageEngagement: Number(cell(cols, headerMap.pageEngagement, true)),
       engagements,
+      costPerPostEngagement: cpe,
       reactions,
       comments,
       shares,
       saves,
-      video3s: Number(cell(cols, headerMap.video3s, true)),
+      igFollowers: Number(cell(cols, headerMap.igFollowers, true)),
+      views: Number(cell(cols, headerMap.views, true)),
+      video50: Number(cell(cols, headerMap.video50, true)),
+      video75: Number(cell(cols, headerMap.video75, true)),
       thruplay: Number(cell(cols, headerMap.thruplay, true)),
       frequency: Number(cell(cols, headerMap.frequency, true)),
       cpm: Number(cell(cols, headerMap.cpm, true)),
