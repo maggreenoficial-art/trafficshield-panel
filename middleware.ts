@@ -9,7 +9,7 @@ import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 
 const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
 
-const ADMIN_ONLY_PATH_PREFIXES = ["/storyboards"];
+const ADMIN_ONLY_PATH_PREFIXES = ["/storyboards", "/analise-campanha"];
 
 function isPublicPath(pathname: string): boolean {
   return (

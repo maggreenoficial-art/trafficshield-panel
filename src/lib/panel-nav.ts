@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Clapperboard,
   Globe,
   Images,
@@ -30,6 +31,13 @@ export const panelNav: PanelNavItem[] = [
     adminOnly: true,
   },
   {
+    href: "/analise-campanha",
+    label: "Análise de campanha",
+    icon: BarChart3,
+    exact: false,
+    adminOnly: true,
+  },
+  {
     href: "/criativos",
     label: "Criativos",
     icon: Images,
@@ -51,6 +59,7 @@ export function panelPageTitle(pathname: string): string {
   if (pathname.match(/^\/storyboards\/[^/]+/)) return "Editor";
   if (pathname.startsWith("/storyboards")) return "Storyboards";
   if (pathname.startsWith("/criativos")) return "Criativos";
+  if (pathname.startsWith("/analise-campanha")) return "Análise de campanha";
   if (pathname.startsWith("/dominios")) return "Domínios";
   if (pathname.startsWith("/suporte")) return "Suporte";
   if (pathname.startsWith("/perfil")) return "Conta";
