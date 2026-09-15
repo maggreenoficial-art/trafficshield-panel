@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   BarChart3,
+  CheckCircle2,
   FileSpreadsheet,
   Loader2,
   MessageCircle,
@@ -19,11 +20,16 @@ import {
   panelTableWrap,
 } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
-import { parseAdsManagerExport } from "@/lib/ads-analysis/parse-ads-export";
 import {
-  analyzeEngagement,
+  parseAdsManagerExport,
+  type AdsEngagementRow,
+} from "@/lib/ads-analysis/parse-ads-export";
+import {
+  analyzeTriple,
   type AnalyzedAd,
+  type AnalysisLevel,
   type EngagementAnalysis,
+  type TripleEngagementAnalysis,
 } from "@/lib/ads-analysis/analyze-engagement";
 
 function brl(n: number) {
@@ -52,43 +58,76 @@ const insightTone: Record<string, string> = {
   info: "border-sky-500/25 bg-sky-500/8",
 };
 
+type Slot = "campaign" | "adset" | "ad";
+
+const SLOTS: { id: Slot; title: string; hint: string }[] = [
+  { id: "campaign", title: "1. Campanhas", hint: "Breakdown: Campanha" },
+  { id: "adset", title: "2. Conjuntos", hint: "Breakdown: Conjunto de anúncios" },
+  { id: "ad", title: "3. Anúncios", hint: "Breakdown: Anúncio" },
+];
+
 export function CampaignAnalysisView() {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const inputRefs = {
+    campaign: useRef<HTMLInputElement>(null),
+    adset: useRef<HTMLInputElement>(null),
+    ad: useRef<HTMLInputElement>(null),
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [analysis, setAnalysis] = useState<EngagementAnalysis | null>(null);
+  const [files, setFiles] = useState<Record<Slot, { name: string; rows: AdsEngagementRow[] } | null>>({
+    campaign: null,
+    adset: null,
+    ad: null,
+  });
+  const [analysis, setAnalysis] = useState<TripleEngagementAnalysis | null>(null);
+  const [tab, setTab] = useState<AnalysisLevel>("ad");
 
-  async function onFiles(files: FileList | null) {
-    const file = files?.[0];
+  async function onSlotFile(slot: Slot, list: FileList | null) {
+    const file = list?.[0];
     if (!file) return;
-    setBusy(true);
     setError("");
     try {
-      const text = await file.text();
-      const { rows } = parseAdsManagerExport(text);
-      if (!rows.length) {
-        throw new Error("O arquivo foi lido, mas não há linhas de anúncio.");
-      }
-      setFileName(file.name);
-      setAnalysis(analyzeEngagement(rows));
-    } catch (e) {
+      const { rows } = parseAdsManagerExport(await file.text());
+      if (!rows.length) throw new Error(`${SLOTS.find((s) => s.id === slot)?.title}: arquivo sem linhas.`);
+      setFiles((prev) => ({ ...prev, [slot]: { name: file.name, rows } }));
       setAnalysis(null);
+    } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao ler o arquivo.");
     } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
+      const el = inputRefs[slot].current;
+      if (el) el.value = "";
     }
   }
 
+  function runAnalysis() {
+    if (!files.campaign || !files.adset || !files.ad) {
+      setError("Envie os 3 CSVs: Campanhas, Conjuntos e Anúncios.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      setAnalysis(
+        analyzeTriple(files.campaign.rows, files.adset.rows, files.ad.rows)
+      );
+      setTab("ad");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na análise.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const active: EngagementAnalysis | null = analysis ? analysis[tab] : null;
+
   const kpis = useMemo(() => {
     if (!analysis) return [];
-    const t = analysis.totals;
+    const t = analysis.ad.totals;
     return [
-      { label: "Anúncios", value: String(t.ads), icon: BarChart3 },
-      { label: "Impressões", value: num(t.impressions), icon: Sparkles },
-      { label: "Gasto", value: brl(t.spend), icon: FileSpreadsheet },
-      { label: "Engaj. post", value: num(t.engagements), icon: ThumbsUp },
+      { label: "Campanhas", value: String(analysis.campaign.totals.ads), icon: BarChart3 },
+      { label: "Conjuntos", value: String(analysis.adset.totals.ads), icon: Sparkles },
+      { label: "Anúncios", value: String(analysis.ad.totals.ads), icon: FileSpreadsheet },
+      { label: "Gasto (anúncios)", value: brl(t.spend), icon: ThumbsUp },
       { label: "ER médio", value: pct(t.engagementRate), icon: MessageCircle },
       {
         label: "Custo / engaj. post",
@@ -98,53 +137,73 @@ export function CampaignAnalysisView() {
     ];
   }, [analysis]);
 
+  const ready = Boolean(files.campaign && files.adset && files.ad);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Análise de campanha"
-        subtitle="Importe o CSV do Gerenciador de Anúncios e veja quais posts realmente engajam."
+        subtitle="Sempre 3 CSVs do Gerenciador: Campanhas, Conjuntos e Anúncios — mesmas colunas de engajamento."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
         <p className="text-xs leading-relaxed text-white/45">
-          Exporte o CSV do Gerenciador com estas colunas: Campanha, Veiculação,
-          Ações, Engajamento com a Página, Reações ao post, Comentários no post,
-          Salvamentos do post, Compartilhamentos do post, Seguidores no
-          Instagram, Valor gasto, ThruPlays, Visualizações, Frequência,
-          Impressões, Alcance, CPM, Custo por engajamento com o post,
-          Engajamentos com o post, Reproduções 50% e 75%, Nome do conjunto,
-          Orçamento.
+          No Ads, exporte três vezes (nível Campanha / Conjunto / Anúncio) com as
+          22 colunas de engajamento. O cruzamento diz se o problema é estrutura,
+          público ou criativo.
         </p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,text/csv,text/plain"
-          className="hidden"
-          onChange={(e) => void onFiles(e.target.files)}
-        />
+        <div className="grid gap-3 md:grid-cols-3">
+          {SLOTS.map((slot) => {
+            const current = files[slot.id];
+            return (
+              <div key={slot.id}>
+                <input
+                  ref={inputRefs[slot.id]}
+                  type="file"
+                  accept=".csv,text/csv,text/plain"
+                  className="hidden"
+                  onChange={(e) => void onSlotFile(slot.id, e.target.files)}
+                />
+                <button
+                  type="button"
+                  onClick={() => inputRefs[slot.id].current?.click()}
+                  className={cn(
+                    "flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-8 text-center text-sm transition",
+                    current
+                      ? "border-emerald-500/40 bg-emerald-500/8 text-emerald-100"
+                      : "border-white/15 bg-white/[0.02] text-white/55 hover:border-sky-500/40 hover:bg-sky-500/5"
+                  )}
+                >
+                  {current ? (
+                    <CheckCircle2 size={20} className="text-emerald-400" />
+                  ) : (
+                    <Upload size={20} className="text-white/35" />
+                  )}
+                  <span className="font-medium">{slot.title}</span>
+                  <span className="text-[11px] text-white/40">{slot.hint}</span>
+                  {current && (
+                    <span className="max-w-full truncate text-[11px] text-white/50">
+                      {current.name} · {current.rows.length} linhas
+                    </span>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
         <button
           type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-10 text-sm text-white/55 transition hover:border-sky-500/40 hover:bg-sky-500/5 hover:text-white/80 disabled:opacity-50"
+          disabled={!ready || busy}
+          onClick={runAnalysis}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? (
-            <Loader2 className="animate-spin text-sky-300" size={22} />
-          ) : (
-            <Upload size={22} className="text-white/35" />
-          )}
-          {busy ? "Analisando..." : "Enviar CSV do Gerenciador"}
-          <span className="text-[11px] text-white/30">
-            Foco: engajamento com o post — não conversão de checkout
-          </span>
+          {busy ? <Loader2 className="animate-spin" size={16} /> : null}
+          Analisar os 3 arquivos
         </button>
-        {fileName && (
-          <p className="text-xs text-white/40">Arquivo: {fileName}</p>
-        )}
         {error && <p className="text-sm text-red-300">{error}</p>}
       </section>
 
-      {analysis && (
+      {analysis && active && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {kpis.map((k) => {
@@ -166,11 +225,11 @@ export function CampaignAnalysisView() {
           </div>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-medium text-white/80">Leitura do tráfego</h2>
+            <h2 className="text-sm font-medium text-white/80">Leitura cruzada</h2>
             <div className="grid gap-3 lg:grid-cols-2">
-              {analysis.insights.map((ins) => (
+              {analysis.insights.map((ins, i) => (
                 <div
-                  key={ins.title}
+                  key={`${ins.title}-${i}`}
                   className={cn(
                     "rounded-xl border p-4",
                     insightTone[ins.tone] ?? insightTone.info
@@ -185,110 +244,159 @@ export function CampaignAnalysisView() {
             </div>
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-sm font-medium text-white/80">
-              Ranking por taxa de engajamento
-            </h2>
-            <div className={panelTableWrap}>
-              <table className="min-w-[1280px] w-full text-left">
-                <thead className={panelTableHead}>
-                  <tr>
-                    {[
-                      "Conjunto",
-                      "Campanha",
-                      "Veiculação",
-                      "Imp.",
-                      "Alcance",
-                      "Freq.",
-                      "Gasto",
-                      "Orçamento",
-                      "Engaj. post",
-                      "ER",
-                      "CPE",
-                      "Reações",
-                      "Coment.",
-                      "Saves",
-                      "Shares",
-                      "Views",
-                      "50%",
-                      "75%",
-                      "ThruPlay",
-                      "Página",
-                      "Seg. IG",
-                      "Status",
-                    ].map((h) => (
-                      <th key={h} className="px-3 py-2.5 font-medium">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {analysis.ads.map((ad) => {
-                    const v = verdictLabel[ad.verdict];
-                    return (
-                      <tr
-                        key={`${ad.campaign}-${ad.adset}-${ad.delivery}`}
-                        className="border-t border-white/[0.05] text-white/70"
-                      >
-                        <td className="max-w-[200px] truncate px-3 py-2.5 text-white/90">
-                          {ad.adset}
-                        </td>
-                        <td className="max-w-[160px] truncate px-3 py-2.5 text-white/45">
-                          {ad.campaign}
-                        </td>
-                        <td className="max-w-[120px] truncate px-3 py-2.5">
-                          {ad.delivery}
-                        </td>
-                        <td className="px-3 py-2.5">{num(ad.impressions)}</td>
-                        <td className="px-3 py-2.5">{num(ad.reach)}</td>
-                        <td className="px-3 py-2.5">
-                          {ad.frequency ? ad.frequency.toFixed(2) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5">{brl(ad.spend)}</td>
-                        <td className="px-3 py-2.5">
-                          {ad.budget ? brl(ad.budget) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5">{num(ad.engagements)}</td>
-                        <td className="px-3 py-2.5 text-sky-200">
-                          {pct(ad.engagementRate)}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {ad.costPerEngagement ? brl(ad.costPerEngagement) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5">{num(ad.reactions)}</td>
-                        <td className="px-3 py-2.5">{num(ad.comments)}</td>
-                        <td className="px-3 py-2.5">{num(ad.saves)}</td>
-                        <td className="px-3 py-2.5">{num(ad.shares)}</td>
-                        <td className="px-3 py-2.5">{num(ad.views)}</td>
-                        <td className="px-3 py-2.5">
-                          {ad.views ? pct(ad.hold50) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {ad.views ? pct(ad.hold75) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5">{num(ad.thruplay)}</td>
-                        <td className="px-3 py-2.5">{num(ad.pageEngagement)}</td>
-                        <td className="px-3 py-2.5">{num(ad.igFollowers)}</td>
-                        <td className="px-3 py-2.5">
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[11px]",
-                              v.className
-                            )}
-                          >
-                            {v.text}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["campaign", "Campanhas"],
+                ["adset", "Conjuntos"],
+                ["ad", "Anúncios"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm",
+                  tab === id
+                    ? "bg-white/10 text-white"
+                    : "text-white/45 hover:text-white/80"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <RankingTable level={tab} rows={active.ads} />
         </>
       )}
     </div>
+  );
+}
+
+function RankingTable({
+  level,
+  rows,
+}: {
+  level: AnalysisLevel;
+  rows: AnalyzedAd[];
+}) {
+  const first =
+    level === "campaign" ? "Campanha" : level === "adset" ? "Conjunto" : "Anúncio";
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-medium text-white/80">
+        Ranking · {first.toLowerCase()}
+      </h2>
+      <div className={panelTableWrap}>
+        <table className="min-w-[1280px] w-full text-left">
+          <thead className={panelTableHead}>
+            <tr>
+              {[
+                first,
+                level === "ad" ? "Conjunto" : "Campanha",
+                "Veiculação",
+                "Imp.",
+                "Alcance",
+                "Freq.",
+                "Gasto",
+                "Orçamento",
+                "Engaj. post",
+                "ER",
+                "CPE",
+                "Reações",
+                "Coment.",
+                "Saves",
+                "Shares",
+                "Views",
+                "50%",
+                "75%",
+                "ThruPlay",
+                "Página",
+                "Seg. IG",
+                "Status",
+              ].map((h) => (
+                <th key={h} className="px-3 py-2.5 font-medium">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const v = verdictLabel[row.verdict];
+              const primary =
+                level === "campaign"
+                  ? row.campaign
+                  : level === "adset"
+                    ? row.adset
+                    : row.ad !== "—"
+                      ? row.ad
+                      : row.label;
+              const secondary =
+                level === "ad" ? row.adset : row.campaign;
+              return (
+                <tr
+                  key={`${row.campaign}-${row.adset}-${row.ad}-${i}`}
+                  className="border-t border-white/[0.05] text-white/70"
+                >
+                  <td className="max-w-[200px] truncate px-3 py-2.5 text-white/90">
+                    {primary}
+                  </td>
+                  <td className="max-w-[160px] truncate px-3 py-2.5 text-white/45">
+                    {secondary}
+                  </td>
+                  <td className="max-w-[120px] truncate px-3 py-2.5">
+                    {row.delivery}
+                  </td>
+                  <td className="px-3 py-2.5">{num(row.impressions)}</td>
+                  <td className="px-3 py-2.5">{num(row.reach)}</td>
+                  <td className="px-3 py-2.5">
+                    {row.frequency ? row.frequency.toFixed(2) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">{brl(row.spend)}</td>
+                  <td className="px-3 py-2.5">
+                    {row.budget ? brl(row.budget) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">{num(row.engagements)}</td>
+                  <td className="px-3 py-2.5 text-sky-200">
+                    {pct(row.engagementRate)}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {row.costPerEngagement ? brl(row.costPerEngagement) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">{num(row.reactions)}</td>
+                  <td className="px-3 py-2.5">{num(row.comments)}</td>
+                  <td className="px-3 py-2.5">{num(row.saves)}</td>
+                  <td className="px-3 py-2.5">{num(row.shares)}</td>
+                  <td className="px-3 py-2.5">{num(row.views)}</td>
+                  <td className="px-3 py-2.5">
+                    {row.views ? pct(row.hold50) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {row.views ? pct(row.hold75) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5">{num(row.thruplay)}</td>
+                  <td className="px-3 py-2.5">{num(row.pageEngagement)}</td>
+                  <td className="px-3 py-2.5">{num(row.igFollowers)}</td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[11px]",
+                        v.className
+                      )}
+                    >
+                      {v.text}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

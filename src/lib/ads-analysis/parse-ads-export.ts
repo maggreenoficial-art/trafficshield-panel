@@ -1,6 +1,7 @@
 export type AdsEngagementRow = {
   campaign: string;
   adset: string;
+  ad: string;
   delivery: string;
   impressions: number;
   reach: number;
@@ -32,6 +33,7 @@ const HEADER_ALIASES: Record<keyof AdsEngagementRow, string[]> = {
     "conjunto de anuncios",
     "ad set name",
   ],
+  ad: ["nome do anuncio", "nome do anúncio", "ad name"],
   delivery: ["veiculacao", "veiculação", "delivery"],
   impressions: ["impressoes", "impressões", "impressions"],
   reach: ["alcance", "reach"],
@@ -226,9 +228,10 @@ export function parseAdsManagerExport(text: string): {
     const cols = splitCsvLine(lines[i], delimiter);
     const campaign = String(cell(cols, headerMap.campaign));
     const adset = String(cell(cols, headerMap.adset));
+    const ad = String(cell(cols, headerMap.ad));
     const delivery = String(cell(cols, headerMap.delivery));
-    if (!campaign && !adset) continue;
-    const low = `${campaign} ${adset}`.toLowerCase();
+    if (!campaign && !adset && !ad) continue;
+    const low = `${campaign} ${adset} ${ad}`.toLowerCase();
     if (low === "total" || low.startsWith("total ")) continue;
 
     const reactions = Number(cell(cols, headerMap.reactions, true));
@@ -247,6 +250,7 @@ export function parseAdsManagerExport(text: string): {
     rows.push({
       campaign: campaign || "—",
       adset: adset || "—",
+      ad: ad || "—",
       delivery: delivery || "—",
       impressions: Number(cell(cols, headerMap.impressions, true)),
       reach: Number(cell(cols, headerMap.reach, true)),

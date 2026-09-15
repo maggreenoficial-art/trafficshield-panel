@@ -1,5 +1,7 @@
 import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
 
+export type AnalysisLevel = "campaign" | "adset" | "ad";
+
 export type AnalyzedAd = AdsEngagementRow & {
   label: string;
   engagementRate: number;
@@ -42,14 +44,28 @@ export type EngagementAnalysis = {
   insights: CampaignInsight[];
 };
 
+export type TripleEngagementAnalysis = {
+  campaign: EngagementAnalysis;
+  adset: EngagementAnalysis;
+  ad: EngagementAnalysis;
+  insights: CampaignInsight[];
+};
+
 function rate(num: number, den: number) {
   if (!den) return 0;
   return num / den;
 }
 
-function rowLabel(r: AdsEngagementRow) {
-  if (r.adset && r.adset !== "—") return r.adset;
+function rowLabel(r: AdsEngagementRow, level: AnalysisLevel) {
+  if (level === "ad" && r.ad && r.ad !== "—") return r.ad;
+  if (level === "adset" && r.adset && r.adset !== "—") return r.adset;
   return r.campaign;
+}
+
+function mergeKey(r: AdsEngagementRow, level: AnalysisLevel) {
+  if (level === "campaign") return r.campaign;
+  if (level === "adset") return `${r.campaign}||${r.adset}`;
+  return `${r.campaign}||${r.adset}||${r.ad}`;
 }
 
 function verdictFor(ad: AnalyzedAd, avgEr: number): AnalyzedAd["verdict"] {
@@ -73,10 +89,13 @@ function pct(n: number) {
   return `${(n * 100).toFixed(2)}%`;
 }
 
-export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis {
+export function analyzeEngagement(
+  rows: AdsEngagementRow[],
+  level: AnalysisLevel = "ad"
+): EngagementAnalysis {
   const merged = new Map<string, AdsEngagementRow>();
   for (const row of rows) {
-    const key = `${row.campaign}||${row.adset}||${row.delivery}`;
+    const key = mergeKey(row, level);
     const prev = merged.get(key);
     if (!prev) {
       merged.set(key, { ...row });
@@ -152,7 +171,7 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
       const quality = r.comments + r.shares + r.saves;
       const analyzed: AnalyzedAd = {
         ...r,
-        label: rowLabel(r),
+        label: rowLabel(r, level),
         engagementRate: rate(r.engagements, r.impressions),
         qualityRate: rate(quality, r.impressions),
         costPerEngagement: r.costPerPostEngagement || rate(r.spend, r.engagements),
@@ -271,4 +290,64 @@ export function analyzeEngagement(rows: AdsEngagementRow[]): EngagementAnalysis 
     ads,
     insights,
   };
+}
+
+export function analyzeTriple(
+  campaignRows: AdsEngagementRow[],
+  adsetRows: AdsEngagementRow[],
+  adRows: AdsEngagementRow[]
+): TripleEngagementAnalysis {
+  const campaign = analyzeEngagement(campaignRows, "campaign");
+  const adset = analyzeEngagement(adsetRows, "adset");
+  const ad = analyzeEngagement(adRows, "ad");
+
+  const insights: CampaignInsight[] = [];
+  const bestC = campaign.ads[0];
+  const bestS = adset.ads[0];
+  const bestA = ad.ads[0];
+  const weakAds = ad.ads.filter((a) => a.verdict === "weak").slice(0, 4);
+  const fatigueAds = ad.ads.filter((a) => a.verdict === "fatigue").slice(0, 4);
+
+  if (bestC && bestS && bestA) {
+    insights.push({
+      tone: "good",
+      title: "Onde escalar (3 níveis)",
+      body: `Campanha: ${bestC.label} (ER ${pct(bestC.engagementRate)}, ${brl(bestC.spend)}). Conjunto: ${bestS.label}. Anúncio: ${bestA.label}. Suba verba nessa cadeia — não na campanha inteira se só um conjunto carrega o resultado.`,
+    });
+  }
+
+  if (bestS && bestA && bestA.adset !== "—" && bestA.adset !== bestS.label) {
+    insights.push({
+      tone: "warn",
+      title: "Conjunto e anúncio desalinhados",
+      body: `O melhor conjunto é ${bestS.label}, mas o melhor anúncio está em ${bestA.adset}. Confira se o orçamento está no conjunto certo ou se um criativo isolado está salvando um conjunto médio.`,
+    });
+  }
+
+  if (weakAds.length) {
+    insights.push({
+      tone: "bad",
+      title: "Anúncios para pausar",
+      body: weakAds.map((w) => `${w.label} (ER ${pct(w.engagementRate)})`).join(" · "),
+    });
+  }
+
+  if (fatigueAds.length) {
+    insights.push({
+      tone: "warn",
+      title: "Anúncios com fadiga",
+      body: fatigueAds
+        .map((f) => `${f.label} · freq. ${f.frequency.toFixed(1)}`)
+        .join(" · "),
+    });
+  }
+
+  insights.push(...ad.insights.filter((i) => i.title !== "Como decidir"));
+  insights.push({
+    tone: "info",
+    title: "Como ler os 3 arquivos",
+    body: "Campanha = se o objetivo/estrutura vale a pena. Conjunto = público e lance. Anúncio = criativo do post. Pause anúncio fraco antes de matar o conjunto; pause conjunto fraco antes de matar a campanha.",
+  });
+
+  return { campaign, adset, ad, insights };
 }
