@@ -655,9 +655,8 @@ export function CampaignAnalysisView() {
                           {c.adset !== "—" ? ` · ${c.adset}` : ""}
                         </p>
                         <p className="text-xs text-white/60">
-                          ER {pct(c.engagementRate)} · {num(c.engagements)} engaj. ·{" "}
-                          {brl(c.spend)} · CPE{" "}
-                          {c.costPerEngagement ? brl(c.costPerEngagement) : "—"}
+                          {num(c.reactions)} reações · {num(c.comments)} coment. ·{" "}
+                          {num(c.shares)} shares · {num(c.saves)} saves
                         </p>
                         <p className="text-[11px] text-white/35">
                           {theme.count} criativos no tema · ER médio do tema{" "}
@@ -683,7 +682,7 @@ export function CampaignAnalysisView() {
               <table className="min-w-[720px] w-full text-left">
                 <thead className={panelTableHead}>
                   <tr>
-                    {["Campanha", "Criativo campeão", "Temas", "ER", "Engaj.", "CPE"].map(
+                    {["Campanha", "Criativo campeão", "Temas", "Reações", "Coment.", "Shares"].map(
                       (h) => (
                         <th key={h} className="px-3 py-2.5 font-medium">
                           {h}
@@ -723,15 +722,13 @@ export function CampaignAnalysisView() {
                           : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-sky-200">
-                        {pct(row.champion.engagementRate)}
+                        {num(row.champion.reactions)}
                       </td>
                       <td className="px-3 py-2.5">
-                        {num(row.champion.engagements)}
+                        {num(row.champion.comments)}
                       </td>
                       <td className="px-3 py-2.5">
-                        {row.champion.costPerEngagement
-                          ? brl(row.champion.costPerEngagement)
-                          : "—"}
+                        {num(row.champion.shares)}
                       </td>
                     </tr>
                   ))}
@@ -747,8 +744,10 @@ export function CampaignAnalysisView() {
                   Ranking dos melhores criativos
                 </h2>
                 <p className="mt-1 text-xs text-white/40">
-                  Copie o nome e cole na busca do Gerenciador. Algoritmo = ER +
-                  volume − CPE. Grok 4.6 (Kie) dá a opinião e o ranking próprio.
+                  Quem mais hypou: reações + comentário, share e save. Criativo
+                  com taxa alta e pouco volume (ex.: 165 reações) não sobe.
+                  Mesmo nome em vários conjuntos entra somado. Copie o nome
+                  para o Gerenciador.
                 </p>
               </div>
               <button
@@ -789,11 +788,9 @@ export function CampaignAnalysisView() {
                           {row.themes.length ? ` · ${row.themes.join(", ")}` : ""}
                         </p>
                         <p className="mt-0.5 text-[11px] text-white/55">
-                          ER {pct(row.engagementRate)} · {num(row.engagements)}{" "}
-                          engaj. · CPE{" "}
-                          {row.costPerEngagement
-                            ? brl(row.costPerEngagement)
-                            : "—"}
+                          {num(row.reactions)} reações · {num(row.comments)}{" "}
+                          coment. · {num(row.shares)} shares · {num(row.saves)}{" "}
+                          saves
                         </p>
                       </div>
                     </li>

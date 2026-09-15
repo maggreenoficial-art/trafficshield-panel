@@ -1,6 +1,7 @@
 import type { AdsEngagementRow } from "@/lib/ads-analysis/parse-ads-export";
 import {
   buildThemeReport,
+  scoreCreative,
   type CampaignChampion,
   type CreativeTheme,
   type ThemeChampion,
@@ -197,7 +198,12 @@ export function analyzeEngagement(
       analyzed.verdict = verdictFor(analyzed, avgEr);
       return analyzed;
     })
-    .sort((a, b) => b.engagementRate - a.engagementRate || b.engagements - a.engagements);
+    .sort(
+      (a, b) =>
+        scoreCreative(b) - scoreCreative(a) ||
+        b.reactions - a.reactions ||
+        b.engagements - a.engagements
+    );
 
   const insights: CampaignInsight[] = [];
   const best = ads[0];

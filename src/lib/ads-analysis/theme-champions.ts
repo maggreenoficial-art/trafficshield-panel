@@ -274,11 +274,11 @@ export function resolveAdThemes(
 }
 
 export function scoreCreative(ad: AnalyzedAd) {
-  return (
-    ad.engagementRate * 1000 +
-    Math.log10(Math.max(ad.engagements, 1)) * 10 -
-    Math.min(ad.costPerEngagement || 0, 50) * 0.01
-  );
+  const reactions = Math.max(ad.reactions || 0, 0);
+  const comments = Math.max(ad.comments || 0, 0);
+  const shares = Math.max(ad.shares || 0, 0);
+  const saves = Math.max(ad.saves || 0, 0);
+  return reactions + comments * 3 + shares * 4 + saves * 3;
 }
 
 function pickChampion(list: AnalyzedAd[]): AnalyzedAd | null {
@@ -386,8 +386,8 @@ export function buildThemeReport(
     .filter((x): x is CampaignChampion => Boolean(x))
     .sort(
       (a, b) =>
-        b.champion.engagementRate - a.champion.engagementRate ||
-        b.champion.engagements - a.champion.engagements
+        scoreCreative(b.champion) - scoreCreative(a.champion) ||
+        b.champion.reactions - a.champion.reactions
     );
 
   return { ads: themedAds, themes, campaigns, unmatched };

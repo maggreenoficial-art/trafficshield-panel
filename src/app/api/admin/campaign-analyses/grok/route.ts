@@ -35,17 +35,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Sem anúncios para analisar." }, { status: 400 });
     }
 
-    const compact = compactAdsForGrok(ads, 20);
+    const compact = compactAdsForGrok(ads, 25);
     const prompt = `Você é um media buyer sênior de Meta Ads no Brasil (política / engajamento).
 
-Analise os criativos. er = engagement rate % no post, cpe = custo por engajamento, hold50/hold75 = retenção de vídeo %.
-Separe Jair de Flávio. Considere evangélicos, mulheres e bio quando aparecerem.
+O critério principal é HYPE DE VOLUME, não taxa.
+Quem mais hypou = mais reações + comentários + shares + saves no total (criativo somado em todos os conjuntos).
+NÃO coloque no topo criativo com ER alto e pouco volume (exemplo: ~165 reações). Isso não hypou.
 
-Use o campo name EXATAMENTE como na lista. Ranking próprio, não copie o algoRank.
-Priorize ER alto, comentário/save/share, retenção e CPE razoável. Penalize fadiga.
+Separe Jair de Flávio. Considere evangélicos, mulheres e bio.
+Use o campo name EXATAMENTE como na lista. Ranking próprio.
+
 Responda SOMENTE JSON válido, sem markdown:
-
-{"opinion":"2 a 4 parágrafos em português","ranking":[{"rank":1,"name":"NOME_EXATO","reason":"1 frase"}]}
+{"opinion":"2 a 4 parágrafos em português: quem explodiu, quem é volume baixo disfarçado de ER, o que escalar","ranking":[{"rank":1,"name":"NOME_EXATO","reason":"1 frase com volume"}]}
 
 No máximo 12 criativos. Não invente nomes.
 

@@ -13,6 +13,7 @@ export type AlgorithmRankItem = {
   score: number;
   engagementRate: number;
   engagements: number;
+  reactions: number;
   spend: number;
   costPerEngagement: number;
   impressions: number;
@@ -44,12 +45,80 @@ export function creativeDisplayName(ad: AnalyzedAd) {
   return ad.label;
 }
 
+/** Soma o mesmo criativo em vários conjuntos — o hype é o total, não a linha isolada. */
+export function aggregateByCreativeName(ads: AnalyzedAd[]): AnalyzedAd[] {
+  const map = new Map<string, AnalyzedAd>();
+  for (const ad of ads) {
+    const name = creativeDisplayName(ad).trim();
+    if (!name || name === "—") continue;
+    const key = name.toLowerCase();
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, { ...ad, ad: name, label: name });
+      continue;
+    }
+    const impressions = prev.impressions + ad.impressions;
+    const engagements = prev.engagements + ad.engagements;
+    const spend = prev.spend + ad.spend;
+    const views = prev.views + ad.views;
+    const reactions = prev.reactions + ad.reactions;
+    const comments = prev.comments + ad.comments;
+    const shares = prev.shares + ad.shares;
+    const saves = prev.saves + ad.saves;
+    const video50 = prev.video50 + ad.video50;
+    const video75 = prev.video75 + ad.video75;
+    const thruplay = prev.thruplay + ad.thruplay;
+    const reach = prev.reach + ad.reach;
+    const keepLead = ad.reactions > prev.reactions ? ad : prev;
+    map.set(key, {
+      ...prev,
+      campaign: keepLead.campaign,
+      adset: keepLead.adset,
+      delivery: keepLead.delivery,
+      impressions,
+      reach,
+      spend,
+      budget: Math.max(prev.budget, ad.budget),
+      actions: prev.actions + ad.actions,
+      pageEngagement: prev.pageEngagement + ad.pageEngagement,
+      engagements,
+      costPerPostEngagement: engagements ? spend / engagements : 0,
+      reactions,
+      comments,
+      shares,
+      saves,
+      igFollowers: prev.igFollowers + ad.igFollowers,
+      views,
+      video50,
+      video75,
+      thruplay,
+      frequency: reach ? impressions / reach : Math.max(prev.frequency, ad.frequency),
+      cpm: impressions ? (spend / impressions) * 1000 : 0,
+      engagementRate: impressions ? engagements / impressions : 0,
+      qualityRate: impressions ? (comments + shares + saves) / impressions : 0,
+      costPerEngagement: engagements ? spend / engagements : 0,
+      viewRate: impressions ? views / impressions : 0,
+      hold50: views ? video50 / views : 0,
+      hold75: views ? video75 / views : 0,
+      thruplayRate: views ? thruplay / views : 0,
+      verdict: keepLead.verdict,
+      themes: [...new Set([...(prev.themes ?? []), ...(ad.themes ?? [])])],
+    });
+  }
+  return [...map.values()];
+}
+
 export function rankCreativesAlgorithm(
   ads: AnalyzedAd[],
   limit = 25
 ): AlgorithmRankItem[] {
-  return [...ads]
-    .sort((a, b) => scoreCreative(b) - scoreCreative(a))
+  return aggregateByCreativeName(ads)
+    .sort(
+      (a, b) =>
+        scoreCreative(b) - scoreCreative(a) ||
+        b.reactions - a.reactions ||
+        b.engagements - a.engagements
+    )
     .slice(0, limit)
     .map((ad, i) => ({
       rank: i + 1,
@@ -59,6 +128,7 @@ export function rankCreativesAlgorithm(
       score: scoreCreative(ad),
       engagementRate: ad.engagementRate,
       engagements: ad.engagements,
+      reactions: ad.reactions,
       spend: ad.spend,
       costPerEngagement: ad.costPerEngagement,
       impressions: ad.impressions,
@@ -84,6 +154,7 @@ export function compactAdsForGrok(ads: AnalyzedAd[], limit = 40) {
     adset: row.adset,
     impressions: row.impressions,
     spend: Number(row.spend.toFixed(2)),
+    reactions: row.reactions,
     engagements: row.engagements,
     er: Number((row.engagementRate * 100).toFixed(3)),
     cpe: Number(row.costPerEngagement.toFixed(4)),
