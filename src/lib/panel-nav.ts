@@ -32,7 +32,7 @@ export const panelNav: PanelNavItem[] = [
   },
   {
     href: "/analise-campanha",
-    label: "Análise de campanha",
+    label: "Analise",
     icon: BarChart3,
     exact: false,
     adminOnly: true,
@@ -59,7 +59,7 @@ export function panelPageTitle(pathname: string): string {
   if (pathname.match(/^\/storyboards\/[^/]+/)) return "Editor";
   if (pathname.startsWith("/storyboards")) return "Storyboards";
   if (pathname.startsWith("/criativos")) return "Criativos";
-  if (pathname.startsWith("/analise-campanha")) return "Análise de campanha";
+  if (pathname.startsWith("/analise-campanha")) return "Analise";
   if (pathname.startsWith("/dominios")) return "Domínios";
   if (pathname.startsWith("/suporte")) return "Suporte";
   if (pathname.startsWith("/perfil")) return "Conta";

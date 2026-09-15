@@ -1,7 +1,7 @@
 import { CampaignAnalysisView } from "@/components/admin/CampaignAnalysisView";
 
 export const metadata = {
-  title: "Análise de campanha",
+  title: "Analise",
 };
 
 export default function CampaignAnalysisPage() {

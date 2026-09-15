@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -82,6 +82,22 @@ export function CampaignAnalysisView() {
   });
   const [analysis, setAnalysis] = useState<TripleEngagementAnalysis | null>(null);
   const [tab, setTab] = useState<AnalysisLevel>("ad");
+  const [saved, setSaved] = useState<
+    { id: string; title: string; createdAt: string }[]
+  >([]);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/campaign-analyses");
+        const data = await res.json();
+        if (res.ok) setSaved(data.analyses ?? []);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   async function onSlotFile(slot: Slot, list: FileList | null) {
     const file = list?.[0];
@@ -100,20 +116,82 @@ export function CampaignAnalysisView() {
     }
   }
 
-  function runAnalysis() {
+  async function runAnalysis() {
     if (!files.campaign || !files.adset || !files.ad) {
       setError("Envie os 3 CSVs: Campanhas, Conjuntos e Anúncios.");
       return;
     }
     setBusy(true);
     setError("");
+    setSaveMsg("");
     try {
-      setAnalysis(
-        analyzeTriple(files.campaign.rows, files.adset.rows, files.ad.rows)
+      const result = analyzeTriple(
+        files.campaign.rows,
+        files.adset.rows,
+        files.ad.rows
       );
+      setAnalysis(result);
       setTab("ad");
+
+      const res = await fetch("/api/admin/campaign-analyses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignFileName: files.campaign.name,
+          adsetFileName: files.adset.name,
+          adFileName: files.ad.name,
+          campaignRows: files.campaign.rows,
+          adsetRows: files.adset.rows,
+          adRows: files.ad.rows,
+          result,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveMsg(data.error || "Análise feita, mas não salvou no banco.");
+      } else {
+        setSaveMsg("Salvo no Supabase.");
+        setSaved((prev) => [
+          {
+            id: data.analysis.id,
+            title: data.analysis.title,
+            createdAt: data.analysis.createdAt,
+          },
+          ...prev.filter((x) => x.id !== data.analysis.id),
+        ]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na análise.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadSaved(id: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/campaign-analyses?id=${id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não encontrado");
+      setAnalysis(data.analysis.result);
+      setFiles({
+        campaign: {
+          name: data.analysis.campaignFileName || "campanhas.csv",
+          rows: data.analysis.campaignRows ?? [],
+        },
+        adset: {
+          name: data.analysis.adsetFileName || "conjuntos.csv",
+          rows: data.analysis.adsetRows ?? [],
+        },
+        ad: {
+          name: data.analysis.adFileName || "anuncios.csv",
+          rows: data.analysis.adRows ?? [],
+        },
+      });
+      setTab("ad");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao abrir.");
     } finally {
       setBusy(false);
     }
@@ -143,7 +221,7 @@ export function CampaignAnalysisView() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
-        title="Análise de campanha"
+        title="Analise"
         subtitle="Sempre 3 CSVs do Gerenciador: Campanhas, Conjuntos e Anúncios — mesmas colunas de engajamento."
       />
 
@@ -202,6 +280,28 @@ export function CampaignAnalysisView() {
           Analisar os 3 arquivos
         </button>
         {error && <p className="text-sm text-red-300">{error}</p>}
+        {saveMsg && <p className="text-sm text-emerald-300/90">{saveMsg}</p>}
+        {saved.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-wide text-white/35">
+              Análises salvas
+            </p>
+            <ul className="space-y-1">
+              {saved.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => void loadSaved(item.id)}
+                    className="w-full truncate rounded-lg px-3 py-2 text-left text-xs text-white/55 hover:bg-white/[0.04] hover:text-white/80"
+                  >
+                    {item.title} ·{" "}
+                    {new Date(item.createdAt).toLocaleString("pt-BR")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       {analysis && active && (
