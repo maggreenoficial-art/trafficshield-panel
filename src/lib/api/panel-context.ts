@@ -8,7 +8,7 @@ import {
 import { hasAdminClient } from "@/lib/supabase/admin";
 import { updateSession } from "@/lib/supabase/middleware";
 import type { PanelContext } from "@/lib/tenant/types";
-import { TENANT_COOKIE } from "@/lib/tenant/types";
+import { TENANT_COOKIE, ADMIN_NAV_COOKIE } from "@/lib/tenant/types";
 
 export async function resolvePanelContext(
   request: NextRequest
@@ -102,6 +102,20 @@ export function setTenantCookie(
 ): NextResponse {
   response.cookies.set(TENANT_COOKIE, tenantId, {
     httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return response;
+}
+
+export function setAdminNavCookie(
+  response: NextResponse,
+  isPlatformAdmin: boolean
+): NextResponse {
+  response.cookies.set(ADMIN_NAV_COOKIE, isPlatformAdmin ? "1" : "0", {
+    httpOnly: false,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",

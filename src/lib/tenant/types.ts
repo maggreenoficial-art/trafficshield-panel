@@ -1,4 +1,5 @@
 export const TENANT_COOKIE = "norat_tenant_id";
+export const ADMIN_NAV_COOKIE = "norat_admin";
 
 export type TenantPlan = "starter" | "pro" | "enterprise";
 export type TenantMemberRole = "owner" | "admin" | "member";

@@ -17,7 +17,7 @@ export function PanelMobileNav({ items }: { items: PanelNavItem[] }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       aria-label="Navegação do painel"
     >
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
+      <div className="mx-auto flex max-w-full items-stretch gap-0.5 overflow-x-auto px-1 pt-1">
         {items.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact
             ? pathname === href
@@ -27,7 +27,7 @@ export function PanelMobileNav({ items }: { items: PanelNavItem[] }) {
               key={href}
               href={href}
               className={cn(
-                "flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-xs transition-colors sm:text-sm",
+                "flex min-h-[3.5rem] min-w-[3.6rem] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-2 text-[10px] transition-colors sm:text-xs",
                 isActive ? "text-white/80" : "text-white/40"
               )}
             >
@@ -39,7 +39,7 @@ export function PanelMobileNav({ items }: { items: PanelNavItem[] }) {
         <button
           type="button"
           onClick={() => logoutPanel()}
-          className="flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-xs text-white/40 transition-colors hover:text-red-400/90 sm:text-sm"
+          className="flex min-h-[3.5rem] min-w-[3.6rem] shrink-0 flex-col items-center justify-center gap-1 px-1.5 py-2 text-[10px] text-white/40 transition-colors hover:text-red-400/90 sm:text-xs"
         >
           <LogOut size={18} strokeWidth={1.75} />
           <span>Sair</span>

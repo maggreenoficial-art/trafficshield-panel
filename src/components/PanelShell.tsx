@@ -20,6 +20,11 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isStandalone) return;
+    const fromCookie = document.cookie
+      .split(";")
+      .some((part) => part.trim() === "norat_admin=1");
+    if (fromCookie) setIsPlatformAdmin(true);
+
     let cancelled = false;
     void (async () => {
       try {

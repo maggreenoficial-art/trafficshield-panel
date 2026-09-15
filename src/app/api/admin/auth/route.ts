@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getProfileById } from "@/lib/db/profiles";
 import { createTenantForUser, getUserMemberships } from "@/lib/db/tenants";
-import { setTenantCookie } from "@/lib/api/panel-context";
+import { setTenantCookie, setAdminNavCookie } from "@/lib/api/panel-context";
 import { hasAdminClient } from "@/lib/supabase/admin";
 import { createRouteHandlerClient } from "@/lib/supabase/route-handler";
 import {
@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       200,
       cookieCarrier
     );
+    setAdminNavCookie(response, isPlatformAdmin);
     return setTenantCookie(response, tenantId);
   } catch {
     return NextResponse.json({ error: "Erro ao autenticar." }, { status: 500 });
@@ -199,6 +200,7 @@ export async function PUT(request: NextRequest) {
       200,
       cookieCarrier
     );
+    setAdminNavCookie(response, false);
     return setTenantCookie(response, membership.tenantId);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao cadastrar.";
@@ -212,5 +214,6 @@ export async function DELETE(request: NextRequest) {
   await supabase.auth.signOut();
   const response = jsonWithCookies({ success: true }, 200, cookieCarrier);
   response.cookies.delete("norat_tenant_id");
+  response.cookies.delete("norat_admin");
   return response;
 }

@@ -6,6 +6,7 @@ import {
 } from "@/lib/supabase/middleware";
 import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
+import { ADMIN_NAV_COOKIE } from "@/lib/tenant/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
 
@@ -44,6 +45,17 @@ export async function middleware(request: NextRequest) {
     }
 
     const { supabase, user, supabaseResponse } = await updateSession(request);
+
+    if (user) {
+      const admin = await isAdminUser(supabase, user.id);
+      supabaseResponse.cookies.set(ADMIN_NAV_COOKIE, admin ? "1" : "0", {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
 
     if (pathname.startsWith("/api/admin")) {
       if (!user || !(await canAccessPanel(user.id))) {
