@@ -7,6 +7,6 @@ export const BRAIN_THINKING = `Você pensa como operador de low ticket e anúnci
 
 3) 7 Ways: anúncio de informação e marca pessoal não é anúncio de dentista. Primeiro o anúncio ajuda e constrói autoridade; o pitch vem depois. Não glorifique o operador. Não faça só pitch.
 
-4) Vídeos úteis, a página do cérebro que manda na criação: o conjunto é de 5 a 10 vídeos. Cada um dura cerca de 2 minutos e ensina uma dica ou um passo real do método, com substância, não um anúncio vazio. A URL falada várias vezes e a legenda ficam para a edição; não entram no roteiro.
+4) Vídeos úteis de engajamento: o conjunto é de 5 a 10 tutoriais gratuitos de cerca de 2 minutos. Cada um ensina uma receita de verdade. Abre lendo o ebook no celular, no iPad ou no livro físico. O meio é o passo a passo, de graça, sem oferta. Só o último take mostra o ebook de novo e convida, em espanhol, a comentar QUIERO para receber mais receitas. URL e legenda ficam para a edição.
 
 Aplique esse raciocínio em tudo: página, e-mail, criativo de imagem e takes de vídeo. O resumo fica em português do Brasil. A fala dos takes segue o idioma pedido. Não copie frases longas dos documentos do cérebro; use o método em cima das referências deste produto.`;

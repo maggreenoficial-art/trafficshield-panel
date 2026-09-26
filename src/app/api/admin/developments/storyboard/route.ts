@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       const isLast = index === scenes.length - 1;
       const scenePrompt = withSceneFormat(scene.prompt);
       const ebookRefs =
-        scenes.length > 1 && isLast && ebookImage ? [ebookImage.url] : [];
+        ebookImage && (index === 0 || isLast) ? [ebookImage.url] : [];
       const cena = await createBlock(ctx.tenantId, {
         storyboardId,
         modelKey: "image",

@@ -251,7 +251,7 @@ export function DevelopmentView() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não criou a imagem do ebook.");
       setCurrent(data.development ?? current);
-      setNotice("Imagem do ebook pronta. Ela entra só no último take, na mão da pessoa.");
+      setNotice("Imagem do ebook pronta. Ela aparece na leitura do começo e na oferta do final.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na imagem do ebook.");
     } finally {
@@ -322,7 +322,7 @@ export function DevelopmentView() {
 
   async function generateTakes() {
     const development = await sendChat(
-      `Lê o método de vídeos úteis do cérebro: 5 a 10 vídeos, cada um com uma dica real, cerca de 2 minutos. Lista os 5 a 10 e escreve agora só o vídeo 1, em espanhol latino, retrato 9:16, com ${videoSeconds} segundos (${takesForDuration(videoSeconds)} takes). Não coloque URL nem legenda.`
+      `Lê o método de engajamento do cérebro. Lista 5 a 10 tutoriais grátis de receita e escreve agora só o vídeo 1, em espanhol latino, retrato 9:16, com ${videoSeconds} segundos (${takesForDuration(videoSeconds)} takes). Abre lendo o ebook no celular, iPad ou livro físico. O meio ensina a receita de graça. Só o último take mostra o ebook e pede, em espanhol, para comentar QUIERO. Sem URL e sem legenda.`
     );
     const scenes = [...(development?.plan?.messages ?? [])]
       .reverse()
@@ -393,7 +393,7 @@ export function DevelopmentView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="O cérebro pede de 5 a 10 vídeos úteis, cerca de 2 minutos cada, com uma dica real do método."
+        subtitle="Tutorial grátis da receita. Lê o ebook no começo, ensina no meio e só no final pede o comentário, em espanhol."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -536,9 +536,9 @@ export function DevelopmentView() {
           <div className={cn(panelCardPadded, "space-y-3")}>
             <h3 className="text-sm font-medium text-white/80">Ebook</h3>
             <p className="text-xs text-white/40">
-              O PDF traz a receita com ingredientes reais. A imagem do ebook é o
-              que a pessoa segura no último take, oferecendo o produto. Não entra
-              no começo do vídeo.
+              O PDF traz a receita com ingredientes reais. A imagem do ebook
+              aparece no começo, quando a pessoa lê no celular, no iPad ou no
+              livro, e de novo só no final, na oferta.
             </p>
             {current.referencePages.some((item) => item.kind === "text") && (
               <ul className="space-y-1">
@@ -575,9 +575,9 @@ export function DevelopmentView() {
           <div>
             <h2 className="text-sm font-medium text-white/80">Takes do vídeo</h2>
             <p className="mt-1 text-xs text-white/40">
-              Cada vídeo ensina um passo do método, em espanhol latino, no formato
-              9:16. O botão escreve o vídeo 1. Peça o 2, o 3, até fechar de 5 a 10.
-              Site e legenda ficam para a edição.
+              Tutorial de graça, em espanhol. Começa lendo o ebook, ensina a
+              receita e só no final pede para comentar QUIERO. O botão escreve o
+              vídeo 1. Peça o 2, o 3, até fechar de 5 a 10.
             </p>
           </div>
           <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">

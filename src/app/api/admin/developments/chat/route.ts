@@ -65,29 +65,32 @@ export async function POST(request: NextRequest) {
     const ebookImage = current.referencePages.find(
       (item) => item.kind === "image" && item.title === "Ebook" && item.url.startsWith("http")
     );
-    const ebookBlock = ebookTexts.length
-      ? `EBOOK DESTE PRODUTO. Escolha UMA receita que esteja escrita aqui. Use o nome, os ingredientes e as quantidades desse texto. Não invente receita vaga e não troque ingrediente.
+    const ebookSource = ebookTexts.length
+      ? `EBOOK DESTE PRODUTO. Escolha UMA receita escrita aqui. Use o nome, os ingredientes e as quantidades. Não invente receita vaga.
 ${ebookTexts
   .slice(0, 2)
   .map((item) => `${item.title}\n${item.text.slice(0, 8000)}`)
-  .join("\n\n")}
+  .join("\n\n")}`
+      : "Sem PDF do ebook. Use a receita que estiver nas referências do produto, com ingredientes concretos.";
+    const ebookBlock = `${ebookSource}
 
-FECHAMENTO DO VÍDEO:
-- Os takes anteriores ensinam essa receita. A pessoa não segura o ebook e não faz gesto de aprovação no final deles.
-- O ÚLTIMO take é outra cena. A mesma pessoa segura o ebook na altura do peito, capa ou página dessa receita virada para a câmera, e oferece o produto. Só nesse momento o ebook aparece.
-- A fala desse take, em espanhol latino, oferece o ebook. Sem URL e sem legenda.
-- Essa cena final tem um take só. Os outros takes ficam na cena sem o livro.
-${ebookImage ? "- A imagem anexada intitulada Ebook é a capa ou a página. A cena final tem que parecer esse livro na mão da pessoa." : "- Ainda não há foto do ebook. Descreva a capa e a página aberta com o nome da receita e os ingredientes reais."}`
-      : "";
+FORMATO DESTE VÍDEO (engajamento, tutorial de graça):
+Isto não é anúncio de pitch. É um tutorial gratuito, de qualidade, de como fazer a receita. A oferta só existe no último take.
+São 3 cenas, e a soma dos takes continua sendo exatamente a duração pedida:
+1) Cena de abertura, 1 take: a pessoa olha o ebook e lê. O ebook aparece no celular, no iPad ou como livro físico aberto. Ela lê a receita em voz alta, em espanhol. Sem oferta e sem pedido de comentário.
+2) Cenas do meio: ensina a fazer a receita de graça, passo a passo, com os ingredientes reais. Mãos, panela, o preparo. Sem ebook, sem oferta, sem CTA.
+3) Cena final, 1 take: mostra o ebook de novo e aí sim coloca a oferta. A fala, em espanhol latino, convida a comentar. Use esta ideia, dita em espanhol, não em português: quer receber mais receitas assim? Comenta QUIERO.
+Sem URL e sem legenda. O comentário QUIERO é falado, não escrito na tela.
+${ebookImage ? "A imagem intitulada Ebook é a capa ou a página. A abertura e o take final têm que parecer esse livro, no celular, no iPad ou físico." : "Descreva a capa e a página aberta com o nome da receita."}`;
 
     const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
 
 Duração deste vídeo: ${seconds} segundos. Escreva exatamente ${takeCount} takes de 8 segundos, em ordem, cobrindo este vídeo inteiro. Nem um take a mais, nem a menos.
 
-LEITURA OBRIGATÓRIA DO CÉREBRO (vídeos úteis):
-O conjunto são 5 a 10 vídeos úteis. Cada vídeo dura cerca de 2 minutos e integra uma metodologia real: uma dica ou um passo concreto, que a pessoa consegue usar. Não é pitch e não é só dor.
-No "reply", liste os 5 a 10 vídeos (número, título e a dica de cada um). Nos takes, escreva só o vídeo pedido. Se o operador não disser o número, escreva o vídeo 1. Quando pedir o 2, o 3 ou outro, escreva esse, com a mesma dica que você listou.
-Não repita o site, não fale a URL e não escreva legenda. Isso fica na edição.
+LEITURA OBRIGATÓRIA DO CÉREBRO (vídeos úteis de engajamento):
+O conjunto são 5 a 10 tutoriais. Cada um é um vídeo gratuito de como fazer uma receita do produto, com qualidade, não um anúncio. A pessoa usa de graça o que aprende. A oferta só no último take.
+No "reply", liste os 5 a 10 (número, título e a receita de cada um). Nos takes, escreva só o vídeo pedido. Se o operador não disser o número, escreva o vídeo 1.
+Não fale URL e não escreva legenda. O CTA do final é falado: em espanhol, pedir que comentem QUIERO para receber mais receitas.
 
 ${BRAIN_THINKING}
 
