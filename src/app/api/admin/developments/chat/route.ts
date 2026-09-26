@@ -56,6 +56,15 @@ ${STORYBOARD_RULES}
 Produto: ${current.name}
 Briefing: ${current.brief || "(sem briefing)"}
 
+Referências visuais deste produto (logo, oferta, criativo já existente). As imagens vão anexadas. Use o que aparece nelas: marca, promessa, cores, preço e formato. Não invente uma oferta diferente da que está na imagem.
+${
+  current.referencePages
+    .filter((item) => item.kind === "image" && item.url)
+    .slice(0, 4)
+    .map((item, i) => `${i + 1}. ${item.title}`)
+    .join("\n") || "(sem imagem deste produto)"
+}
+
 ${brainText || "(cérebro vazio)"}
 
 Conversa até aqui:
@@ -69,7 +78,11 @@ Responda SOMENTE JSON válido, sem markdown:
 Quando for hora de criativo, troque null por:
 {"reply":"...","storyboard":{"scenes":[{"title":"Cena 1","prompt":"foto parada 9:16","takes":[{"title":"Take 1","prompt":"movimento e fala a partir dessa foto","seconds":8}]}]}}`;
 
-    const raw = await chatGrok46(prompt);
+    const imageUrls = current.referencePages
+      .filter((item) => item.kind === "image" && item.url)
+      .map((item) => item.url)
+      .slice(0, 4);
+    const raw = await chatGrok46(prompt, imageUrls);
     const parsed = parseDevChat(raw);
     const nextMessages: DevChatMessage[] = [
       ...history,

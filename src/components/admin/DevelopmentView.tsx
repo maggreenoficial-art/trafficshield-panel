@@ -51,7 +51,9 @@ export function DevelopmentView() {
   const [notice, setNotice] = useState("");
   const [brain, setBrain] = useState<DevDoc[]>([]);
   const fileRefs = useRef<Partial<Record<1 | 2 | 3, HTMLInputElement | null>>>({});
+  const productFileRef = useRef<HTMLInputElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [refLabel, setRefLabel] = useState("Oferta");
 
   async function reloadList() {
     const res = await fetch("/api/admin/developments");
@@ -155,6 +157,51 @@ export function DevelopmentView() {
       setError(e instanceof Error ? e.message : "Falha no documento.");
     } finally {
       setBusy("");
+    }
+  }
+
+  async function onProductImage(list: FileList | null) {
+    const files = list ? [...list] : [];
+    if (productFileRef.current) productFileRef.current.value = "";
+    if (!files.length || !current) return;
+    setBusy("ref");
+    setError("");
+    try {
+      let referencePages = current.referencePages.filter((item) => item.kind === "image");
+      for (const file of files.slice(0, 8)) {
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Envie imagem (JPG, PNG ou WEBP).");
+        }
+        const body = new FormData();
+        body.set("file", file);
+        const res = await fetch("/api/admin/storyboards/upload", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Não enviou a imagem.");
+        referencePages = [
+          ...referencePages,
+          {
+            kind: "image" as const,
+            url: data.url as string,
+            title: refLabel.trim() || file.name,
+            text: file.name,
+          },
+        ].slice(0, 8);
+      }
+      await saveDraft({ ...current, name, brief, referencePages });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na referência.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeProductImage(url: string) {
+    if (!current) return;
+    const referencePages = current.referencePages.filter((item) => item.url !== url);
+    try {
+      await saveDraft({ ...current, name, brief, referencePages });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não removeu.");
     }
   }
 
@@ -332,6 +379,70 @@ export function DevelopmentView() {
       </section>
 
       {current && (
+        <>
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-white/80">
+            Referências deste produto
+          </h2>
+          <p className="text-xs text-white/40">
+            Logo, print da oferta e criativos que já existem. O Grok olha essas
+            imagens em toda mensagem deste produto.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <select
+              className={cn(panelInput, "sm:max-w-40")}
+              value={refLabel}
+              onChange={(e) => setRefLabel(e.target.value)}
+            >
+              {["Logo", "Oferta", "Criativo", "Página"].map((label) => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              ref={productFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => void onProductImage(e.target.files)}
+            />
+            <button
+              type="button"
+              onClick={() => productFileRef.current?.click()}
+              className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white"
+            >
+              {busy === "ref" ? "Enviando…" : "Enviar imagens"}
+            </button>
+          </div>
+          {current.referencePages.some((item) => item.kind === "image") && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {current.referencePages
+                .filter((item) => item.kind === "image" && item.url)
+                .map((item) => (
+                  <figure key={item.url} className="space-y-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.url}
+                      alt={item.title}
+                      className="h-28 w-full rounded-lg object-cover"
+                    />
+                    <figcaption className="flex items-center justify-between gap-2 text-[11px] text-white/50">
+                      <span className="truncate">{item.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => void removeProductImage(item.url)}
+                        className="shrink-0 text-white/35 hover:text-red-300"
+                      >
+                        tirar
+                      </button>
+                    </figcaption>
+                  </figure>
+                ))}
+            </div>
+          )}
+        </section>
         <section className={cn(panelCardPadded, "space-y-4")}>
           <div>
             <h2 className="text-sm font-medium text-white/80">
@@ -435,6 +546,7 @@ export function DevelopmentView() {
             </a>
           )}
         </section>
+        </>
       )}
     </div>
   );
