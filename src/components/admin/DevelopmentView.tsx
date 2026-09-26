@@ -13,15 +13,33 @@ type Listed = { id: string; name: string; status: string; updatedAt: string };
 
 const DOC_SLOTS = [1, 2, 3] as const;
 
+function isPdf(file: File) {
+  return (
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+  );
+}
+
 async function readDoc(file: File) {
+  if (isPdf(file)) {
+    if (file.size > 12_000_000) {
+      throw new Error(`${file.name} passa de 12 MB.`);
+    }
+    const body = new FormData();
+    body.set("file", file);
+    const res = await fetch("/api/admin/developments/extract", {
+      method: "POST",
+      body,
+    });
+    const data = (await res.json()) as { error?: string; text?: string };
+    if (!res.ok || !data.text) {
+      throw new Error(data.error || "Não consegui ler o PDF.");
+    }
+    return data.text;
+  }
   if (file.size > 1_500_000) {
     throw new Error(`${file.name} passa de 1,5 MB.`);
   }
-  const text = await file.text();
-  if (text.startsWith("%PDF")) {
-    throw new Error(`${file.name} é PDF. Exporte como .txt ou .md.`);
-  }
-  return text.replace(/\u0000/g, "").slice(0, 20_000);
+  return (await file.text()).replace(/\u0000/g, "").slice(0, 40_000);
 }
 
 export function DevelopmentView() {
@@ -119,6 +137,7 @@ export function DevelopmentView() {
     if (input) input.value = "";
     if (!file || !current) return;
     setError("");
+    setBusy("doc");
     try {
       const text = await readDoc(file);
       const docs = [
@@ -128,6 +147,8 @@ export function DevelopmentView() {
       await saveDraft({ ...current, name, brief, docs });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no documento.");
+    } finally {
+      setBusy("");
     }
   }
 
@@ -317,7 +338,7 @@ export function DevelopmentView() {
               Documentos de referência
             </h2>
             <p className="text-xs text-white/40">
-              Até 3 arquivos .txt ou .md. É a inteligência da sua cabeça que o
+              Até 3 arquivos PDF, .txt ou .md. É a inteligência da sua cabeça que o
               Grok usa antes de escrever página e criativo.
             </p>
             <div className="grid gap-3 md:grid-cols-3">
@@ -330,7 +351,7 @@ export function DevelopmentView() {
                         fileRefs.current[slot] = el;
                       }}
                       type="file"
-                      accept=".txt,.md,.markdown,text/plain"
+                      accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain"
                       className="hidden"
                       onChange={(e) => void onDoc(slot, e.target.files)}
                     />
@@ -347,7 +368,11 @@ export function DevelopmentView() {
                       <Upload size={18} />
                       Documento {slot}
                       <span className="max-w-full truncate text-[11px] text-white/40">
-                        {doc ? doc.name : "txt ou md"}
+                        {busy === "doc" && !doc
+                          ? "Lendo…"
+                          : doc
+                            ? doc.name
+                            : "pdf, txt ou md"}
                       </span>
                     </button>
                   </div>

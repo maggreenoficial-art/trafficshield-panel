@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "unpdf"],
   transpilePackages: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
   turbopack: {},
   webpack: (config, { isServer }) => {

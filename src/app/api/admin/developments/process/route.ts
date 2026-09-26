@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       .slice(0, 3)
       .map(
         (doc) =>
-          `DOCUMENTO ${doc.slot} (${doc.name}):\n${doc.text.slice(0, 12000)}`
+          `DOCUMENTO ${doc.slot} (${doc.name}):\n${doc.text.slice(0, 20000)}`
       )
       .join("\n\n");
     const refs = pages
