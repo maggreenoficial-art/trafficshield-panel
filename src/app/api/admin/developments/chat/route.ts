@@ -25,10 +25,17 @@ export async function POST(request: NextRequest) {
   if (ctx instanceof NextResponse) return ctx;
 
   try {
-    const body = (await request.json()) as { id?: string; message?: string };
+    const body = (await request.json()) as {
+      id?: string;
+      message?: string;
+      images?: string[];
+    };
     const message = body.message?.trim() ?? "";
-    if (!body.id || !message) {
-      return NextResponse.json({ error: "Escreva a mensagem." }, { status: 400 });
+    const images = (body.images ?? [])
+      .filter((url) => typeof url === "string" && url.startsWith("http"))
+      .slice(0, 4);
+    if (!body.id || (!message && !images.length)) {
+      return NextResponse.json({ error: "Escreva a mensagem ou envie uma imagem." }, { status: 400 });
     }
     const current = await getProductDevelopment(ctx.tenantId, body.id);
     if (!current) {
@@ -70,7 +77,8 @@ ${brainText || "(cérebro vazio)"}
 Conversa até aqui:
 ${thread || "(começo)"}
 
-OPERADOR: ${message}
+OPERADOR: ${message || "(enviou só imagem)"}
+${images.length ? `Nesta mensagem há ${images.length} imagem(ns) anexada(s). Olhe essas fotos primeiro.` : ""}
 
 Responda SOMENTE JSON válido, sem markdown:
 {"reply":"sua fala, direta, desenvolvendo a ideia","storyboard":null}
@@ -78,15 +86,17 @@ Responda SOMENTE JSON válido, sem markdown:
 Quando for hora de criativo, troque null por:
 {"reply":"...","storyboard":{"scenes":[{"title":"Cena 1","prompt":"foto parada 9:16","takes":[{"title":"Take 1","prompt":"movimento e fala a partir dessa foto","seconds":8}]}]}}`;
 
-    const imageUrls = current.referencePages
-      .filter((item) => item.kind === "image" && item.url)
-      .map((item) => item.url)
-      .slice(0, 4);
+    const imageUrls = [
+      ...images,
+      ...current.referencePages
+        .filter((item) => item.kind === "image" && item.url)
+        .map((item) => item.url),
+    ].slice(0, 4);
     const raw = await chatGrok46(prompt, imageUrls);
     const parsed = parseDevChat(raw);
     const nextMessages: DevChatMessage[] = [
       ...history,
-      { role: "user", text: message },
+      { role: "user", text: message, images: images.length ? images : undefined },
       {
         role: "assistant",
         text: parsed.reply,

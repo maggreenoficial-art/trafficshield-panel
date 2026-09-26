@@ -55,6 +55,7 @@ export type DevScene = {
 export type DevChatMessage = {
   role: "user" | "assistant";
   text: string;
+  images?: string[];
   scenes?: DevScene[];
 };
 

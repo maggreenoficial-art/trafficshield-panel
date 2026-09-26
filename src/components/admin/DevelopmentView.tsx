@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload } from "lucide-react";
+import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
@@ -46,12 +46,14 @@ export function DevelopmentView() {
   const [name, setName] = useState("");
   const [brief, setBrief] = useState("");
   const [chatText, setChatText] = useState("");
+  const [chatFiles, setChatFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [brain, setBrain] = useState<DevDoc[]>([]);
   const fileRefs = useRef<Partial<Record<1 | 2 | 3, HTMLInputElement | null>>>({});
   const productFileRef = useRef<HTMLInputElement | null>(null);
+  const chatFileRef = useRef<HTMLInputElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [refLabel, setRefLabel] = useState("Oferta");
 
@@ -206,18 +208,29 @@ export function DevelopmentView() {
   }
 
   async function sendChat() {
-    if (!current || !chatText.trim()) return;
+    if (!current || (!chatText.trim() && !chatFiles.length)) return;
     const message = chatText.trim();
+    const files = chatFiles.slice(0, 4);
     setChatText("");
+    setChatFiles([]);
     setBusy("grok");
     setError("");
     setNotice("");
     try {
       await saveDraft({ ...current, name, brief });
+      const images: string[] = [];
+      for (const file of files) {
+        const body = new FormData();
+        body.set("file", file);
+        const up = await fetch("/api/admin/storyboards/upload", { method: "POST", body });
+        const uploaded = await up.json();
+        if (!up.ok) throw new Error(uploaded.error || "Não enviou a imagem.");
+        images.push(uploaded.url as string);
+      }
       const res = await fetch("/api/admin/developments/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id, message }),
+        body: JSON.stringify({ id: current.id, message, images }),
       });
       const raw = await res.text();
       let data: { error?: string; development?: ProductDevelopment } = {};
@@ -230,6 +243,8 @@ export function DevelopmentView() {
       setCurrent(data.development ?? null);
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
+      setChatText(message);
+      setChatFiles(files);
       setError(e instanceof Error ? e.message : "Falha no Grok.");
     } finally {
       setBusy("");
@@ -469,7 +484,22 @@ export function DevelopmentView() {
                     : "bg-white/[0.04] text-white/75"
                 )}
               >
-                <p className="whitespace-pre-wrap">{message.text}</p>
+                {message.images && message.images.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {message.images.map((url) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={url}
+                        src={url}
+                        alt=""
+                        className="h-20 w-20 rounded-lg object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+                {message.text && (
+                  <p className="whitespace-pre-wrap">{message.text}</p>
+                )}
                 {message.scenes && message.scenes.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {message.scenes.map((scene) => (
@@ -514,7 +544,39 @@ export function DevelopmentView() {
             ))}
             <div ref={chatEndRef} />
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          {chatFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {chatFiles.map((file, index) => (
+                <span
+                  key={`${file.name}-${index}`}
+                  className="rounded-full bg-white/10 px-2 py-1 text-[11px] text-white/70"
+                >
+                  {file.name}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <input
+              ref={chatFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const picked = e.target.files ? [...e.target.files] : [];
+                e.target.value = "";
+                setChatFiles((prev) => [...prev, ...picked].slice(0, 4));
+              }}
+            />
+            <button
+              type="button"
+              title="Enviar imagem"
+              onClick={() => chatFileRef.current?.click()}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/70"
+            >
+              <ImagePlus size={18} />
+            </button>
             <textarea
               className={cn(panelInput, "min-h-20 flex-1")}
               placeholder="Desenvolve a ideia, ou pede a cena e os takes…"
@@ -529,7 +591,7 @@ export function DevelopmentView() {
             />
             <button
               type="button"
-              disabled={Boolean(busy) || !chatText.trim()}
+              disabled={Boolean(busy) || (!chatText.trim() && !chatFiles.length)}
               onClick={() => void sendChat()}
               className="flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
             >
