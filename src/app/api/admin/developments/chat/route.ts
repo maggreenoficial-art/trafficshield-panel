@@ -13,9 +13,10 @@ import { chatGrok46 } from "@/lib/kie/grok-chat";
 export const maxDuration = 300;
 
 const STORYBOARD_RULES = `Storyboard deste painel:
-- Cena = bloco de IMAGEM parada (modelo "image", 9:16, 1K). O prompt da cena COMEÇA pelo formato e desenvolve o quadro: retrato vertical 9:16 de anúncio de celular, ponta a ponta, pessoa em primeiro plano, sem barras, sem quadrado, sem paisagem 16:9, sem layout de página. Logo, print e página de referência podem ser quadrados ou horizontais: use só marca, cores, roupa e oferta. Não copie o formato dessas imagens.
-- Take = bloco de VÍDEO de 8 segundos (modelo grok_15, 720p, 9:16) plugado nessa Cena. A pessoa, a roupa e o fundo são os da cena. A fala entre aspas é SEMPRE espanhol latino neutro (Latam), nunca português. O resto da direção de câmera pode ficar em português.
-- Pose diferente = Cena nova, com os takes dela plugados nela. Não invente take solto.
+- Uma única Cena: a ATRIZ. Retrato vertical 9:16, rosto nítido, mesma roupa, sem ebook, sem prato e sem embalagem. Essa foto é a identidade dela. Não crie uma cena nova para cada ângulo.
+- Todos os takes nascem dessa mesma atriz. Muda o ângulo, o gesto e a ação. O rosto, o cabelo e a roupa não mudam.
+- Take = vídeo de 8 segundos. A fala entre aspas é SEMPRE espanhol latino neutro. O resto da direção pode ficar em português.
+- A imagem do produto (ebook, prato, página) NÃO é a atriz. showProduct true só no take em que o produto entra no quadro, em geral a leitura do começo e a oferta do final. Nos outros takes, showProduct false e o produto não aparece.
 - Um take = uma ação. Não empilhe três ideias no mesmo take.
 - Anúncio vertical de celular. Criativo simples, promessa específica, útil antes do pedido de compra.
 - O trabalho deste chat é o roteiro dos TAKES, que viram o vídeo. A Cena existe só como o quadro parado de onde o take nasce.
@@ -83,14 +84,13 @@ ${
         .join("\n")
     : "(nenhuma imagem hospedada)"
 }
-Essas fotos já existem e entram no storyboard do jeito que estão. Não peça uma imagem nova. No roteiro, use a foto que combina com a receita: leitura no celular, no iPad ou no livro físico no começo, preparo no meio, e a oferta só no final.
+Essas fotos são o PRODUTO, não a atriz. A primeira imagem do storyboard é a atriz, gerada uma vez, e ela se mantém em todos os takes. O produto só entra no take em que aparece (leitura e oferta final).
 
 FORMATO DESTE VÍDEO (engajamento, tutorial de graça):
-Isto não é anúncio de pitch. É um tutorial gratuito de como fazer a receita. A oferta só existe no último take.
-São 3 cenas, e a soma dos takes continua sendo exatamente a duração pedida:
-1) Cena de abertura, 1 take: a pessoa olha o material hospedado e lê a receita em espanhol. Sem oferta e sem pedido de comentário.
-2) Cenas do meio: ensina a fazer a receita de graça, passo a passo, com os ingredientes reais. Sem oferta e sem CTA.
-3) Cena final, 1 take: mostra de novo a imagem hospedada e coloca a oferta. A fala, em espanhol latino, convida a comentar QUIERO para receber mais receitas. Sem URL e sem legenda.`;
+Uma cena só: a atriz. A soma dos takes é a duração pedida.
+1) Primeiro take, showProduct true: ela lê a receita no ebook (celular, iPad ou livro). Sem oferta.
+2) Takes do meio, showProduct false: a mesma atriz ensina a receita. Só muda o ângulo. Sem ebook e sem oferta.
+3) Último take, showProduct true: mostra o ebook e convida, em espanhol, a comentar QUIERO. Sem URL e sem legenda.`;
 
     const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
 
@@ -130,7 +130,7 @@ OPERADOR: ${message || "(enviou só imagem)"}
 ${images.length ? `Nesta mensagem há ${images.length} imagem(ns) anexada(s). Olhe essas fotos primeiro.` : ""}
 
 Responda SOMENTE JSON válido, sem markdown. Sempre com os takes. "reply" em português. A frase falada, entre aspas, em espanhol:
-{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"Retrato vertical 9:16, anúncio de celular ponta a ponta, pessoa em primeiro plano, sem barras e sem quadrado. Foto parada.","takes":[{"title":"Take 1","prompt":"Olha para a câmera e fala em espanhol: \\"frase en español latino\\". Um gesto só.","seconds":8}]}]}}`;
+{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Atriz","prompt":"Mulher, rosto nítido, mesma roupa, cozinha simples, sem ebook e sem prato.","takes":[{"title":"Take 1","prompt":"Mesma atriz, ângulo frontal, lê a receita em espanhol.","seconds":8,"showProduct":true},{"title":"Take 2","prompt":"Mesma atriz, ângulo de lado, ensina o passo sem mostrar o produto.","seconds":8,"showProduct":false},{"title":"Take final","prompt":"Mesma atriz, mostra o ebook e fala em espanhol: comenta QUIERO.","seconds":8,"showProduct":true}]}]}}`;
 
     const imageUrls = [
       ...images,

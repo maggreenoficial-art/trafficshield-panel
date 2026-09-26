@@ -352,15 +352,8 @@ export function DevelopmentView() {
           if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a cena.");
         }
       }
-      const usedHosted = (data.blocks ?? []).some(
-        (block: { resultUrl?: string }) => Boolean(block.resultUrl)
-      );
       setNotice(
-        usedHosted
-          ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos já hospedadas entraram prontas. Os takes usam essas imagens.`
-          : generateImages
-            ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos foram para a Kie. Os takes estão em rascunho.`
-            : `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. Os takes entraram em rascunho.`
+        `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. A primeira imagem é a atriz e vale para todos os takes. O produto só entra na leitura e no final.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no storyboard.");
@@ -469,8 +462,9 @@ export function DevelopmentView() {
             Referências do produto
           </h2>
           <p className="text-xs text-white/40">
-            Imagens e PDF do ebook. A IA lê o PDF para achar a receita. As fotos
-            que você sobe já estão hospedadas e vão para todos os takes do storyboard.
+            Imagens e PDF do ebook. A IA lê o PDF para achar a receita. A primeira
+            imagem do storyboard é a atriz. As fotos do produto só entram nos takes
+            em que ele aparece.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
@@ -665,8 +659,7 @@ export function DevelopmentView() {
               >
                 <span className="block font-medium">Gerar as cenas na Kie</span>
                 <span className={cn("mt-1 block font-normal", handoff === "kie" ? "text-black/70" : "text-white/40")}>
-                  Seleção. Se já houver foto hospedada, ela entra pronta. A Kie
-                  só cria imagem quando não existe referência.
+                  Seleção. Gera a foto da atriz na Kie. O produto não vira essa imagem.
                 </span>
               </button>
             </div>

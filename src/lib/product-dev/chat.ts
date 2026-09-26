@@ -1,4 +1,4 @@
-import type { DevScene } from "@/lib/product-dev/types";
+import type { DevScene, DevSceneTake } from "@/lib/product-dev/types";
 
 export const VIDEO_LENGTH_SECONDS = [40, 60, 120] as const;
 export type VideoLengthSeconds = (typeof VIDEO_LENGTH_SECONDS)[number];
@@ -36,20 +36,27 @@ export function parseDevScenes(value: unknown): DevScene[] {
       const takes = Array.isArray(row.takes)
         ? row.takes
             .map((take) => {
-              const t = take as { title?: unknown; prompt?: unknown; seconds?: unknown };
+              const t = take as {
+                title?: unknown;
+                prompt?: unknown;
+                seconds?: unknown;
+                showProduct?: unknown;
+              };
               const takePrompt = asString(t.prompt);
               if (!takePrompt) return null;
               const seconds =
                 typeof t.seconds === "number" && t.seconds > 0
                   ? Math.min(8, Math.round(t.seconds))
                   : 8;
-              return {
+              const parsed: DevSceneTake = {
                 title: asString(t.title) || "Take",
                 prompt: takePrompt,
                 seconds,
+                showProduct: t.showProduct === true,
               };
+              return parsed;
             })
-            .filter((t): t is DevScene["takes"][number] => Boolean(t))
+            .filter((t): t is DevSceneTake => Boolean(t))
             .slice(0, 15)
         : [];
       return {

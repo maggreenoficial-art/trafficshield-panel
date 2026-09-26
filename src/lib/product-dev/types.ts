@@ -44,6 +44,7 @@ export type DevSceneTake = {
   title: string;
   prompt: string;
   seconds: number;
+  showProduct?: boolean;
 };
 
 export type DevScene = {
