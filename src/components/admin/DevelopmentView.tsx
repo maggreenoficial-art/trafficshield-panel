@@ -55,7 +55,6 @@ export function DevelopmentView() {
   const productFileRef = useRef<HTMLInputElement | null>(null);
   const chatFileRef = useRef<HTMLInputElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-  const [refLabel, setRefLabel] = useState("Oferta");
 
   async function reloadList() {
     const res = await fetch("/api/admin/developments");
@@ -184,7 +183,7 @@ export function DevelopmentView() {
           {
             kind: "image" as const,
             url: data.url as string,
-            title: refLabel.trim() || file.name,
+            title: file.name,
             text: file.name,
           },
         ].slice(0, 8);
@@ -207,11 +206,11 @@ export function DevelopmentView() {
     }
   }
 
-  async function sendChat() {
-    if (!current || (!chatText.trim() && !chatFiles.length)) return;
-    const message = chatText.trim();
+  async function sendChat(preset?: string) {
+    const message = (preset ?? chatText).trim();
+    if (!current || (!message && !chatFiles.length)) return;
     const files = chatFiles.slice(0, 4);
-    setChatText("");
+    if (!preset) setChatText("");
     setChatFiles([]);
     setBusy("grok");
     setError("");
@@ -243,7 +242,7 @@ export function DevelopmentView() {
       setCurrent(data.development ?? null);
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
-      setChatText(message);
+      if (!preset) setChatText(message);
       setChatFiles(files);
       setError(e instanceof Error ? e.message : "Falha no Grok.");
     } finally {
@@ -306,7 +305,7 @@ export function DevelopmentView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="O cérebro define como o Grok pensa. O chat desenvolve a ideia até a cena e o take do storyboard."
+        subtitle="O cérebro e as referências do produto alimentam os takes. Cada take é o roteiro de um vídeo de 8s."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -319,7 +318,7 @@ export function DevelopmentView() {
           />
           <input
             className={panelInput}
-            placeholder="Briefing curto (opcional)"
+            placeholder="O que o vídeo precisa vender (opcional)"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
           />
@@ -397,24 +396,13 @@ export function DevelopmentView() {
         <>
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-white/80">
-            Referências deste produto
+            Referências do produto
           </h2>
           <p className="text-xs text-white/40">
-            Logo, print da oferta e criativos que já existem. O Grok olha essas
-            imagens em toda mensagem deste produto.
+            Logo, oferta, criativo e página, tudo no mesmo lugar. O Grok junta
+            essas imagens com o cérebro para escrever os takes.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <select
-              className={cn(panelInput, "sm:max-w-40")}
-              value={refLabel}
-              onChange={(e) => setRefLabel(e.target.value)}
-            >
-              {["Logo", "Oferta", "Criativo", "Página"].map((label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ))}
-            </select>
             <input
               ref={productFileRef}
               type="file"
@@ -428,7 +416,7 @@ export function DevelopmentView() {
               onClick={() => productFileRef.current?.click()}
               className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white"
             >
-              {busy === "ref" ? "Enviando…" : "Enviar imagens"}
+              {busy === "ref" ? "Enviando…" : "Enviar referências"}
             </button>
           </div>
           {current.referencePages.some((item) => item.kind === "image") && (
@@ -460,18 +448,16 @@ export function DevelopmentView() {
         </section>
         <section className={cn(panelCardPadded, "space-y-4")}>
           <div>
-            <h2 className="text-sm font-medium text-white/80">
-              Chat de desenvolvimento
-            </h2>
+            <h2 className="text-sm font-medium text-white/80">Takes do vídeo</h2>
             <p className="mt-1 text-xs text-white/40">
-              Conversa a ideia com o Grok. Quando pedir o criativo, ele monta
-              Cena (imagem parada) e Take (vídeo de 8s plugado nessa cena).
+              Este chat escreve o roteiro dos takes. Cada take é um vídeo de 8s,
+              plugado na cena parada, pronto para ir ao storyboard.
             </p>
           </div>
           <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
             {messages.length === 0 && (
               <p className="text-sm text-white/40">
-                Comece pela oferta, pela dor ou pelo criativo que você quer testar.
+                Envie as referências e gere os takes. O roteiro de cada vídeo aparece aqui.
               </p>
             )}
             {messages.map((message, index) => (
@@ -556,6 +542,19 @@ export function DevelopmentView() {
               ))}
             </div>
           )}
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() =>
+              void sendChat(
+                "Olha as referências deste produto junto com o cérebro e escreve os takes do criativo de vídeo. Cada take é um roteiro de 8 segundos que vira o vídeo."
+              )
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+          >
+            {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
+            Gerar os takes
+          </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <input
               ref={chatFileRef}
@@ -579,7 +578,7 @@ export function DevelopmentView() {
             </button>
             <textarea
               className={cn(panelInput, "min-h-20 flex-1")}
-              placeholder="Desenvolve a ideia, ou pede a cena e os takes…"
+              placeholder="Ajuste o gancho, a fala ou o que o take precisa mostrar…"
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
               onKeyDown={(e) => {

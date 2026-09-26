@@ -18,7 +18,8 @@ const STORYBOARD_RULES = `Storyboard deste painel:
 - Pose diferente = Cena nova, com os takes dela plugados nela. Não invente take solto.
 - Um take = uma ação. Não empilhe três ideias no mesmo take.
 - Anúncio vertical de celular. Criativo simples, promessa específica, útil antes do pedido de compra.
-- Só preencha "storyboard" quando a pessoa pedir para montar criativo, cena, take, imagem ou jogar no storyboard. No meio da conversa de ideia, storyboard fica null.`;
+- O trabalho deste chat é o roteiro dos TAKES, que viram o vídeo. A Cena existe só como o quadro parado de onde o take nasce.
+- Sempre devolva o storyboard com cenas e takes. Se pedirem ajuste, devolva o roteiro já corrigido. Prefira uma cena e vários takes (gancho, desenvolvimento, pedido) em vez de espalhar a ideia em várias fotos.`;
 
 export async function POST(request: NextRequest) {
   const ctx = await requirePlatformAdmin(request);
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
       .map((item) => `${item.role === "user" ? "OPERADOR" : "VOCÊ"}: ${item.text}`)
       .join("\n\n");
 
-    const prompt = `Você desenvolve a ideia de um produto digital em conversa, em português do Brasil.
+    const prompt = `Você escreve criativos de vídeo (roteiro de takes) para anúncio, em português do Brasil. Não desenvolve página nem conversa de ideia solta. O entregável é o roteiro dos takes, que depois viram vídeo.
 
 ${BRAIN_THINKING}
 
@@ -63,11 +64,11 @@ ${STORYBOARD_RULES}
 Produto: ${current.name}
 Briefing: ${current.brief || "(sem briefing)"}
 
-Referências visuais deste produto (logo, oferta, criativo já existente). As imagens vão anexadas. Use o que aparece nelas: marca, promessa, cores, preço e formato. Não invente uma oferta diferente da que está na imagem.
+Referências visuais deste produto, todas juntas (logo, oferta, criativo e página). As imagens vão anexadas. Use o que aparece nelas: marca, promessa, cores, preço e formato. Não invente uma oferta diferente da que está na imagem.
 ${
   current.referencePages
     .filter((item) => item.kind === "image" && item.url)
-    .slice(0, 4)
+    .slice(0, 8)
     .map((item, i) => `${i + 1}. ${item.title}`)
     .join("\n") || "(sem imagem deste produto)"
 }
@@ -80,11 +81,8 @@ ${thread || "(começo)"}
 OPERADOR: ${message || "(enviou só imagem)"}
 ${images.length ? `Nesta mensagem há ${images.length} imagem(ns) anexada(s). Olhe essas fotos primeiro.` : ""}
 
-Responda SOMENTE JSON válido, sem markdown:
-{"reply":"sua fala, direta, desenvolvendo a ideia","storyboard":null}
-
-Quando for hora de criativo, troque null por:
-{"reply":"...","storyboard":{"scenes":[{"title":"Cena 1","prompt":"foto parada 9:16","takes":[{"title":"Take 1","prompt":"movimento e fala a partir dessa foto","seconds":8}]}]}}`;
+Responda SOMENTE JSON válido, sem markdown. Sempre com os takes:
+{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"foto parada 9:16, mesma pessoa em todos os takes","takes":[{"title":"Take 1","prompt":"o que a pessoa fala e faz nestes 8 segundos","seconds":8}]}]}}`;
 
     const imageUrls = [
       ...images,
