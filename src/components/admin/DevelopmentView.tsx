@@ -27,22 +27,30 @@ function isPdf(file: File) {
   );
 }
 
+async function extractPdfText(file: File) {
+  if (file.size > 40_000_000) {
+    throw new Error(`${file.name} passa de 40 MB.`);
+  }
+  const { extractText } = await import("unpdf");
+  const data = new Uint8Array(await file.arrayBuffer());
+  const { text } = await extractText(data, { mergePages: true });
+  const extracted = (Array.isArray(text) ? text.join("\n\n") : String(text ?? ""))
+    .replace(/\u0000/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 40_000);
+  if (extracted.length < 40) {
+    throw new Error(
+      "Esse PDF não tem texto selecionável. Se for só imagem, exporte como .txt."
+    );
+  }
+  return extracted;
+}
+
 async function readDoc(file: File) {
   if (isPdf(file)) {
-    if (file.size > 12_000_000) {
-      throw new Error(`${file.name} passa de 12 MB.`);
-    }
-    const body = new FormData();
-    body.set("file", file);
-    const res = await fetch("/api/admin/developments/extract", {
-      method: "POST",
-      body,
-    });
-    const data = (await res.json()) as { error?: string; text?: string };
-    if (!res.ok || !data.text) {
-      throw new Error(data.error || "Não consegui ler o PDF.");
-    }
-    return data.text;
+    return extractPdfText(file);
   }
   if (file.size > 1_500_000) {
     throw new Error(`${file.name} passa de 1,5 MB.`);
@@ -185,16 +193,7 @@ export function DevelopmentView() {
         const isPdf =
           file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
         if (isPdf) {
-          const body = new FormData();
-          body.set("file", file);
-          const res = await fetch("/api/admin/developments/extract", {
-            method: "POST",
-            body,
-          });
-          const data = (await res.json()) as { error?: string; text?: string };
-          if (!res.ok || !data.text) {
-            throw new Error(data.error || "Não li o PDF do ebook.");
-          }
+          const text = await extractPdfText(file);
           referencePages = [
             ...referencePages.filter(
               (item) => !(item.kind === "text" && item.title === file.name)
@@ -203,7 +202,7 @@ export function DevelopmentView() {
               kind: "text" as const,
               url: `pdf:${file.name}`,
               title: file.name,
-              text: data.text,
+              text,
             },
           ];
           continue;
