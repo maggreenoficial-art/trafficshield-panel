@@ -3,12 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
-import { CopyNameButton } from "@/components/admin/CopyNameButton";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
-import type { DevDoc, DevReferenceKind, ProductDevelopment } from "@/lib/product-dev/types";
+import type { DevDoc, DevScene, ProductDevelopment } from "@/lib/product-dev/types";
 
-type DomainOption = { id: string; hostname: string; label: string | null };
 type Listed = { id: string; name: string; status: string; updatedAt: string };
 
 const DOC_SLOTS = [1, 2, 3] as const;
@@ -44,26 +42,22 @@ async function readDoc(file: File) {
 
 export function DevelopmentView() {
   const [items, setItems] = useState<Listed[]>([]);
-  const [domains, setDomains] = useState<DomainOption[]>([]);
   const [current, setCurrent] = useState<ProductDevelopment | null>(null);
   const [name, setName] = useState("");
   const [brief, setBrief] = useState("");
-  const [refUrl, setRefUrl] = useState("");
-  const [hostname, setHostname] = useState("");
-  const [path, setPath] = useState("/");
+  const [chatText, setChatText] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [brain, setBrain] = useState<DevDoc[]>([]);
   const fileRefs = useRef<Partial<Record<1 | 2 | 3, HTMLInputElement | null>>>({});
-  const refFileRef = useRef<HTMLInputElement | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   async function reloadList() {
     const res = await fetch("/api/admin/developments");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Falha ao listar.");
     setItems(data.developments ?? []);
-    setDomains(data.domains ?? []);
   }
 
   useEffect(() => {
@@ -85,9 +79,7 @@ export function DevelopmentView() {
       setCurrent(dev);
       setName(dev.name);
       setBrief(dev.brief);
-      setHostname(dev.publishHostname ?? data.domains?.[0]?.hostname ?? "");
-      setPath(dev.publishPath || "/");
-      setDomains(data.domains ?? []);
+      setChatText("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao abrir.");
     } finally {
@@ -166,72 +158,19 @@ export function DevelopmentView() {
     }
   }
 
-  async function addReference() {
-    if (!current || !refUrl.trim()) return;
-    setError("");
-    const referencePages = [
-      ...current.referencePages,
-      { kind: "site" as const, url: refUrl.trim(), title: refUrl.trim(), text: "" },
-    ].slice(0, 8);
-    setRefUrl("");
-    try {
-      await saveDraft({ ...current, name, brief, referencePages });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao guardar a página.");
-    }
-  }
-
-  async function onReferenceFile(list: FileList | null) {
-    const file = list?.[0];
-    if (refFileRef.current) refFileRef.current.value = "";
-    if (!file || !current) return;
-    setError("");
-    setBusy("ref");
-    try {
-      const isImage = file.type.startsWith("image/");
-      const isVideo = file.type.startsWith("video/");
-      let referencePages: ProductDevelopment["referencePages"] = current.referencePages;
-      if (isImage || isVideo) {
-        const body = new FormData();
-        body.set("file", file);
-        const res = await fetch("/api/admin/storyboards/upload", {
-          method: "POST",
-          body,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Não enviou o arquivo.");
-        const kind: DevReferenceKind = isVideo ? "video" : "image";
-        const item = {
-          kind,
-          url: data.url as string,
-          title: file.name,
-          text: "",
-        };
-        referencePages = [...referencePages, item].slice(0, 8);
-      } else {
-        const text = await readDoc(file);
-        const item = { kind: "text" as const, url: "", title: file.name, text };
-        referencePages = [...referencePages, item].slice(0, 8);
-      }
-      await saveDraft({ ...current, name, brief, referencePages });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha na referência.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  async function processProduct() {
-    if (!current) return;
+  async function sendChat() {
+    if (!current || !chatText.trim()) return;
+    const message = chatText.trim();
+    setChatText("");
     setBusy("grok");
     setError("");
     setNotice("");
     try {
       await saveDraft({ ...current, name, brief });
-      const res = await fetch("/api/admin/developments/process", {
+      const res = await fetch("/api/admin/developments/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id }),
+        body: JSON.stringify({ id: current.id, message }),
       });
       const raw = await res.text();
       let data: { error?: string; development?: ProductDevelopment } = {};
@@ -242,8 +181,7 @@ export function DevelopmentView() {
       }
       if (!res.ok) throw new Error(data.error || "Grok falhou.");
       setCurrent(data.development ?? null);
-      setNotice("Grok 4.6 montou a copy, a página e os criativos.");
-      await reloadList();
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no Grok.");
     } finally {
@@ -251,7 +189,7 @@ export function DevelopmentView() {
     }
   }
 
-  async function sendStoryboard(generateImages: boolean) {
+  async function sendScenes(scenes: DevScene[], generateImages: boolean) {
     if (!current) return;
     setBusy(generateImages ? "gerar" : "board");
     setError("");
@@ -260,12 +198,12 @@ export function DevelopmentView() {
       const res = await fetch("/api/admin/developments/storyboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id }),
+        body: JSON.stringify({ id: current.id, storyboard: { scenes } }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Storyboard falhou.");
       setCurrent({ ...current, storyboardId: data.storyboardId });
-      if (generateImages && !data.already) {
+      if (generateImages) {
         const images = (data.blocks ?? []).filter(
           (block: { kind: string }) => block.kind === "image"
         );
@@ -277,24 +215,21 @@ export function DevelopmentView() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 blockId: block.id,
-                modelKey: block.modelKey,
+                modelKey: "image",
                 prompt: block.prompt,
-                aspectRatio: "1:1",
+                aspectRatio: "9:16",
                 resolution: "1K",
               }),
             }
           );
           const genData = await gen.json();
-          if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a imagem.");
+          if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a cena.");
         }
       }
-      const videos = (data.blocks ?? []).filter(
-        (block: { kind: string }) => block.kind === "video"
-      ).length;
       setNotice(
         generateImages
-          ? `Imagens autorizadas na Kie. ${videos} takes de vídeo ficaram em rascunho no storyboard, ligados à imagem.`
-          : "Storyboard criado com imagens e takes em rascunho. Nada foi gerado ainda."
+          ? "Cenas foram para a Kie. Os takes estão plugados nelas, em rascunho, no storyboard."
+          : "Cenas e takes entraram no storyboard, em rascunho."
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no storyboard.");
@@ -303,44 +238,13 @@ export function DevelopmentView() {
     }
   }
 
-  async function publish() {
-    if (!current) return;
-    if (!hostname) {
-      setError("Escolha um domínio já cadastrado.");
-      return;
-    }
-    setBusy("publicar");
-    setError("");
-    try {
-      const res = await fetch("/api/admin/developments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: current.id,
-          publishHostname: hostname,
-          publishPath: path || "/",
-          publish: true,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Não publicou.");
-      setCurrent(data.development);
-      setNotice(`No ar em https://${hostname}${path || "/"}`);
-      await reloadList();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao publicar.");
-    } finally {
-      setBusy("");
-    }
-  }
-
-  const plan = current?.plan;
+  const messages = current?.plan?.messages ?? [];
 
   return (
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="O cérebro define como o Grok pensa. Imagem, vídeo, texto e site são a referência de cada produto."
+        subtitle="O cérebro define como o Grok pensa. O chat desenvolve a ideia até a cena e o take do storyboard."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -428,206 +332,111 @@ export function DevelopmentView() {
       </section>
 
       {current && (
-        <>
-          <section className={cn(panelCardPadded, "space-y-3")}>
+        <section className={cn(panelCardPadded, "space-y-4")}>
+          <div>
             <h2 className="text-sm font-medium text-white/80">
-              Referências deste produto
+              Chat de desenvolvimento
             </h2>
-            <p className="text-xs text-white/40">
-              Imagem, vídeo, texto ou site. O Grok olha isso com o pensamento do
-              cérebro, não no lugar dele.
+            <p className="mt-1 text-xs text-white/40">
+              Conversa a ideia com o Grok. Quando pedir o criativo, ele monta
+              Cena (imagem parada) e Take (vídeo de 8s plugado nessa cena).
             </p>
-            <input
-              ref={refFileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.pdf,.txt,.md,text/plain"
-              className="hidden"
-              onChange={(e) => void onReferenceFile(e.target.files)}
-            />
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => refFileRef.current?.click()}
-                className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white"
+          </div>
+          <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+            {messages.length === 0 && (
+              <p className="text-sm text-white/40">
+                Comece pela oferta, pela dor ou pelo criativo que você quer testar.
+              </p>
+            )}
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={cn(
+                  "rounded-xl px-3 py-2.5 text-sm leading-relaxed",
+                  message.role === "user"
+                    ? "bg-sky-500/15 text-white"
+                    : "bg-white/[0.04] text-white/75"
+                )}
               >
-                {busy === "ref" ? "Enviando…" : "Imagem, vídeo ou texto"}
-              </button>
-              <input
-                className={panelInput}
-                placeholder="https:// página de referência"
-                value={refUrl}
-                onChange={(e) => setRefUrl(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => void addReference()}
-                disabled={current.referencePages.length >= 8}
-                className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white disabled:opacity-40"
-              >
-                Site
-              </button>
-            </div>
-            <ul className="space-y-1 text-xs text-white/50">
-              {current.referencePages.map((page, index) => (
-                <li key={`${page.kind}-${page.title}-${index}`} className="truncate">
-                  {(page.kind ?? "site").toUpperCase()} · {page.title || page.url}
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={() => void processProduct()}
-              className="flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
-            >
-              {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
-              Processar com Grok 4.6
-            </button>
-          </section>
-
-          {plan && (
-            <>
-              <section className={cn(panelCardPadded, "space-y-3")}>
-                <h2 className="text-sm font-medium text-white/80">Copy do produto</h2>
-                <p className="text-sm leading-relaxed text-white/60">{plan.summary}</p>
-                <CopyRow label="Headline" text={plan.copy.headline} />
-                <CopyRow label="Subheadline" text={plan.copy.subheadline} />
-                {plan.copy.sections.map((section) => (
-                  <CopyRow
-                    key={section.title}
-                    label={section.title}
-                    text={section.body}
-                  />
-                ))}
-                <CopyRow label="CTA" text={plan.copy.cta} />
-                <CopyRow label="Assunto do e-mail" text={plan.copy.emailSubject} />
-                <CopyRow label="E-mail" text={plan.copy.emailBody} />
-              </section>
-
-              {plan.pageHtml && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-medium text-white/80">
-                    Página do produto
-                  </h2>
-                  <iframe
-                    title="Prévia da página"
-                    sandbox=""
-                    srcDoc={plan.pageHtml}
-                    className="h-[640px] w-full rounded-xl border border-white/10 bg-white"
-                  />
-                  <div className={cn(panelCardPadded, "flex flex-col gap-3 sm:flex-row sm:items-end")}>
-                    <label className="flex-1 text-xs text-white/45">
-                      Domínio
-                      <select
-                        className={cn(panelInput, "mt-1")}
-                        value={hostname}
-                        onChange={(e) => setHostname(e.target.value)}
+                <p className="whitespace-pre-wrap">{message.text}</p>
+                {message.scenes && message.scenes.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {message.scenes.map((scene) => (
+                      <div
+                        key={scene.title}
+                        className="rounded-lg border border-white/10 px-3 py-2"
                       >
-                        <option value="">Escolher</option>
-                        {domains.map((domain) => (
-                          <option key={domain.id} value={domain.hostname}>
-                            {domain.hostname}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="w-full text-xs text-white/45 sm:w-40">
-                      Caminho
-                      <input
-                        className={cn(panelInput, "mt-1")}
-                        value={path}
-                        onChange={(e) => setPath(e.target.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      disabled={Boolean(busy)}
-                      onClick={() => void publish()}
-                      className="rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
-                    >
-                      {busy === "publicar" ? "Publicando…" : "Publicar no domínio"}
-                    </button>
-                  </div>
-                </section>
-              )}
-
-              <section className="space-y-3">
-                <h2 className="text-sm font-medium text-white/80">
-                  Criativos para o storyboard
-                </h2>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {plan.creatives.map((creative) => (
-                    <div key={`${creative.kind}-${creative.title}`} className={panelCardPadded}>
-                      <p className="text-[11px] uppercase tracking-wide text-sky-300/80">
-                        {creative.kind === "video" ? "Vídeo" : "Imagem"}
-                      </p>
-                      <p className="mt-1 text-sm text-white">{creative.title}</p>
-                      <p className="mt-1 text-xs leading-relaxed text-white/50">
-                        {creative.prompt}
-                      </p>
-                      {creative.takes.length > 0 && (
-                        <ul className="mt-2 space-y-1 text-xs text-white/45">
-                          {creative.takes.map((take) => (
-                            <li key={take.title}>
-                              {take.title} · {take.seconds}s
+                        <p className="text-[11px] uppercase tracking-wide text-sky-300/80">
+                          Cena · {scene.title}
+                        </p>
+                        <p className="mt-1 text-xs text-white/60">{scene.prompt}</p>
+                        <ul className="mt-2 space-y-1">
+                          {scene.takes.map((take) => (
+                            <li key={take.title} className="text-xs text-white/50">
+                              {take.title} · {take.seconds}s — {take.prompt}
                             </li>
                           ))}
                         </ul>
-                      )}
+                      </div>
+                    ))}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => void sendScenes(message.scenes ?? [], false)}
+                        className="rounded-xl bg-white/10 px-3 py-2 text-xs text-white disabled:opacity-40"
+                      >
+                        {busy === "board" ? "Enviando…" : "Jogar no storyboard"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy)}
+                        onClick={() => void sendScenes(message.scenes ?? [], true)}
+                        className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-medium text-black disabled:opacity-40"
+                      >
+                        {busy === "gerar" ? "Gerando cenas…" : "Gerar as cenas na Kie"}
+                      </button>
                     </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={Boolean(busy) || Boolean(current.storyboardId)}
-                    onClick={() => void sendStoryboard(false)}
-                    className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white disabled:opacity-40"
-                  >
-                    {busy === "board" ? "Montando…" : "Montar storyboard"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(busy) || Boolean(current.storyboardId)}
-                    onClick={() => void sendStoryboard(true)}
-                    className="rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
-                  >
-                    {busy === "gerar"
-                      ? "Autorizando imagens…"
-                      : "Autorizar criação de imagens"}
-                  </button>
-                  {current.storyboardId && (
-                    <a
-                      href={`/storyboards/${current.storyboardId}`}
-                      className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black"
-                    >
-                      Abrir storyboard
-                    </a>
-                  )}
-                </div>
-                <p className="text-xs text-white/40">
-                  Autorizar gasta crédito Kie só nas imagens. Os takes de vídeo
-                  entram como rascunho, ligados à imagem, para você gerar no
-                  storyboard quando a cena estiver pronta.
-                </p>
-              </section>
-            </>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <textarea
+              className={cn(panelInput, "min-h-20 flex-1")}
+              placeholder="Desenvolve a ideia, ou pede a cena e os takes…"
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void sendChat();
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={Boolean(busy) || !chatText.trim()}
+              onClick={() => void sendChat()}
+              className="flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+            >
+              {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
+              Enviar
+            </button>
+          </div>
+          {current.storyboardId && (
+            <a
+              href={`/storyboards/${current.storyboardId}`}
+              className="inline-flex rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black"
+            >
+              Abrir storyboard
+            </a>
           )}
-        </>
+        </section>
       )}
     </div>
   );
 }
 
-function CopyRow({ label, text }: { label: string; text: string }) {
-  if (!text) return null;
-  return (
-    <div className="rounded-lg border border-white/[0.06] px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] uppercase tracking-wide text-white/35">{label}</p>
-        <CopyNameButton name={text} />
-      </div>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-white/75">{text}</p>
-    </div>
-  );
-}

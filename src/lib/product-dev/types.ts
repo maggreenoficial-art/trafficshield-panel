@@ -40,11 +40,30 @@ export type DevCreative = {
   takes: DevTake[];
 };
 
+export type DevSceneTake = {
+  title: string;
+  prompt: string;
+  seconds: number;
+};
+
+export type DevScene = {
+  title: string;
+  prompt: string;
+  takes: DevSceneTake[];
+};
+
+export type DevChatMessage = {
+  role: "user" | "assistant";
+  text: string;
+  scenes?: DevScene[];
+};
+
 export type DevPlan = {
-  summary: string;
-  copy: DevCopy;
-  pageHtml: string;
-  creatives: DevCreative[];
+  summary?: string;
+  copy?: DevCopy;
+  pageHtml?: string;
+  creatives?: DevCreative[];
+  messages?: DevChatMessage[];
 };
 
 export type ProductDevelopment = {

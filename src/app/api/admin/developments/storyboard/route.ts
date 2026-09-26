@@ -4,36 +4,45 @@ import {
   getProductDevelopment,
   updateProductDevelopment,
 } from "@/lib/db/product-developments";
-import { createBlock, createStoryboard } from "@/lib/db/storyboards";
+import {
+  createBlock,
+  createStoryboard,
+  listBlocks,
+} from "@/lib/db/storyboards";
+import { parseDevScenes } from "@/lib/product-dev/chat";
 
 export async function POST(request: NextRequest) {
   const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
 
   try {
-    const body = (await request.json()) as { id?: string };
-    if (!body.id) {
-      return NextResponse.json({ error: "Produto obrigatório." }, { status: 400 });
-    }
-    const current = await getProductDevelopment(ctx.tenantId, body.id);
-    if (!current?.plan?.creatives.length) {
+    const body = (await request.json()) as { id?: string; storyboard?: unknown };
+    const scenes = parseDevScenes(body.storyboard);
+    if (!body.id || !scenes.length) {
       return NextResponse.json(
-        { error: "Processe o produto antes de montar o storyboard." },
+        { error: "Não há cenas para enviar ao storyboard." },
         { status: 400 }
       );
     }
-    if (current.storyboardId) {
-      return NextResponse.json({
-        storyboardId: current.storyboardId,
-        blocks: [],
-        already: true,
-      });
+    const current = await getProductDevelopment(ctx.tenantId, body.id);
+    if (!current) {
+      return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
     }
 
-    const board = await createStoryboard(ctx.tenantId, {
-      name: current.name,
-      description: current.plan.summary.slice(0, 280),
-    });
+    let storyboardId = current.storyboardId;
+    if (!storyboardId) {
+      const board = await createStoryboard(ctx.tenantId, {
+        name: current.name,
+        description: current.brief.slice(0, 280) || current.name,
+      });
+      storyboardId = board.id;
+    }
+
+    const existing = await listBlocks(ctx.tenantId, storyboardId);
+    let x0 = 80;
+    if (existing.length) {
+      x0 = Math.max(...existing.map((block) => block.positionX)) + 340;
+    }
 
     const blocks: {
       id: string;
@@ -43,65 +52,53 @@ export async function POST(request: NextRequest) {
       modelKey: string;
     }[] = [];
 
-    let imageAnchor: string | null = null;
     let y = 80;
-    for (const creative of current.plan.creatives) {
-      if (creative.kind === "image") {
-        const block = await createBlock(ctx.tenantId, {
-          storyboardId: board.id,
-          modelKey: "image",
-          prompt: `${creative.title}. ${creative.prompt}`,
-          aspectRatio: "1:1",
-          resolution: "1K",
-          positionX: 80,
-          positionY: y,
-          status: "draft",
-        });
-        imageAnchor = block.id;
-        blocks.push({
-          id: block.id,
-          kind: "image",
-          title: creative.title,
-          prompt: block.prompt,
-          modelKey: "image",
-        });
-        y += 220;
-        continue;
-      }
+    for (const scene of scenes) {
+      const cena = await createBlock(ctx.tenantId, {
+        storyboardId,
+        modelKey: "image",
+        prompt: scene.prompt,
+        aspectRatio: "9:16",
+        resolution: "1K",
+        positionX: x0,
+        positionY: y,
+        status: "draft",
+      });
+      blocks.push({
+        id: cena.id,
+        kind: "image",
+        title: scene.title,
+        prompt: scene.prompt,
+        modelKey: "image",
+      });
 
-      const takes = creative.takes.length
-        ? creative.takes
-        : [{ title: creative.title, prompt: creative.prompt, seconds: 8 }];
-      let x = 360;
-      for (const take of takes) {
-        const block = await createBlock(ctx.tenantId, {
-          storyboardId: board.id,
+      let x = x0 + 320;
+      for (const take of scene.takes) {
+        const video = await createBlock(ctx.tenantId, {
+          storyboardId,
           modelKey: "grok_15",
-          prompt: `${creative.title} · ${take.title}. ${take.prompt}`,
+          prompt: take.prompt,
           aspectRatio: "9:16",
           resolution: "720p",
           positionX: x,
           positionY: y,
           status: "draft",
-          sourceBlockId: imageAnchor,
+          sourceBlockId: cena.id,
         });
         blocks.push({
-          id: block.id,
+          id: video.id,
           kind: "video",
           title: take.title,
-          prompt: block.prompt,
+          prompt: take.prompt,
           modelKey: "grok_15",
         });
-        x += 280;
+        x += 300;
       }
-      y += 220;
+      y += 280;
     }
 
-    await updateProductDevelopment(ctx.tenantId, current.id, {
-      storyboardId: board.id,
-    });
-
-    return NextResponse.json({ storyboardId: board.id, blocks, already: false });
+    await updateProductDevelopment(ctx.tenantId, current.id, { storyboardId });
+    return NextResponse.json({ storyboardId, blocks });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Falha ao criar storyboard.";
     return NextResponse.json({ error: msg }, { status: 500 });
