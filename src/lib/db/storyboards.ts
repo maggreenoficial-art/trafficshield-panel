@@ -257,6 +257,8 @@ export async function createBlock(
     positionX: number;
     positionY: number;
     status?: StoryboardBlock["status"];
+    resultUrl?: string | null;
+    resultUrls?: string[];
     creditsCharged?: number;
     kieModel?: string;
     sourceBlockId?: string | null;
@@ -276,6 +278,8 @@ export async function createBlock(
       position_x: input.positionX,
       position_y: input.positionY,
       status: input.status ?? "draft",
+      result_url: input.resultUrl ?? null,
+      result_urls: input.resultUrls ?? [],
       credits_charged: input.creditsCharged ?? 0,
       kie_model: input.kieModel ?? null,
       source_block_id: input.sourceBlockId ?? null,

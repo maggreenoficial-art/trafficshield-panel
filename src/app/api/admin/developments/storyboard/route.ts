@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
 
     const hostedImages = current.referencePages
       .filter((item) => item.kind === "image" && item.url.startsWith("http"))
-      .map((item) => item.url)
       .slice(0, 7);
     const blocks: {
       id: string;
@@ -64,43 +63,84 @@ export async function POST(request: NextRequest) {
       prompt: string;
       modelKey: string;
       referenceUrls?: string[];
+      resultUrl?: string;
     }[] = [];
 
+    const hostedUrls = hostedImages.map((item) => item.url);
+    const photoBlocks: { id: string; y: number }[] = [];
+
+    if (hostedImages.length) {
+      for (const [index, photo] of hostedImages.entries()) {
+        const y = 80 + index * 280;
+        const ready = await createBlock(ctx.tenantId, {
+          storyboardId,
+          modelKey: "image",
+          prompt: photo.title || "Referência hospedada",
+          aspectRatio: "9:16",
+          resolution: "1K",
+          referenceUrls: [photo.url],
+          positionX: x0,
+          positionY: y,
+          status: "success",
+          resultUrl: photo.url,
+          resultUrls: [photo.url],
+        });
+        photoBlocks.push({ id: ready.id, y });
+        blocks.push({
+          id: ready.id,
+          kind: "image",
+          title: photo.title,
+          prompt: photo.title,
+          modelKey: "image",
+          referenceUrls: [photo.url],
+          resultUrl: photo.url,
+        });
+      }
+    }
+
+    let takeIndex = 0;
     let y = 80;
     for (const scene of scenes) {
       const scenePrompt = withSceneFormat(scene.prompt);
-      const cena = await createBlock(ctx.tenantId, {
-        storyboardId,
-        modelKey: "image",
-        prompt: scenePrompt,
-        aspectRatio: "9:16",
-        resolution: "1K",
-        positionX: x0,
-        positionY: y,
-        status: "draft",
-      });
-      blocks.push({
-        id: cena.id,
-        kind: "image",
-        title: scene.title,
-        prompt: scenePrompt,
-        modelKey: "image",
-      });
+      let cenaId = photoBlocks[0]?.id;
+      if (!cenaId) {
+        const cena = await createBlock(ctx.tenantId, {
+          storyboardId,
+          modelKey: "image",
+          prompt: scenePrompt,
+          aspectRatio: "9:16",
+          resolution: "1K",
+          positionX: x0,
+          positionY: y,
+          status: "draft",
+        });
+        cenaId = cena.id;
+        blocks.push({
+          id: cena.id,
+          kind: "image",
+          title: scene.title,
+          prompt: scenePrompt,
+          modelKey: "image",
+        });
+      }
 
       let x = x0 + 320;
       for (const take of scene.takes) {
         const takePrompt = withSpanishSpeech(take.prompt);
+        const photo = photoBlocks.length
+          ? photoBlocks[takeIndex % photoBlocks.length]
+          : null;
         const video = await createBlock(ctx.tenantId, {
           storyboardId,
           modelKey: "grok_15",
           prompt: takePrompt,
           aspectRatio: "9:16",
           resolution: "720p",
-          referenceUrls: hostedImages,
+          referenceUrls: hostedUrls,
           positionX: x,
-          positionY: y,
+          positionY: photo?.y ?? y,
           status: "draft",
-          sourceBlockId: cena.id,
+          sourceBlockId: photo?.id ?? cenaId,
         });
         blocks.push({
           id: video.id,
@@ -108,11 +148,12 @@ export async function POST(request: NextRequest) {
           title: take.title,
           prompt: takePrompt,
           modelKey: "grok_15",
-          referenceUrls: hostedImages,
+          referenceUrls: hostedUrls,
         });
         x += 300;
+        takeIndex += 1;
       }
-      y += 280;
+      if (!photoBlocks.length) y += 280;
     }
 
     await updateProductDevelopment(ctx.tenantId, current.id, { storyboardId });

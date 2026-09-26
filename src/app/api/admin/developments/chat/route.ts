@@ -83,7 +83,7 @@ ${
         .join("\n")
     : "(nenhuma imagem hospedada)"
 }
-Essas fotos já existem. O storyboard recebe elas em todos os takes. No roteiro, use a foto que combina com a receita escolhida: leitura no celular, no iPad ou no livro físico no começo, preparo no meio, e a mesma imagem de novo só na oferta do final.
+Essas fotos já existem e entram no storyboard do jeito que estão. Não peça uma imagem nova. No roteiro, use a foto que combina com a receita: leitura no celular, no iPad ou no livro físico no começo, preparo no meio, e a oferta só no final.
 
 FORMATO DESTE VÍDEO (engajamento, tutorial de graça):
 Isto não é anúncio de pitch. É um tutorial gratuito de como fazer a receita. A oferta só existe no último take.

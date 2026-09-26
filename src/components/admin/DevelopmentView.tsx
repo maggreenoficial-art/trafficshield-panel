@@ -329,7 +329,8 @@ export function DevelopmentView() {
       setCurrent({ ...base, storyboardId: data.storyboardId });
       if (generateImages) {
         const images = (data.blocks ?? []).filter(
-          (block: { kind: string }) => block.kind === "image"
+          (block: { kind: string; resultUrl?: string }) =>
+            block.kind === "image" && !block.resultUrl
         );
         for (const block of images) {
           const gen = await fetch(
@@ -351,10 +352,15 @@ export function DevelopmentView() {
           if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a cena.");
         }
       }
+      const usedHosted = (data.blocks ?? []).some(
+        (block: { resultUrl?: string }) => Boolean(block.resultUrl)
+      );
       setNotice(
-        generateImages
-          ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos foram para a Kie. Os takes estão em rascunho.`
-          : `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. Os takes entraram em rascunho.`
+        usedHosted
+          ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos já hospedadas entraram prontas. Os takes usam essas imagens.`
+          : generateImages
+            ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos foram para a Kie. Os takes estão em rascunho.`
+            : `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. Os takes entraram em rascunho.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no storyboard.");
@@ -659,7 +665,8 @@ export function DevelopmentView() {
               >
                 <span className="block font-medium">Gerar as cenas na Kie</span>
                 <span className={cn("mt-1 block font-normal", handoff === "kie" ? "text-black/70" : "text-white/40")}>
-                  Seleção. Além do rascunho, pede as fotos 9:16 na Kie.
+                  Seleção. Se já houver foto hospedada, ela entra pronta. A Kie
+                  só cria imagem quando não existe referência.
                 </span>
               </button>
             </div>
