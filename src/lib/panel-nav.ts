@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   LogOut,
   Megaphone,
+  Sparkles,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -27,6 +28,13 @@ export const panelNav: PanelNavItem[] = [
     href: "/analise-campanha",
     label: "Analise",
     icon: BarChart3,
+    exact: false,
+    adminOnly: true,
+  },
+  {
+    href: "/desenvolvimento",
+    label: "Desenvolvimento",
+    icon: Sparkles,
     exact: false,
     adminOnly: true,
   },
@@ -57,6 +65,7 @@ export { LogOut };
 export function panelPageTitle(pathname: string): string {
   if (pathname.startsWith("/campanhas")) return "Campanhas";
   if (pathname.match(/^\/storyboards\/[^/]+/)) return "Editor";
+  if (pathname.startsWith("/desenvolvimento")) return "Desenvolvimento";
   if (pathname.startsWith("/storyboards")) return "Storyboards";
   if (pathname.startsWith("/criativos")) return "Criativos";
   if (pathname.startsWith("/analise-campanha")) return "Analise";

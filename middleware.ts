@@ -10,7 +10,11 @@ import { ADMIN_NAV_COOKIE } from "@/lib/tenant/types";
 
 const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
 
-const ADMIN_ONLY_PATH_PREFIXES = ["/storyboards", "/analise-campanha"];
+const ADMIN_ONLY_PATH_PREFIXES = [
+  "/storyboards",
+  "/analise-campanha",
+  "/desenvolvimento",
+];
 
 function isPublicPath(pathname: string): boolean {
   return (

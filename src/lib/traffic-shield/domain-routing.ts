@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getTrafficDomainByHostname } from "@/lib/db/traffic-campaigns";
 import { getRootDomainFromHostname } from "@/lib/traffic-shield/campaign-hostname";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
+import { getPublishedProductHtml } from "@/lib/db/product-developments";
 import {
   getRequestHostname,
   isPanelHostname,
@@ -60,6 +61,19 @@ export async function handleCustomDomainRoute(
 
   if (pathname.startsWith("/c/")) {
     return handleCampaignRoute(request);
+  }
+
+  if (request.method === "GET" || request.method === "HEAD") {
+    const html = await getPublishedProductHtml(hostname, pathname);
+    if (html) {
+      return new NextResponse(request.method === "HEAD" ? null : html, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
   }
 
   if (route.originUrl) {
