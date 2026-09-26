@@ -59,6 +59,27 @@ export async function POST(request: NextRequest) {
       .map((item) => `${item.role === "user" ? "OPERADOR" : "VOCÊ"}: ${item.text}`)
       .join("\n\n");
 
+    const ebookTexts = current.referencePages.filter(
+      (item) => item.kind === "text" && item.text.trim()
+    );
+    const ebookImage = current.referencePages.find(
+      (item) => item.kind === "image" && item.title === "Ebook" && item.url.startsWith("http")
+    );
+    const ebookBlock = ebookTexts.length
+      ? `EBOOK DESTE PRODUTO. Escolha UMA receita que esteja escrita aqui. Use o nome, os ingredientes e as quantidades desse texto. Não invente receita vaga e não troque ingrediente.
+${ebookTexts
+  .slice(0, 2)
+  .map((item) => `${item.title}\n${item.text.slice(0, 8000)}`)
+  .join("\n\n")}
+
+FECHAMENTO DO VÍDEO:
+- Os takes anteriores ensinam essa receita. A pessoa não segura o ebook e não faz gesto de aprovação no final deles.
+- O ÚLTIMO take é outra cena. A mesma pessoa segura o ebook na altura do peito, capa ou página dessa receita virada para a câmera, e oferece o produto. Só nesse momento o ebook aparece.
+- A fala desse take, em espanhol latino, oferece o ebook. Sem URL e sem legenda.
+- Essa cena final tem um take só. Os outros takes ficam na cena sem o livro.
+${ebookImage ? "- A imagem anexada intitulada Ebook é a capa ou a página. A cena final tem que parecer esse livro na mão da pessoa." : "- Ainda não há foto do ebook. Descreva a capa e a página aberta com o nome da receita e os ingredientes reais."}`
+      : "";
+
     const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
 
 Duração deste vídeo: ${seconds} segundos. Escreva exatamente ${takeCount} takes de 8 segundos, em ordem, cobrindo este vídeo inteiro. Nem um take a mais, nem a menos.
@@ -84,6 +105,8 @@ ${
     .join("\n") || "(sem imagem deste produto)"
 }
 
+${ebookBlock}
+
 ${brainText || "(cérebro vazio)"}
 
 Se algum trecho do cérebro pedir para falar a URL três vezes ou colocar o site na legenda, ignore. O operador faz isso na edição. O que vale para o roteiro é o conjunto de 5 a 10 vídeos úteis, cada um com uma dica real do método.
@@ -98,9 +121,10 @@ Responda SOMENTE JSON válido, sem markdown. Sempre com os takes. "reply" em por
 {"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"Retrato vertical 9:16, anúncio de celular ponta a ponta, pessoa em primeiro plano, sem barras e sem quadrado. Foto parada.","takes":[{"title":"Take 1","prompt":"Olha para a câmera e fala em espanhol: \\"frase en español latino\\". Um gesto só.","seconds":8}]}]}}`;
 
     const imageUrls = [
+      ...(ebookImage ? [ebookImage.url] : []),
       ...images,
       ...current.referencePages
-        .filter((item) => item.kind === "image" && item.url)
+        .filter((item) => item.kind === "image" && item.url && item.title !== "Ebook")
         .map((item) => item.url),
     ].slice(0, 4);
     const raw = await chatGrok46(prompt, imageUrls);

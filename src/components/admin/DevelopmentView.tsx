@@ -180,10 +180,36 @@ export function DevelopmentView() {
     setBusy("ref");
     setError("");
     try {
-      let referencePages = current.referencePages.filter((item) => item.kind === "image");
+      let referencePages = [...current.referencePages];
       for (const file of files.slice(0, 8)) {
+        const isPdf =
+          file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+        if (isPdf) {
+          const body = new FormData();
+          body.set("file", file);
+          const res = await fetch("/api/admin/developments/extract", {
+            method: "POST",
+            body,
+          });
+          const data = (await res.json()) as { error?: string; text?: string };
+          if (!res.ok || !data.text) {
+            throw new Error(data.error || "Não li o PDF do ebook.");
+          }
+          referencePages = [
+            ...referencePages.filter(
+              (item) => !(item.kind === "text" && item.title === file.name)
+            ),
+            {
+              kind: "text" as const,
+              url: `pdf:${file.name}`,
+              title: file.name,
+              text: data.text,
+            },
+          ];
+          continue;
+        }
         if (!file.type.startsWith("image/")) {
-          throw new Error("Envie imagem (JPG, PNG ou WEBP).");
+          throw new Error("Envie imagem (JPG, PNG ou WEBP) ou PDF do ebook.");
         }
         const body = new FormData();
         body.set("file", file);
@@ -198,11 +224,36 @@ export function DevelopmentView() {
             title: file.name,
             text: file.name,
           },
-        ].slice(0, 8);
+        ];
       }
-      await saveDraft({ ...current, name, brief, referencePages });
+      const images = referencePages.filter((item) => item.kind === "image").slice(-8);
+      const texts = referencePages.filter((item) => item.kind === "text").slice(-4);
+      await saveDraft({ ...current, name, brief, referencePages: [...images, ...texts] });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na referência.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function createEbookImage() {
+    if (!current) return;
+    setBusy("ebook");
+    setError("");
+    setNotice("");
+    try {
+      await saveDraft({ ...current, name, brief });
+      const res = await fetch("/api/admin/developments/ebook-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: current.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não criou a imagem do ebook.");
+      setCurrent(data.development ?? current);
+      setNotice("Imagem do ebook pronta. Ela entra só no último take, na mão da pessoa.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na imagem do ebook.");
     } finally {
       setBusy("");
     }
@@ -316,6 +367,7 @@ export function DevelopmentView() {
                 prompt: block.prompt,
                 aspectRatio: "9:16",
                 resolution: "1K",
+                referenceUrls: block.referenceUrls ?? [],
               }),
             }
           );
@@ -442,7 +494,7 @@ export function DevelopmentView() {
             <input
               ref={productFileRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
               multiple
               className="hidden"
               onChange={(e) => void onProductImage(e.target.files)}
@@ -452,7 +504,7 @@ export function DevelopmentView() {
               onClick={() => productFileRef.current?.click()}
               className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white"
             >
-              {busy === "ref" ? "Enviando…" : "Enviar referências"}
+              {busy === "ref" ? "Enviando…" : "Enviar imagens ou PDF"}
             </button>
           </div>
           {current.referencePages.some((item) => item.kind === "image") && (
@@ -481,6 +533,43 @@ export function DevelopmentView() {
                 ))}
             </div>
           )}
+          <div className={cn(panelCardPadded, "space-y-3")}>
+            <h3 className="text-sm font-medium text-white/80">Ebook</h3>
+            <p className="text-xs text-white/40">
+              O PDF traz a receita com ingredientes reais. A imagem do ebook é o
+              que a pessoa segura no último take, oferecendo o produto. Não entra
+              no começo do vídeo.
+            </p>
+            {current.referencePages.some((item) => item.kind === "text") && (
+              <ul className="space-y-1">
+                {current.referencePages
+                  .filter((item) => item.kind === "text")
+                  .map((item) => (
+                    <li
+                      key={item.url || item.title}
+                      className="flex items-center justify-between gap-2 text-xs text-white/60"
+                    >
+                      <span className="truncate">{item.title}</span>
+                      <button
+                        type="button"
+                        onClick={() => void removeProductImage(item.url)}
+                        className="shrink-0 text-white/35 hover:text-red-300"
+                      >
+                        tirar
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              disabled={Boolean(busy) || !current.referencePages.some((item) => item.kind === "text")}
+              onClick={() => void createEbookImage()}
+              className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white disabled:opacity-40"
+            >
+              {busy === "ebook" ? "Criando imagem…" : "Criar imagem do ebook"}
+            </button>
+          </div>
         </section>
         <section className={cn(panelCardPadded, "space-y-4")}>
           <div>

@@ -53,23 +53,31 @@ export async function POST(request: NextRequest) {
     const storyboardId = board.id;
     const x0 = 80;
 
+    const ebookImage = current.referencePages.find(
+      (item) => item.kind === "image" && item.title === "Ebook" && item.url.startsWith("http")
+    );
     const blocks: {
       id: string;
       kind: "image" | "video";
       title: string;
       prompt: string;
       modelKey: string;
+      referenceUrls?: string[];
     }[] = [];
 
     let y = 80;
-    for (const scene of scenes) {
+    for (const [index, scene] of scenes.entries()) {
+      const isLast = index === scenes.length - 1;
       const scenePrompt = withSceneFormat(scene.prompt);
+      const ebookRefs =
+        scenes.length > 1 && isLast && ebookImage ? [ebookImage.url] : [];
       const cena = await createBlock(ctx.tenantId, {
         storyboardId,
         modelKey: "image",
         prompt: scenePrompt,
         aspectRatio: "9:16",
         resolution: "1K",
+        referenceUrls: ebookRefs,
         positionX: x0,
         positionY: y,
         status: "draft",
@@ -80,6 +88,7 @@ export async function POST(request: NextRequest) {
         title: scene.title,
         prompt: scenePrompt,
         modelKey: "image",
+        referenceUrls: ebookRefs,
       });
 
       let x = x0 + 320;
