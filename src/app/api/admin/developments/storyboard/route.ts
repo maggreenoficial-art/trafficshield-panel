@@ -53,9 +53,10 @@ export async function POST(request: NextRequest) {
     const storyboardId = board.id;
     const x0 = 80;
 
-    const ebookImage = current.referencePages.find(
-      (item) => item.kind === "image" && item.title === "Ebook" && item.url.startsWith("http")
-    );
+    const hostedImages = current.referencePages
+      .filter((item) => item.kind === "image" && item.url.startsWith("http"))
+      .map((item) => item.url)
+      .slice(0, 7);
     const blocks: {
       id: string;
       kind: "image" | "video";
@@ -66,18 +67,14 @@ export async function POST(request: NextRequest) {
     }[] = [];
 
     let y = 80;
-    for (const [index, scene] of scenes.entries()) {
-      const isLast = index === scenes.length - 1;
+    for (const scene of scenes) {
       const scenePrompt = withSceneFormat(scene.prompt);
-      const ebookRefs =
-        ebookImage && (index === 0 || isLast) ? [ebookImage.url] : [];
       const cena = await createBlock(ctx.tenantId, {
         storyboardId,
         modelKey: "image",
         prompt: scenePrompt,
         aspectRatio: "9:16",
         resolution: "1K",
-        referenceUrls: ebookRefs,
         positionX: x0,
         positionY: y,
         status: "draft",
@@ -88,7 +85,6 @@ export async function POST(request: NextRequest) {
         title: scene.title,
         prompt: scenePrompt,
         modelKey: "image",
-        referenceUrls: ebookRefs,
       });
 
       let x = x0 + 320;
@@ -100,6 +96,7 @@ export async function POST(request: NextRequest) {
           prompt: takePrompt,
           aspectRatio: "9:16",
           resolution: "720p",
+          referenceUrls: hostedImages,
           positionX: x,
           positionY: y,
           status: "draft",
@@ -111,6 +108,7 @@ export async function POST(request: NextRequest) {
           title: take.title,
           prompt: takePrompt,
           modelKey: "grok_15",
+          referenceUrls: hostedImages,
         });
         x += 300;
       }

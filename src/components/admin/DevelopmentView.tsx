@@ -235,29 +235,6 @@ export function DevelopmentView() {
     }
   }
 
-  async function createEbookImage() {
-    if (!current) return;
-    setBusy("ebook");
-    setError("");
-    setNotice("");
-    try {
-      await saveDraft({ ...current, name, brief });
-      const res = await fetch("/api/admin/developments/ebook-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Não criou a imagem do ebook.");
-      setCurrent(data.development ?? current);
-      setNotice("Imagem do ebook pronta. Ela aparece na leitura do começo e na oferta do final.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha na imagem do ebook.");
-    } finally {
-      setBusy("");
-    }
-  }
-
   async function removeProductImage(url: string) {
     if (!current) return;
     const referencePages = current.referencePages.filter((item) => item.url !== url);
@@ -486,8 +463,8 @@ export function DevelopmentView() {
             Referências do produto
           </h2>
           <p className="text-xs text-white/40">
-            Logo, oferta, criativo e página, tudo no mesmo lugar. O Grok junta
-            essas imagens com o cérebro para escrever os takes.
+            Imagens e PDF do ebook. A IA lê o PDF para achar a receita. As fotos
+            que você sobe já estão hospedadas e vão para todos os takes do storyboard.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
@@ -532,43 +509,27 @@ export function DevelopmentView() {
                 ))}
             </div>
           )}
-          <div className={cn(panelCardPadded, "space-y-3")}>
-            <h3 className="text-sm font-medium text-white/80">Ebook</h3>
-            <p className="text-xs text-white/40">
-              O PDF traz a receita com ingredientes reais. A imagem do ebook
-              aparece no começo, quando a pessoa lê no celular, no iPad ou no
-              livro, e de novo só no final, na oferta.
-            </p>
-            {current.referencePages.some((item) => item.kind === "text") && (
-              <ul className="space-y-1">
-                {current.referencePages
-                  .filter((item) => item.kind === "text")
-                  .map((item) => (
-                    <li
-                      key={item.url || item.title}
-                      className="flex items-center justify-between gap-2 text-xs text-white/60"
+          {current.referencePages.some((item) => item.kind === "text") && (
+            <ul className="space-y-1">
+              {current.referencePages
+                .filter((item) => item.kind === "text")
+                .map((item) => (
+                  <li
+                    key={item.url || item.title}
+                    className="flex items-center justify-between gap-2 text-xs text-white/60"
+                  >
+                    <span className="truncate">PDF · {item.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => void removeProductImage(item.url)}
+                      className="shrink-0 text-white/35 hover:text-red-300"
                     >
-                      <span className="truncate">{item.title}</span>
-                      <button
-                        type="button"
-                        onClick={() => void removeProductImage(item.url)}
-                        className="shrink-0 text-white/35 hover:text-red-300"
-                      >
-                        tirar
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            )}
-            <button
-              type="button"
-              disabled={Boolean(busy) || !current.referencePages.some((item) => item.kind === "text")}
-              onClick={() => void createEbookImage()}
-              className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white disabled:opacity-40"
-            >
-              {busy === "ebook" ? "Criando imagem…" : "Criar imagem do ebook"}
-            </button>
-          </div>
+                      tirar
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
         </section>
         <section className={cn(panelCardPadded, "space-y-4")}>
           <div>

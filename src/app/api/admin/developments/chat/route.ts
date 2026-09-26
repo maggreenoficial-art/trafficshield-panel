@@ -62,26 +62,35 @@ export async function POST(request: NextRequest) {
     const ebookTexts = current.referencePages.filter(
       (item) => item.kind === "text" && item.text.trim()
     );
-    const ebookImage = current.referencePages.find(
-      (item) => item.kind === "image" && item.title === "Ebook" && item.url.startsWith("http")
+    const hostedImages = current.referencePages.filter(
+      (item) => item.kind === "image" && item.url.startsWith("http")
     );
     const ebookSource = ebookTexts.length
-      ? `EBOOK DESTE PRODUTO. Escolha UMA receita escrita aqui. Use o nome, os ingredientes e as quantidades. Não invente receita vaga.
+      ? `PDF DESTE PRODUTO. Diga qual arquivo você usou e escolha UMA receita escrita nele. Use o nome, os ingredientes e as quantidades. Não invente receita vaga.
 ${ebookTexts
   .slice(0, 2)
   .map((item) => `${item.title}\n${item.text.slice(0, 8000)}`)
   .join("\n\n")}`
-      : "Sem PDF do ebook. Use a receita que estiver nas referências do produto, com ingredientes concretos.";
+      : "Sem PDF. Use a receita que estiver nas referências do produto, com ingredientes concretos.";
     const ebookBlock = `${ebookSource}
 
+IMAGENS JÁ HOSPEDADAS (não crie capa nova):
+${
+  hostedImages.length
+    ? hostedImages
+        .slice(0, 8)
+        .map((item, i) => `${i + 1}. ${item.title}`)
+        .join("\n")
+    : "(nenhuma imagem hospedada)"
+}
+Essas fotos já existem. O storyboard recebe elas em todos os takes. No roteiro, use a foto que combina com a receita escolhida: leitura no celular, no iPad ou no livro físico no começo, preparo no meio, e a mesma imagem de novo só na oferta do final.
+
 FORMATO DESTE VÍDEO (engajamento, tutorial de graça):
-Isto não é anúncio de pitch. É um tutorial gratuito, de qualidade, de como fazer a receita. A oferta só existe no último take.
+Isto não é anúncio de pitch. É um tutorial gratuito de como fazer a receita. A oferta só existe no último take.
 São 3 cenas, e a soma dos takes continua sendo exatamente a duração pedida:
-1) Cena de abertura, 1 take: a pessoa olha o ebook e lê. O ebook aparece no celular, no iPad ou como livro físico aberto. Ela lê a receita em voz alta, em espanhol. Sem oferta e sem pedido de comentário.
-2) Cenas do meio: ensina a fazer a receita de graça, passo a passo, com os ingredientes reais. Mãos, panela, o preparo. Sem ebook, sem oferta, sem CTA.
-3) Cena final, 1 take: mostra o ebook de novo e aí sim coloca a oferta. A fala, em espanhol latino, convida a comentar. Use esta ideia, dita em espanhol, não em português: quer receber mais receitas assim? Comenta QUIERO.
-Sem URL e sem legenda. O comentário QUIERO é falado, não escrito na tela.
-${ebookImage ? "A imagem intitulada Ebook é a capa ou a página. A abertura e o take final têm que parecer esse livro, no celular, no iPad ou físico." : "Descreva a capa e a página aberta com o nome da receita."}`;
+1) Cena de abertura, 1 take: a pessoa olha o material hospedado e lê a receita em espanhol. Sem oferta e sem pedido de comentário.
+2) Cenas do meio: ensina a fazer a receita de graça, passo a passo, com os ingredientes reais. Sem oferta e sem CTA.
+3) Cena final, 1 take: mostra de novo a imagem hospedada e coloca a oferta. A fala, em espanhol latino, convida a comentar QUIERO para receber mais receitas. Sem URL e sem legenda.`;
 
     const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
 
@@ -124,11 +133,8 @@ Responda SOMENTE JSON válido, sem markdown. Sempre com os takes. "reply" em por
 {"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"Retrato vertical 9:16, anúncio de celular ponta a ponta, pessoa em primeiro plano, sem barras e sem quadrado. Foto parada.","takes":[{"title":"Take 1","prompt":"Olha para a câmera e fala em espanhol: \\"frase en español latino\\". Um gesto só.","seconds":8}]}]}}`;
 
     const imageUrls = [
-      ...(ebookImage ? [ebookImage.url] : []),
       ...images,
-      ...current.referencePages
-        .filter((item) => item.kind === "image" && item.url && item.title !== "Ebook")
-        .map((item) => item.url),
+      ...hostedImages.map((item) => item.url),
     ].slice(0, 4);
     const raw = await chatGrok46(prompt, imageUrls);
     const parsed = parseDevChat(raw, takeCount);
