@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       modelKey: string;
       referenceUrls?: string[];
       resultUrl?: string;
+      sourceBlockId?: string;
     }[] = [];
 
     const hostedUrls = hostedImages.map((item) => item.url);
@@ -89,39 +90,74 @@ export async function POST(request: NextRequest) {
       modelKey: "image",
     });
 
-    let x = x0 + 340;
+    let y = 80;
     for (const [index, take] of flatTakes.entries()) {
       const isLast = index === flatTakes.length - 1;
       const showProduct = Boolean(take.showProduct) || index === 0 || isLast;
       const refs = showProduct ? hostedUrls : [];
-      const takePrompt = [
-        "Mesma atriz da imagem ligada. Mantenha o rosto, o cabelo e a roupa. Mude só o ângulo e a ação.",
+      const shot =
+        take.image ||
+        "Mesma atriz, outro ângulo, a ação deste take parada no quadro.";
+      const imagePrompt = withSceneFormat(
+        [
+          "Mesma atriz da imagem plugada. Mesmo rosto, cabelo e roupa. Foto parada, sem fala e sem movimento.",
+          showProduct
+            ? "O produto das referências está visível no quadro."
+            : "Sem ebook, sem livro, sem prato e sem embalagem.",
+          shot,
+        ].join(" ")
+      );
+      const cena = await createBlock(ctx.tenantId, {
+        storyboardId,
+        modelKey: "image",
+        prompt: imagePrompt,
+        aspectRatio: "9:16",
+        resolution: "1K",
+        referenceUrls: refs,
+        positionX: x0 + 340,
+        positionY: y,
+        status: "draft",
+        sourceBlockId: atriz.id,
+      });
+      blocks.push({
+        id: cena.id,
+        kind: "image",
+        title: take.title,
+        prompt: imagePrompt,
+        modelKey: "image",
+        referenceUrls: refs,
+        sourceBlockId: atriz.id,
+      });
+
+      const videoPrompt = [
+        "A pessoa, a roupa e o cenário são os da imagem plugada. 8 segundos, um movimento só.",
         showProduct
-          ? "Nesta tomada o produto das imagens de referência entra no quadro."
-          : "Não mostre ebook, livro, prato nem embalagem.",
+          ? "O produto que está na foto continua visível."
+          : "Não faça aparecer ebook, livro nem embalagem.",
         withSpanishSpeech(take.prompt),
       ].join(" ");
       const video = await createBlock(ctx.tenantId, {
         storyboardId,
         modelKey: "grok_15",
-        prompt: takePrompt,
+        prompt: videoPrompt,
         aspectRatio: "9:16",
         resolution: "720p",
         referenceUrls: refs,
-        positionX: x,
-        positionY: 80,
+        positionX: x0 + 680,
+        positionY: y,
         status: "draft",
-        sourceBlockId: atriz.id,
+        sourceBlockId: cena.id,
       });
       blocks.push({
         id: video.id,
         kind: "video",
         title: take.title,
-        prompt: takePrompt,
+        prompt: videoPrompt,
         modelKey: "grok_15",
         referenceUrls: refs,
+        sourceBlockId: cena.id,
       });
-      x += 300;
+      y += 280;
     }
 
     await updateProductDevelopment(ctx.tenantId, current.id, { storyboardId });

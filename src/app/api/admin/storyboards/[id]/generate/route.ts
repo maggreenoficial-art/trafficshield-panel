@@ -117,6 +117,14 @@ export async function POST(request: NextRequest, context: Ctx) {
       return NextResponse.json({ error: "Bloco não encontrado." }, { status: 404 });
     }
 
+    const plugId = sourceBlockId || block?.sourceBlockId || null;
+    if (plugId) {
+      const source = await getBlockById(panel.tenantId, plugId);
+      if (source?.resultUrl && !referenceUrls.includes(source.resultUrl)) {
+        referenceUrls = [source.resultUrl, ...referenceUrls];
+      }
+    }
+
     if (block) {
       block = await updateBlock(panel.tenantId, block.id, {
         modelKey: model.key,

@@ -310,6 +310,51 @@ export function DevelopmentView() {
     await sendScenes(development, scenes, handoff === "kie");
   }
 
+  async function generateStoryboardImage(
+    storyboardId: string,
+    block: {
+      id: string;
+      prompt: string;
+      referenceUrls?: string[];
+      sourceBlockId?: string;
+    }
+  ) {
+    const gen = await fetch(`/api/admin/storyboards/${storyboardId}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blockId: block.id,
+        modelKey: "image",
+        prompt: block.prompt,
+        aspectRatio: "9:16",
+        resolution: "1K",
+        referenceUrls: block.referenceUrls ?? [],
+        sourceBlockId: block.sourceBlockId ?? null,
+      }),
+    });
+    const genData = await gen.json();
+    if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a cena.");
+  }
+
+  async function waitForStoryboardImage(storyboardId: string, blockId: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const res = await fetch(`/api/admin/storyboards/${storyboardId}`);
+      const data = await res.json();
+      const block = (data.blocks ?? []).find(
+        (item: { id: string; status?: string; resultUrl?: string; errorMessage?: string }) =>
+          item.id === blockId
+      );
+      if (block?.status === "success" && block.resultUrl) return;
+      if (block?.status === "fail") {
+        throw new Error(block.errorMessage || "A foto da atriz não gerou.");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+    throw new Error(
+      "A foto da atriz ainda não ficou pronta. No storyboard, gere as fotos dos takes depois dela."
+    );
+  }
+
   async function sendScenes(
     base: ProductDevelopment,
     scenes: DevScene[],
@@ -329,31 +374,25 @@ export function DevelopmentView() {
       setCurrent({ ...base, storyboardId: data.storyboardId });
       if (generateImages) {
         const images = (data.blocks ?? []).filter(
-          (block: { kind: string; resultUrl?: string }) =>
+          (block: { kind: string; resultUrl?: string; title?: string }) =>
             block.kind === "image" && !block.resultUrl
         );
-        for (const block of images) {
-          const gen = await fetch(
-            `/api/admin/storyboards/${data.storyboardId}/generate`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                blockId: block.id,
-                modelKey: "image",
-                prompt: block.prompt,
-                aspectRatio: "9:16",
-                resolution: "1K",
-                referenceUrls: block.referenceUrls ?? [],
-              }),
-            }
-          );
-          const genData = await gen.json();
-          if (!gen.ok) throw new Error(genData.error || "A Kie não gerou a cena.");
+        const atriz =
+          images.find((block: { title?: string }) => block.title === "Atriz") ??
+          images[0];
+        const shots = images.filter(
+          (block: { id: string }) => block.id !== atriz?.id
+        );
+        if (atriz) await generateStoryboardImage(data.storyboardId, atriz);
+        if (shots.length && atriz) {
+          await waitForStoryboardImage(data.storyboardId, atriz.id);
+          for (const block of shots) {
+            await generateStoryboardImage(data.storyboardId, block);
+          }
         }
       }
       setNotice(
-        `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. A primeira imagem é a atriz e vale para todos os takes. O produto só entra na leitura e no final.`
+        `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. A atriz está plugada em cada foto do take, e o vídeo está plugado nessa foto. O produto só entra na leitura e no final.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no storyboard.");
@@ -586,7 +625,8 @@ export function DevelopmentView() {
                         <ul className="mt-2 space-y-1">
                           {scene.takes.map((take) => (
                             <li key={take.title} className="text-xs text-white/50">
-                              {take.title} · {take.seconds}s — {take.prompt}
+                              {take.title} · {take.seconds}s
+                              {take.image ? ` · imagem: ${take.image}` : ""} — {take.prompt}
                             </li>
                           ))}
                         </ul>
@@ -659,7 +699,7 @@ export function DevelopmentView() {
               >
                 <span className="block font-medium">Gerar as cenas na Kie</span>
                 <span className={cn("mt-1 block font-normal", handoff === "kie" ? "text-black/70" : "text-white/40")}>
-                  Seleção. Gera a foto da atriz na Kie. O produto não vira essa imagem.
+                  Seleção. Gera a atriz e, em seguida, a foto de cada take já plugada nela. O vídeo fica em rascunho.
                 </span>
               </button>
             </div>

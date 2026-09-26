@@ -15,7 +15,7 @@ export const maxDuration = 300;
 const STORYBOARD_RULES = `Storyboard deste painel:
 - Uma única Cena: a ATRIZ. Retrato vertical 9:16, rosto nítido, mesma roupa, sem ebook, sem prato e sem embalagem. Essa foto é a identidade dela. Não crie uma cena nova para cada ângulo.
 - Todos os takes nascem dessa mesma atriz. Muda o ângulo, o gesto e a ação. O rosto, o cabelo e a roupa não mudam.
-- Take = vídeo de 8 segundos. A fala entre aspas é SEMPRE espanhol latino neutro. O resto da direção pode ficar em português.
+- Cada take tem dois textos. "image" é a orientação da FOTO parada que será gerada para esse take: ângulo, enquadramento e o que está no quadro, sem fala. "prompt" é o VÍDEO: o movimento desses 8 segundos e a fala entre aspas, sempre em espanhol latino neutro.
 - A imagem do produto (ebook, prato, página) NÃO é a atriz. showProduct true só no take em que o produto entra no quadro, em geral a leitura do começo e a oferta do final. Nos outros takes, showProduct false e o produto não aparece.
 - Um take = uma ação. Não empilhe três ideias no mesmo take.
 - Anúncio vertical de celular. Criativo simples, promessa específica, útil antes do pedido de compra.
@@ -130,7 +130,7 @@ OPERADOR: ${message || "(enviou só imagem)"}
 ${images.length ? `Nesta mensagem há ${images.length} imagem(ns) anexada(s). Olhe essas fotos primeiro.` : ""}
 
 Responda SOMENTE JSON válido, sem markdown. Sempre com os takes. "reply" em português. A frase falada, entre aspas, em espanhol:
-{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Atriz","prompt":"Mulher, rosto nítido, mesma roupa, cozinha simples, sem ebook e sem prato.","takes":[{"title":"Take 1","prompt":"Mesma atriz, ângulo frontal, lê a receita em espanhol.","seconds":8,"showProduct":true},{"title":"Take 2","prompt":"Mesma atriz, ângulo de lado, ensina o passo sem mostrar o produto.","seconds":8,"showProduct":false},{"title":"Take final","prompt":"Mesma atriz, mostra o ebook e fala em espanhol: comenta QUIERO.","seconds":8,"showProduct":true}]}]}}`;
+{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Atriz","prompt":"Mulher, rosto nítido, mesma roupa, cozinha simples, sem ebook e sem prato.","takes":[{"title":"Take 1","image":"Mesma atriz, plano médio frontal, ebook aberto na mão, cozinha ao fundo.","prompt":"Ela olha o ebook e lê em espanhol: frase da receita.","seconds":8,"showProduct":true},{"title":"Take 2","image":"Mesma atriz, ângulo de três quartos, mãos na panela, sem ebook.","prompt":"Ela mexe a panela e fala em espanhol: o passo da receita.","seconds":8,"showProduct":false}]}]}}`;
 
     const imageUrls = [
       ...images,

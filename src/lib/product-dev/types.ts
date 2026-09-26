@@ -43,6 +43,7 @@ export type DevCreative = {
 export type DevSceneTake = {
   title: string;
   prompt: string;
+  image?: string;
   seconds: number;
   showProduct?: boolean;
 };

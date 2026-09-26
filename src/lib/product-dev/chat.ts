@@ -39,6 +39,7 @@ export function parseDevScenes(value: unknown): DevScene[] {
               const t = take as {
                 title?: unknown;
                 prompt?: unknown;
+                image?: unknown;
                 seconds?: unknown;
                 showProduct?: unknown;
               };
@@ -48,9 +49,11 @@ export function parseDevScenes(value: unknown): DevScene[] {
                 typeof t.seconds === "number" && t.seconds > 0
                   ? Math.min(8, Math.round(t.seconds))
                   : 8;
+              const image = asString(t.image);
               const parsed: DevSceneTake = {
                 title: asString(t.title) || "Take",
                 prompt: takePrompt,
+                image: image || undefined,
                 seconds,
                 showProduct: t.showProduct === true,
               };
