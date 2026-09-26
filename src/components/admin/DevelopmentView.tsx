@@ -57,7 +57,7 @@ export function DevelopmentView() {
   const [brief, setBrief] = useState("");
   const [chatText, setChatText] = useState("");
   const [chatFiles, setChatFiles] = useState<File[]>([]);
-  const [videoSeconds, setVideoSeconds] = useState<VideoLengthSeconds>(40);
+  const [videoSeconds, setVideoSeconds] = useState<VideoLengthSeconds>(120);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -321,7 +321,7 @@ export function DevelopmentView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="Os takes falam espanhol latino. A duração escolhida define quantos vídeos de 8s entram."
+        subtitle="O cérebro pede de 5 a 10 vídeos úteis, cerca de 2 minutos cada, com uma dica real do método."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -466,8 +466,9 @@ export function DevelopmentView() {
           <div>
             <h2 className="text-sm font-medium text-white/80">Takes do vídeo</h2>
             <p className="mt-1 text-xs text-white/40">
-              A pessoa do vídeo fala espanhol latino. Cada take dura 8 segundos.
-              A cena é sempre retrato 9:16, mesmo se a referência for página ou logo.
+              Cada vídeo ensina um passo do método, em espanhol latino, no formato
+              9:16. O botão escreve o vídeo 1. Peça o 2, o 3, até fechar de 5 a 10.
+              Site e legenda ficam para a edição.
             </p>
           </div>
           <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
@@ -598,7 +599,7 @@ export function DevelopmentView() {
               disabled={Boolean(busy)}
               onClick={() =>
                 void sendChat(
-                  `Olha as referências deste produto junto com o cérebro e escreve os takes do criativo de vídeo em espanhol latino, no formato vertical 9:16. Duração: ${videoSeconds} segundos, ${takesForDuration(videoSeconds)} takes de 8 segundos.`
+                  `Lê o método de vídeos úteis do cérebro: 5 a 10 vídeos, cada um com uma dica real, cerca de 2 minutos. Lista os 5 a 10 e escreve agora só o vídeo 1, em espanhol latino, retrato 9:16, com ${videoSeconds} segundos (${takesForDuration(videoSeconds)} takes). Não coloque URL nem legenda.`
                 )
               }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"

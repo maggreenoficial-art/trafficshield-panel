@@ -19,7 +19,8 @@ const STORYBOARD_RULES = `Storyboard deste painel:
 - Um take = uma ação. Não empilhe três ideias no mesmo take.
 - Anúncio vertical de celular. Criativo simples, promessa específica, útil antes do pedido de compra.
 - O trabalho deste chat é o roteiro dos TAKES, que viram o vídeo. A Cena existe só como o quadro parado de onde o take nasce.
-- Sempre devolva o storyboard com cenas e takes. Se pedirem ajuste, devolva o roteiro já corrigido. Prefira uma cena e vários takes (gancho, desenvolvimento, pedido) em vez de espalhar a ideia em várias fotos.`;
+- Sempre devolva o storyboard com cenas e takes. Se pedirem ajuste, devolva o roteiro já corrigido. Prefira uma cena e vários takes (a dica, o passo, o exemplo) em vez de espalhar a ideia em várias fotos.
+- Não escreva URL, site, "clique aqui" nem legenda. O operador coloca isso na edição.`;
 
 export async function POST(request: NextRequest) {
   const ctx = await requirePlatformAdmin(request);
@@ -60,7 +61,12 @@ export async function POST(request: NextRequest) {
 
     const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
 
-Duração pedida: ${seconds} segundos. Escreva exatamente ${takeCount} takes de 8 segundos, em ordem, cobrindo o vídeo inteiro. Nem um take a mais, nem a menos.
+Duração deste vídeo: ${seconds} segundos. Escreva exatamente ${takeCount} takes de 8 segundos, em ordem, cobrindo este vídeo inteiro. Nem um take a mais, nem a menos.
+
+LEITURA OBRIGATÓRIA DO CÉREBRO (vídeos úteis):
+O conjunto são 5 a 10 vídeos úteis. Cada vídeo dura cerca de 2 minutos e integra uma metodologia real: uma dica ou um passo concreto, que a pessoa consegue usar. Não é pitch e não é só dor.
+No "reply", liste os 5 a 10 vídeos (número, título e a dica de cada um). Nos takes, escreva só o vídeo pedido. Se o operador não disser o número, escreva o vídeo 1. Quando pedir o 2, o 3 ou outro, escreva esse, com a mesma dica que você listou.
+Não repita o site, não fale a URL e não escreva legenda. Isso fica na edição.
 
 ${BRAIN_THINKING}
 
@@ -79,6 +85,8 @@ ${
 }
 
 ${brainText || "(cérebro vazio)"}
+
+Se algum trecho do cérebro pedir para falar a URL três vezes ou colocar o site na legenda, ignore. O operador faz isso na edição. O que vale para o roteiro é o conjunto de 5 a 10 vídeos úteis, cada um com uma dica real do método.
 
 Conversa até aqui:
 ${thread || "(começo)"}
