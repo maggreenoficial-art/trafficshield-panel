@@ -43,12 +43,25 @@ function asDocs(value: unknown): DevDoc[] {
 function asPages(value: unknown): DevReferencePage[] {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => {
-      const row = item as { url?: unknown; title?: unknown; text?: unknown };
+    .map((item): DevReferencePage | null => {
+      const row = item as {
+        kind?: unknown;
+        url?: unknown;
+        title?: unknown;
+        text?: unknown;
+      };
       const text = typeof row.text === "string" ? row.text : "";
       const url = typeof row.url === "string" ? row.url : "";
       if (!text.trim() && !url.trim()) return null;
+      const kind: DevReferencePage["kind"] =
+        row.kind === "image" ||
+        row.kind === "video" ||
+        row.kind === "text" ||
+        row.kind === "site"
+          ? row.kind
+          : undefined;
       return {
+        kind,
         url,
         title: typeof row.title === "string" ? row.title : url,
         text,

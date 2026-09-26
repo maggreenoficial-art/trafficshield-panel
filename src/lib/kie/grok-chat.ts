@@ -85,7 +85,23 @@ function errorFromBody(status: number, raw: string, parsed: Record<string, unkno
 }
 
 /** Chat síncrono Grok 4.6 via Kie (`KIE_AI_API_KEY`). */
-export async function chatGrok46(prompt: string): Promise<string> {
+export async function chatGrok46(
+  prompt: string,
+  imageUrls: string[] = []
+): Promise<string> {
+  const images = imageUrls.filter(Boolean).slice(0, 4);
+  const input = images.length
+    ? [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            ...images.map((url) => ({ type: "input_image", image_url: url })),
+          ],
+        },
+      ]
+    : prompt;
+
   const res = await fetch(`${KIE_BASE}/grok/v1/responses`, {
     method: "POST",
     headers: {
@@ -97,7 +113,7 @@ export async function chatGrok46(prompt: string): Promise<string> {
       model: "grok-4-6",
       stream: false,
       reasoning: { effort: "low" },
-      input: prompt,
+      input,
     }),
   });
 

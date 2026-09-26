@@ -6,7 +6,7 @@ import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { CopyNameButton } from "@/components/admin/CopyNameButton";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
-import type { ProductDevelopment } from "@/lib/product-dev/types";
+import type { DevDoc, DevReferenceKind, ProductDevelopment } from "@/lib/product-dev/types";
 
 type DomainOption = { id: string; hostname: string; label: string | null };
 type Listed = { id: string; name: string; status: string; updatedAt: string };
@@ -54,7 +54,9 @@ export function DevelopmentView() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [brain, setBrain] = useState<DevDoc[]>([]);
   const fileRefs = useRef<Partial<Record<1 | 2 | 3, HTMLInputElement | null>>>({});
+  const refFileRef = useRef<HTMLInputElement | null>(null);
 
   async function reloadList() {
     const res = await fetch("/api/admin/developments");
@@ -66,6 +68,10 @@ export function DevelopmentView() {
 
   useEffect(() => {
     void reloadList().catch((e: Error) => setError(e.message));
+    void fetch("/api/admin/developments/brain")
+      .then((res) => res.json())
+      .then((data) => setBrain(data.docs ?? []))
+      .catch(() => undefined);
   }, []);
 
   async function openItem(id: string) {
@@ -131,20 +137,28 @@ export function DevelopmentView() {
     return data.development as ProductDevelopment;
   }
 
-  async function onDoc(slot: 1 | 2 | 3, list: FileList | null) {
+  async function onBrainDoc(slot: 1 | 2 | 3, list: FileList | null) {
     const file = list?.[0];
     const input = fileRefs.current[slot];
     if (input) input.value = "";
-    if (!file || !current) return;
+    if (!file) return;
     setError("");
     setBusy("doc");
     try {
       const text = await readDoc(file);
       const docs = [
-        ...current.docs.filter((doc) => doc.slot !== slot),
+        ...brain.filter((doc) => doc.slot !== slot),
         { slot, name: file.name, text },
       ];
-      await saveDraft({ ...current, name, brief, docs });
+      const res = await fetch("/api/admin/developments/brain", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ docs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não salvou o cérebro.");
+      setBrain(data.docs ?? docs);
+      setNotice("Cérebro salvo. Vale para todo produto daqui pra frente.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no documento.");
     } finally {
@@ -157,13 +171,53 @@ export function DevelopmentView() {
     setError("");
     const referencePages = [
       ...current.referencePages,
-      { url: refUrl.trim(), title: refUrl.trim(), text: "" },
-    ].slice(0, 3);
+      { kind: "site" as const, url: refUrl.trim(), title: refUrl.trim(), text: "" },
+    ].slice(0, 8);
     setRefUrl("");
     try {
       await saveDraft({ ...current, name, brief, referencePages });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao guardar a página.");
+    }
+  }
+
+  async function onReferenceFile(list: FileList | null) {
+    const file = list?.[0];
+    if (refFileRef.current) refFileRef.current.value = "";
+    if (!file || !current) return;
+    setError("");
+    setBusy("ref");
+    try {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      let referencePages: ProductDevelopment["referencePages"] = current.referencePages;
+      if (isImage || isVideo) {
+        const body = new FormData();
+        body.set("file", file);
+        const res = await fetch("/api/admin/storyboards/upload", {
+          method: "POST",
+          body,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Não enviou o arquivo.");
+        const kind: DevReferenceKind = isVideo ? "video" : "image";
+        const item = {
+          kind,
+          url: data.url as string,
+          title: file.name,
+          text: "",
+        };
+        referencePages = [...referencePages, item].slice(0, 8);
+      } else {
+        const text = await readDoc(file);
+        const item = { kind: "text" as const, url: "", title: file.name, text };
+        referencePages = [...referencePages, item].slice(0, 8);
+      }
+      await saveDraft({ ...current, name, brief, referencePages });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na referência.");
+    } finally {
+      setBusy("");
     }
   }
 
@@ -286,7 +340,7 @@ export function DevelopmentView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="Produto, copy e criativos com Grok 4.6. Imagem e vídeo só nascem no storyboard se você autorizar."
+        subtitle="O cérebro define como o Grok pensa. Imagem, vídeo, texto e site são a referência de cada produto."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -331,84 +385,92 @@ export function DevelopmentView() {
         {notice && <p className="text-sm text-emerald-300/90">{notice}</p>}
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-white/80">Cérebro</h2>
+        <p className="text-xs text-white/40">
+          Documentos fixos de como a IA pensa. Ficam salvos e entram em todo
+          produto. PDF, txt ou md.
+        </p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {DOC_SLOTS.map((slot) => {
+            const doc = brain.find((item) => item.slot === slot);
+            return (
+              <div key={slot}>
+                <input
+                  ref={(el) => {
+                    fileRefs.current[slot] = el;
+                  }}
+                  type="file"
+                  accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain"
+                  className="hidden"
+                  onChange={(e) => void onBrainDoc(slot, e.target.files)}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRefs.current[slot]?.click()}
+                  className={cn(
+                    "flex w-full flex-col items-center gap-2 rounded-xl border border-dashed px-3 py-8 text-center text-sm",
+                    doc
+                      ? "border-emerald-500/40 bg-emerald-500/8 text-emerald-100"
+                      : "border-white/15 text-white/55"
+                  )}
+                >
+                  <Upload size={18} />
+                  Cérebro {slot}
+                  <span className="max-w-full truncate text-[11px] text-white/40">
+                    {doc ? doc.name : "pdf, txt ou md"}
+                  </span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {current && (
         <>
-          <section className="space-y-3">
-            <h2 className="text-sm font-medium text-white/80">
-              Documentos de referência
-            </h2>
-            <p className="text-xs text-white/40">
-              Até 3 arquivos PDF, .txt ou .md. É a inteligência da sua cabeça que o
-              Grok usa antes de escrever página e criativo.
-            </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {DOC_SLOTS.map((slot) => {
-                const doc = current.docs.find((item) => item.slot === slot);
-                return (
-                  <div key={slot}>
-                    <input
-                      ref={(el) => {
-                        fileRefs.current[slot] = el;
-                      }}
-                      type="file"
-                      accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain"
-                      className="hidden"
-                      onChange={(e) => void onDoc(slot, e.target.files)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileRefs.current[slot]?.click()}
-                      className={cn(
-                        "flex w-full flex-col items-center gap-2 rounded-xl border border-dashed px-3 py-8 text-center text-sm",
-                        doc
-                          ? "border-emerald-500/40 bg-emerald-500/8 text-emerald-100"
-                          : "border-white/15 text-white/55"
-                      )}
-                    >
-                      <Upload size={18} />
-                      Documento {slot}
-                      <span className="max-w-full truncate text-[11px] text-white/40">
-                        {busy === "doc" && !doc
-                          ? "Lendo…"
-                          : doc
-                            ? doc.name
-                            : "pdf, txt ou md"}
-                      </span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
           <section className={cn(panelCardPadded, "space-y-3")}>
             <h2 className="text-sm font-medium text-white/80">
-              Páginas de referência
+              Referências deste produto
             </h2>
             <p className="text-xs text-white/40">
-              Até 3 URLs de páginas que você já tem. A página nova sai no mesmo
-              espírito.
+              Imagem, vídeo, texto ou site. O Grok olha isso com o pensamento do
+              cérebro, não no lugar dele.
             </p>
+            <input
+              ref={refFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.pdf,.txt,.md,text/plain"
+              className="hidden"
+              onChange={(e) => void onReferenceFile(e.target.files)}
+            />
             <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => refFileRef.current?.click()}
+                className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white"
+              >
+                {busy === "ref" ? "Enviando…" : "Imagem, vídeo ou texto"}
+              </button>
               <input
                 className={panelInput}
-                placeholder="https://..."
+                placeholder="https:// página de referência"
                 value={refUrl}
                 onChange={(e) => setRefUrl(e.target.value)}
               />
               <button
                 type="button"
                 onClick={() => void addReference()}
-                disabled={current.referencePages.length >= 3}
+                disabled={current.referencePages.length >= 8}
                 className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white disabled:opacity-40"
               >
-                Adicionar
+                Site
               </button>
             </div>
             <ul className="space-y-1 text-xs text-white/50">
-              {current.referencePages.map((page) => (
-                <li key={page.url} className="truncate">
-                  {page.title || page.url}
+              {current.referencePages.map((page, index) => (
+                <li key={`${page.kind}-${page.title}-${index}`} className="truncate">
+                  {(page.kind ?? "site").toUpperCase()} · {page.title || page.url}
                 </li>
               ))}
             </ul>

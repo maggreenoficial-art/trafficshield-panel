@@ -4,7 +4,10 @@ export type DevDoc = {
   text: string;
 };
 
+export type DevReferenceKind = "image" | "video" | "text" | "site";
+
 export type DevReferencePage = {
+  kind?: DevReferenceKind;
   url: string;
   title: string;
   text: string;
