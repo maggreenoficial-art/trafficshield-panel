@@ -5,7 +5,17 @@ import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
+import {
+  takesForDuration,
+  type VideoLengthSeconds,
+} from "@/lib/product-dev/chat";
 import type { DevDoc, DevScene, ProductDevelopment } from "@/lib/product-dev/types";
+
+const VIDEO_LENGTHS: { seconds: VideoLengthSeconds; label: string }[] = [
+  { seconds: 40, label: "40 segundos" },
+  { seconds: 60, label: "1 minuto" },
+  { seconds: 120, label: "2 minutos" },
+];
 
 type Listed = { id: string; name: string; status: string; updatedAt: string };
 
@@ -47,6 +57,7 @@ export function DevelopmentView() {
   const [brief, setBrief] = useState("");
   const [chatText, setChatText] = useState("");
   const [chatFiles, setChatFiles] = useState<File[]>([]);
+  const [videoSeconds, setVideoSeconds] = useState<VideoLengthSeconds>(40);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -229,7 +240,12 @@ export function DevelopmentView() {
       const res = await fetch("/api/admin/developments/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id, message, images }),
+        body: JSON.stringify({
+          id: current.id,
+          message,
+          images,
+          seconds: videoSeconds,
+        }),
       });
       const raw = await res.text();
       let data: { error?: string; development?: ProductDevelopment } = {};
@@ -305,7 +321,7 @@ export function DevelopmentView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Desenvolvimento"
-        subtitle="O cérebro e as referências do produto alimentam os takes. Cada take é o roteiro de um vídeo de 8s."
+        subtitle="Os takes falam espanhol latino. A duração escolhida define quantos vídeos de 8s entram."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -450,8 +466,8 @@ export function DevelopmentView() {
           <div>
             <h2 className="text-sm font-medium text-white/80">Takes do vídeo</h2>
             <p className="mt-1 text-xs text-white/40">
-              Este chat escreve o roteiro dos takes. Cada take é um vídeo de 8s,
-              plugado na cena parada, pronto para ir ao storyboard.
+              A pessoa do vídeo fala espanhol latino. Cada take dura 8 segundos.
+              A cena é sempre retrato 9:16, mesmo se a referência for página ou logo.
             </p>
           </div>
           <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
@@ -506,22 +522,36 @@ export function DevelopmentView() {
                         </ul>
                       </div>
                     ))}
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="grid gap-2 pt-1 sm:grid-cols-2">
                       <button
                         type="button"
                         disabled={Boolean(busy)}
                         onClick={() => void sendScenes(message.scenes ?? [], false)}
-                        className="rounded-xl bg-white/10 px-3 py-2 text-xs text-white disabled:opacity-40"
+                        className="rounded-xl bg-white/10 px-3 py-2 text-left text-xs text-white disabled:opacity-40"
                       >
-                        {busy === "board" ? "Enviando…" : "Jogar no storyboard"}
+                        <span className="block font-medium">
+                          {busy === "board" ? "Enviando…" : "Jogar no storyboard"}
+                        </span>
+                        <span className="mt-1 block font-normal text-white/45">
+                          Só cria os blocos em rascunho. Não gera imagem nem
+                          vídeo e não gasta crédito. Você gera depois, no
+                          storyboard.
+                        </span>
                       </button>
                       <button
                         type="button"
                         disabled={Boolean(busy)}
                         onClick={() => void sendScenes(message.scenes ?? [], true)}
-                        className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-medium text-black disabled:opacity-40"
+                        className="rounded-xl bg-violet-500 px-3 py-2 text-left text-xs font-medium text-black disabled:opacity-40"
                       >
-                        {busy === "gerar" ? "Gerando cenas…" : "Gerar as cenas na Kie"}
+                        <span className="block">
+                          {busy === "gerar" ? "Gerando cenas…" : "Gerar as cenas na Kie"}
+                        </span>
+                        <span className="mt-1 block font-normal text-black/70">
+                          Cria os blocos e já pede as fotos 9:16 na Kie. Os
+                          takes ficam em rascunho até a foto existir. O vídeo
+                          você gera no storyboard.
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -542,19 +572,41 @@ export function DevelopmentView() {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() =>
-              void sendChat(
-                "Olha as referências deste produto junto com o cérebro e escreve os takes do criativo de vídeo. Cada take é um roteiro de 8 segundos que vira o vídeo."
-              )
-            }
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
-          >
-            {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
-            Gerar os takes
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-wrap gap-2">
+              {VIDEO_LENGTHS.map((item) => (
+                <button
+                  key={item.seconds}
+                  type="button"
+                  onClick={() => setVideoSeconds(item.seconds)}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-xs",
+                    videoSeconds === item.seconds
+                      ? "bg-violet-500 font-medium text-black"
+                      : "bg-white/10 text-white/70"
+                  )}
+                >
+                  {item.label}
+                  <span className="ml-1 opacity-70">
+                    · {takesForDuration(item.seconds)} takes
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={() =>
+                void sendChat(
+                  `Olha as referências deste produto junto com o cérebro e escreve os takes do criativo de vídeo em espanhol latino, no formato vertical 9:16. Duração: ${videoSeconds} segundos, ${takesForDuration(videoSeconds)} takes de 8 segundos.`
+                )
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+            >
+              {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
+              Gerar {takesForDuration(videoSeconds)} takes
+            </button>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <input
               ref={chatFileRef}

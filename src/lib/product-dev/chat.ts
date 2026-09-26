@@ -1,7 +1,27 @@
 import type { DevScene } from "@/lib/product-dev/types";
 
+export const VIDEO_LENGTH_SECONDS = [40, 60, 120] as const;
+export type VideoLengthSeconds = (typeof VIDEO_LENGTH_SECONDS)[number];
+
+export function takesForDuration(seconds: number) {
+  const safe = seconds === 60 || seconds === 120 ? seconds : 40;
+  return Math.ceil(safe / 8);
+}
+
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function limitTakes(scenes: DevScene[], maxTakes: number) {
+  let left = maxTakes;
+  const next: DevScene[] = [];
+  for (const scene of scenes) {
+    if (left <= 0) break;
+    const takes = scene.takes.slice(0, left);
+    left -= takes.length;
+    if (takes.length) next.push({ ...scene, takes });
+  }
+  return next;
 }
 
 export function parseDevScenes(value: unknown): DevScene[] {
@@ -30,7 +50,7 @@ export function parseDevScenes(value: unknown): DevScene[] {
               };
             })
             .filter((t): t is DevScene["takes"][number] => Boolean(t))
-            .slice(0, 4)
+            .slice(0, 15)
         : [];
       return {
         title: asString(row.title) || "Cena",
@@ -39,10 +59,13 @@ export function parseDevScenes(value: unknown): DevScene[] {
       };
     })
     .filter((s): s is DevScene => Boolean(s))
-    .slice(0, 3);
+    .slice(0, 4);
 }
 
-export function parseDevChat(text: string): { reply: string; scenes: DevScene[] } {
+export function parseDevChat(
+  text: string,
+  maxTakes = 15
+): { reply: string; scenes: DevScene[] } {
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fence?.[1]?.trim() ?? text.trim();
   const start = raw.indexOf("{");
@@ -56,7 +79,10 @@ export function parseDevChat(text: string): { reply: string; scenes: DevScene[] 
       storyboard?: unknown;
     };
     const reply = asString(parsed.reply) || text.trim();
-    return { reply, scenes: parseDevScenes(parsed.storyboard) };
+    return {
+      reply,
+      scenes: limitTakes(parseDevScenes(parsed.storyboard), maxTakes),
+    };
   } catch {
     return { reply: text.trim(), scenes: [] };
   }

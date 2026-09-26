@@ -11,6 +11,21 @@ import {
 } from "@/lib/db/storyboards";
 import { parseDevScenes } from "@/lib/product-dev/chat";
 
+const SCENE_FORMAT =
+  "Retrato vertical 9:16 de anúncio para celular, ponta a ponta, pessoa em primeiro plano ocupando o quadro, sem barras pretas, sem formato quadrado, sem paisagem 16:9, sem layout de página web.";
+
+function withSceneFormat(prompt: string) {
+  return `${SCENE_FORMAT} ${prompt}`.replace(/\s+/g, " ").trim();
+}
+
+function withSpanishSpeech(prompt: string) {
+  if (/español|espanhol/i.test(prompt)) return prompt;
+  return `${prompt} La persona habla en español latino, no en portugués.`.replace(
+    /\s+/g,
+    " "
+  );
+}
+
 export async function POST(request: NextRequest) {
   const ctx = await requirePlatformAdmin(request);
   if (ctx instanceof NextResponse) return ctx;
@@ -54,10 +69,11 @@ export async function POST(request: NextRequest) {
 
     let y = 80;
     for (const scene of scenes) {
+      const scenePrompt = withSceneFormat(scene.prompt);
       const cena = await createBlock(ctx.tenantId, {
         storyboardId,
         modelKey: "image",
-        prompt: scene.prompt,
+        prompt: scenePrompt,
         aspectRatio: "9:16",
         resolution: "1K",
         positionX: x0,
@@ -68,16 +84,17 @@ export async function POST(request: NextRequest) {
         id: cena.id,
         kind: "image",
         title: scene.title,
-        prompt: scene.prompt,
+        prompt: scenePrompt,
         modelKey: "image",
       });
 
       let x = x0 + 320;
       for (const take of scene.takes) {
+        const takePrompt = withSpanishSpeech(take.prompt);
         const video = await createBlock(ctx.tenantId, {
           storyboardId,
           modelKey: "grok_15",
-          prompt: take.prompt,
+          prompt: takePrompt,
           aspectRatio: "9:16",
           resolution: "720p",
           positionX: x,
@@ -89,7 +106,7 @@ export async function POST(request: NextRequest) {
           id: video.id,
           kind: "video",
           title: take.title,
-          prompt: take.prompt,
+          prompt: takePrompt,
           modelKey: "grok_15",
         });
         x += 300;

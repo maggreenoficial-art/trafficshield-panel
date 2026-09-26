@@ -6,15 +6,15 @@ import {
   updateProductDevelopment,
 } from "@/lib/db/product-developments";
 import { BRAIN_THINKING } from "@/lib/product-dev/brain-mind";
-import { parseDevChat } from "@/lib/product-dev/chat";
+import { parseDevChat, takesForDuration } from "@/lib/product-dev/chat";
 import type { DevChatMessage } from "@/lib/product-dev/types";
 import { chatGrok46 } from "@/lib/kie/grok-chat";
 
 export const maxDuration = 300;
 
 const STORYBOARD_RULES = `Storyboard deste painel:
-- Cena = bloco de IMAGEM parada (modelo "image", 9:16, 1K). É o quadro do avatar: uma pessoa, uma pose, um fundo. O prompt descreve só o que está parado na foto. Sem movimento, sem "então ela fala".
-- Take = bloco de VÍDEO de 8 segundos (modelo grok_15, 720p, 9:16) plugado nessa Cena. O vídeo nasce da imagem da Cena, então a pessoa, a roupa e o fundo têm que ser os mesmos. O prompt do take descreve o movimento, o que a pessoa fala (frase curta) e a ação desses 8 segundos.
+- Cena = bloco de IMAGEM parada (modelo "image", 9:16, 1K). O prompt da cena COMEÇA pelo formato e desenvolve o quadro: retrato vertical 9:16 de anúncio de celular, ponta a ponta, pessoa em primeiro plano, sem barras, sem quadrado, sem paisagem 16:9, sem layout de página. Logo, print e página de referência podem ser quadrados ou horizontais: use só marca, cores, roupa e oferta. Não copie o formato dessas imagens.
+- Take = bloco de VÍDEO de 8 segundos (modelo grok_15, 720p, 9:16) plugado nessa Cena. A pessoa, a roupa e o fundo são os da cena. A fala entre aspas é SEMPRE espanhol latino neutro (Latam), nunca português. O resto da direção de câmera pode ficar em português.
 - Pose diferente = Cena nova, com os takes dela plugados nela. Não invente take solto.
 - Um take = uma ação. Não empilhe três ideias no mesmo take.
 - Anúncio vertical de celular. Criativo simples, promessa específica, útil antes do pedido de compra.
@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
       id?: string;
       message?: string;
       images?: string[];
+      seconds?: number;
     };
+    const seconds = body.seconds === 60 || body.seconds === 120 ? body.seconds : 40;
+    const takeCount = takesForDuration(seconds);
     const message = body.message?.trim() ?? "";
     const images = (body.images ?? [])
       .filter((url) => typeof url === "string" && url.startsWith("http"))
@@ -55,7 +58,9 @@ export async function POST(request: NextRequest) {
       .map((item) => `${item.role === "user" ? "OPERADOR" : "VOCÊ"}: ${item.text}`)
       .join("\n\n");
 
-    const prompt = `Você escreve criativos de vídeo (roteiro de takes) para anúncio, em português do Brasil. Não desenvolve página nem conversa de ideia solta. O entregável é o roteiro dos takes, que depois viram vídeo.
+    const prompt = `Você escreve criativos de vídeo para anúncio na América Latina. O painel e o resumo ficam em português. A boca da pessoa, no vídeo, fala só espanhol latino neutro. Não desenvolve página. O entregável é o roteiro dos takes.
+
+Duração pedida: ${seconds} segundos. Escreva exatamente ${takeCount} takes de 8 segundos, em ordem, cobrindo o vídeo inteiro. Nem um take a mais, nem a menos.
 
 ${BRAIN_THINKING}
 
@@ -64,7 +69,7 @@ ${STORYBOARD_RULES}
 Produto: ${current.name}
 Briefing: ${current.brief || "(sem briefing)"}
 
-Referências visuais deste produto, todas juntas (logo, oferta, criativo e página). As imagens vão anexadas. Use o que aparece nelas: marca, promessa, cores, preço e formato. Não invente uma oferta diferente da que está na imagem.
+Referências visuais deste produto, todas juntas (logo, oferta, criativo e página). As imagens vão anexadas. Use o que aparece nelas: marca, promessa, cores e preço. Não copie a proporção delas. A cena é sempre retrato vertical 9:16. Não invente uma oferta diferente da que está na imagem.
 ${
   current.referencePages
     .filter((item) => item.kind === "image" && item.url)
@@ -81,8 +86,8 @@ ${thread || "(começo)"}
 OPERADOR: ${message || "(enviou só imagem)"}
 ${images.length ? `Nesta mensagem há ${images.length} imagem(ns) anexada(s). Olhe essas fotos primeiro.` : ""}
 
-Responda SOMENTE JSON válido, sem markdown. Sempre com os takes:
-{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"foto parada 9:16, mesma pessoa em todos os takes","takes":[{"title":"Take 1","prompt":"o que a pessoa fala e faz nestes 8 segundos","seconds":8}]}]}}`;
+Responda SOMENTE JSON válido, sem markdown. Sempre com os takes. "reply" em português. A frase falada, entre aspas, em espanhol:
+{"reply":"resumo curto do roteiro","storyboard":{"scenes":[{"title":"Cena 1","prompt":"Retrato vertical 9:16, anúncio de celular ponta a ponta, pessoa em primeiro plano, sem barras e sem quadrado. Foto parada.","takes":[{"title":"Take 1","prompt":"Olha para a câmera e fala em espanhol: \\"frase en español latino\\". Um gesto só.","seconds":8}]}]}}`;
 
     const imageUrls = [
       ...images,
@@ -91,7 +96,7 @@ Responda SOMENTE JSON válido, sem markdown. Sempre com os takes:
         .map((item) => item.url),
     ].slice(0, 4);
     const raw = await chatGrok46(prompt, imageUrls);
-    const parsed = parseDevChat(raw);
+    const parsed = parseDevChat(raw, takeCount);
     const nextMessages: DevChatMessage[] = [
       ...history,
       { role: "user", text: message, images: images.length ? images : undefined },
