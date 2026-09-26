@@ -58,6 +58,7 @@ export function DevelopmentView() {
   const [chatText, setChatText] = useState("");
   const [chatFiles, setChatFiles] = useState<File[]>([]);
   const [videoSeconds, setVideoSeconds] = useState<VideoLengthSeconds>(120);
+  const [handoff, setHandoff] = useState<"board" | "kie">("board");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -219,7 +220,7 @@ export function DevelopmentView() {
 
   async function sendChat(preset?: string) {
     const message = (preset ?? chatText).trim();
-    if (!current || (!message && !chatFiles.length)) return;
+    if (!current || (!message && !chatFiles.length)) return null;
     const files = chatFiles.slice(0, 4);
     if (!preset) setChatText("");
     setChatFiles([]);
@@ -257,17 +258,36 @@ export function DevelopmentView() {
       if (!res.ok) throw new Error(data.error || "Grok falhou.");
       setCurrent(data.development ?? null);
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      return data.development ?? null;
     } catch (e) {
       if (!preset) setChatText(message);
       setChatFiles(files);
       setError(e instanceof Error ? e.message : "Falha no Grok.");
+      return null;
     } finally {
       setBusy("");
     }
   }
 
-  async function sendScenes(scenes: DevScene[], generateImages: boolean) {
-    if (!current) return;
+  async function generateTakes() {
+    const development = await sendChat(
+      `Lê o método de vídeos úteis do cérebro: 5 a 10 vídeos, cada um com uma dica real, cerca de 2 minutos. Lista os 5 a 10 e escreve agora só o vídeo 1, em espanhol latino, retrato 9:16, com ${videoSeconds} segundos (${takesForDuration(videoSeconds)} takes). Não coloque URL nem legenda.`
+    );
+    const scenes = [...(development?.plan?.messages ?? [])]
+      .reverse()
+      .find((item) => item.role === "assistant" && item.scenes?.length)?.scenes;
+    if (!development || !scenes?.length) {
+      if (development) setNotice("O Grok não devolveu takes para enviar.");
+      return;
+    }
+    await sendScenes(development, scenes, handoff === "kie");
+  }
+
+  async function sendScenes(
+    base: ProductDevelopment,
+    scenes: DevScene[],
+    generateImages: boolean
+  ) {
     setBusy(generateImages ? "gerar" : "board");
     setError("");
     setNotice("");
@@ -275,11 +295,11 @@ export function DevelopmentView() {
       const res = await fetch("/api/admin/developments/storyboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: current.id, storyboard: { scenes } }),
+        body: JSON.stringify({ id: base.id, storyboard: { scenes } }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Storyboard falhou.");
-      setCurrent({ ...current, storyboardId: data.storyboardId });
+      setCurrent({ ...base, storyboardId: data.storyboardId });
       if (generateImages) {
         const images = (data.blocks ?? []).filter(
           (block: { kind: string }) => block.kind === "image"
@@ -523,38 +543,6 @@ export function DevelopmentView() {
                         </ul>
                       </div>
                     ))}
-                    <div className="grid gap-2 pt-1 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        disabled={Boolean(busy)}
-                        onClick={() => void sendScenes(message.scenes ?? [], false)}
-                        className="rounded-xl bg-white/10 px-3 py-2 text-left text-xs text-white disabled:opacity-40"
-                      >
-                        <span className="block font-medium">
-                          {busy === "board" ? "Enviando…" : "Jogar no storyboard"}
-                        </span>
-                        <span className="mt-1 block font-normal text-white/45">
-                          Só cria os blocos em rascunho. Não gera imagem nem
-                          vídeo e não gasta crédito. Você gera depois, no
-                          storyboard.
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={Boolean(busy)}
-                        onClick={() => void sendScenes(message.scenes ?? [], true)}
-                        className="rounded-xl bg-violet-500 px-3 py-2 text-left text-xs font-medium text-black disabled:opacity-40"
-                      >
-                        <span className="block">
-                          {busy === "gerar" ? "Gerando cenas…" : "Gerar as cenas na Kie"}
-                        </span>
-                        <span className="mt-1 block font-normal text-black/70">
-                          Cria os blocos e já pede as fotos 9:16 na Kie. Os
-                          takes ficam em rascunho até a foto existir. O vídeo
-                          você gera no storyboard.
-                        </span>
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
@@ -573,7 +561,7 @@ export function DevelopmentView() {
               ))}
             </div>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {VIDEO_LENGTHS.map((item) => (
                 <button
@@ -594,17 +582,47 @@ export function DevelopmentView() {
                 </button>
               ))}
             </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setHandoff("board")}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-left text-xs",
+                  handoff === "board"
+                    ? "bg-white/15 text-white ring-1 ring-white/30"
+                    : "bg-white/5 text-white/55"
+                )}
+              >
+                <span className="block font-medium">Jogar no storyboard</span>
+                <span className="mt-1 block font-normal text-white/45">
+                  Seleção. Os blocos entram em rascunho, sem gastar crédito.
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setHandoff("kie")}
+                className={cn(
+                  "rounded-xl px-3 py-2 text-left text-xs",
+                  handoff === "kie"
+                    ? "bg-violet-500 text-black"
+                    : "bg-white/5 text-white/55"
+                )}
+              >
+                <span className="block font-medium">Gerar as cenas na Kie</span>
+                <span className={cn("mt-1 block font-normal", handoff === "kie" ? "text-black/70" : "text-white/40")}>
+                  Seleção. Além do rascunho, pede as fotos 9:16 na Kie.
+                </span>
+              </button>
+            </div>
             <button
               type="button"
               disabled={Boolean(busy)}
-              onClick={() =>
-                void sendChat(
-                  `Lê o método de vídeos úteis do cérebro: 5 a 10 vídeos, cada um com uma dica real, cerca de 2 minutos. Lista os 5 a 10 e escreve agora só o vídeo 1, em espanhol latino, retrato 9:16, com ${videoSeconds} segundos (${takesForDuration(videoSeconds)} takes). Não coloque URL nem legenda.`
-                )
-              }
+              onClick={() => void generateTakes()}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
             >
-              {busy === "grok" ? <Loader2 className="animate-spin" size={16} /> : null}
+              {busy === "grok" || busy === "board" || busy === "gerar" ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : null}
               Gerar {takesForDuration(videoSeconds)} takes
             </button>
           </div>
