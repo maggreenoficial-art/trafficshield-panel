@@ -325,8 +325,8 @@ export function DevelopmentView() {
       }
       setNotice(
         generateImages
-          ? "Cenas foram para a Kie. Os takes estão plugados nelas, em rascunho, no storyboard."
-          : "Cenas e takes entraram no storyboard, em rascunho."
+          ? `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. As fotos foram para a Kie. Os takes estão em rascunho.`
+          : `Storyboard novo criado${data.name ? `: ${data.name}` : ""}. Os takes entraram em rascunho.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no storyboard.");

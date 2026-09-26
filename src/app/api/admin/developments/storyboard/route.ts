@@ -4,11 +4,7 @@ import {
   getProductDevelopment,
   updateProductDevelopment,
 } from "@/lib/db/product-developments";
-import {
-  createBlock,
-  createStoryboard,
-  listBlocks,
-} from "@/lib/db/storyboards";
+import { createBlock, createStoryboard } from "@/lib/db/storyboards";
 import { parseDevScenes } from "@/lib/product-dev/chat";
 
 const SCENE_FORMAT =
@@ -44,20 +40,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
     }
 
-    let storyboardId = current.storyboardId;
-    if (!storyboardId) {
-      const board = await createStoryboard(ctx.tenantId, {
-        name: current.name,
-        description: current.brief.slice(0, 280) || current.name,
-      });
-      storyboardId = board.id;
-    }
-
-    const existing = await listBlocks(ctx.tenantId, storyboardId);
-    let x0 = 80;
-    if (existing.length) {
-      x0 = Math.max(...existing.map((block) => block.positionX)) + 340;
-    }
+    const stamp = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date());
+    const board = await createStoryboard(ctx.tenantId, {
+      name: `${current.name} · ${stamp}`.slice(0, 120),
+      description: current.brief.slice(0, 280) || current.name,
+    });
+    const storyboardId = board.id;
+    const x0 = 80;
 
     const blocks: {
       id: string;
@@ -115,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     await updateProductDevelopment(ctx.tenantId, current.id, { storyboardId });
-    return NextResponse.json({ storyboardId, blocks });
+    return NextResponse.json({ storyboardId, name: board.name, blocks });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Falha ao criar storyboard.";
     return NextResponse.json({ error: msg }, { status: 500 });

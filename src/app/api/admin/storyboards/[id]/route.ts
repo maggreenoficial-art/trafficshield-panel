@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/storyboards";
 import { getKieAccountCredits } from "@/lib/kie/client";
 import { syncBlockFromKie } from "@/lib/kie/sync-block";
+import { clearProductStoryboardLink } from "@/lib/db/product-developments";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -65,6 +66,7 @@ export async function DELETE(request: NextRequest, context: Ctx) {
       return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
     }
     await deleteStoryboard(panel.tenantId, id);
+    await clearProductStoryboardLink(panel.tenantId, id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json(

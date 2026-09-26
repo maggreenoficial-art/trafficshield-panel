@@ -154,6 +154,18 @@ export async function createProductDevelopment(
   return mapRow(data as Row);
 }
 
+export async function clearProductStoryboardLink(
+  tenantId: string,
+  storyboardId: string
+) {
+  const supabase = createAdminClient();
+  await supabase
+    .from("product_developments")
+    .update({ storyboard_id: null, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .eq("storyboard_id", storyboardId);
+}
+
 export async function updateProductDevelopment(
   tenantId: string,
   id: string,

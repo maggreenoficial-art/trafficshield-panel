@@ -6,6 +6,7 @@ import {
   listProductDevelopments,
   updateProductDevelopment,
 } from "@/lib/db/product-developments";
+import { getStoryboard } from "@/lib/db/storyboards";
 import { getTrafficDomains } from "@/lib/db/traffic-campaigns";
 import type { DevDoc, DevReferencePage } from "@/lib/product-dev/types";
 import { stripScripts } from "@/lib/product-dev/plan";
@@ -29,6 +30,15 @@ export async function GET(request: NextRequest) {
       const development = await getProductDevelopment(ctx.tenantId, id);
       if (!development) {
         return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+      }
+      if (development.storyboardId) {
+        const board = await getStoryboard(ctx.tenantId, development.storyboardId);
+        if (!board) {
+          const cleared = await updateProductDevelopment(ctx.tenantId, development.id, {
+            storyboardId: null,
+          });
+          return NextResponse.json({ development: cleared, domains });
+        }
       }
       return NextResponse.json({ development, domains });
     }
