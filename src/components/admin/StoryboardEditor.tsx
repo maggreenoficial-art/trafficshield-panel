@@ -48,6 +48,7 @@ type Block = {
   errorMessage: string | null;
   creditsCharged: number;
   sourceBlockId: string | null;
+  createdAt?: string;
 };
 
 type Board = {
@@ -61,12 +62,11 @@ type OrgLabel = {
   text: string;
 };
 
-/** Ordem narrativa ≈ esquerda → direita no canvas. */
+/** Ordem de criação. Arrastar o card não troca Cena nem Take. */
 function buildOrgLabels(blocks: Block[]): Map<string, OrgLabel> {
   const sorted = [...blocks].sort(
     (a, b) =>
-      a.positionX - b.positionX ||
-      a.positionY - b.positionY ||
+      (a.createdAt || "").localeCompare(b.createdAt || "") ||
       a.id.localeCompare(b.id)
   );
   let cena = 0;
