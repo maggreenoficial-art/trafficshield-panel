@@ -750,6 +750,17 @@ function DraftForm({
   const plugSources = allBlocks.filter(
     (b) => b.id !== block.id && b.status === "success" && b.resultUrl
   );
+  const pluggedSource = allBlocks.find((b) => b.id === sourceBlockId);
+  const pluggedStill =
+    pluggedSource?.status === "success" &&
+    pluggedSource.resultUrl &&
+    !/\.(mp4|mov|webm)(\?|$)/i.test(pluggedSource.resultUrl)
+      ? pluggedSource.resultUrl
+      : null;
+  const videoRefs =
+    pluggedStill && !refUrls.includes(pluggedStill)
+      ? [pluggedStill, ...refUrls]
+      : refUrls;
 
   useEffect(() => {
     if (!model) return;
@@ -816,7 +827,7 @@ function DraftForm({
             aspectRatio,
             resolution,
             duration: isImage ? undefined : duration,
-            referenceUrls: refUrls,
+            referenceUrls: isImage ? refUrls : videoRefs,
             sourceBlockId,
           }),
         }
@@ -835,7 +846,7 @@ function DraftForm({
   const canGenerate = isImage
     ? Boolean(prompt.trim())
     : model?.requiresReference
-      ? refUrls.length > 0
+      ? videoRefs.length > 0
       : Boolean(prompt.trim());
 
   return (
