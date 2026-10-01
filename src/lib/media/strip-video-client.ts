@@ -46,8 +46,9 @@ async function getFfmpeg(): Promise<FFmpeg> {
       ffmpegLogs.push(message);
       if (ffmpegLogs.length > 40) ffmpegLogs.shift();
     });
+    const workerURL = new URL("/ffmpeg/worker.js", window.location.href).href;
     await instance.load({
-      classWorkerURL: "/ffmpeg/worker.js",
+      classWorkerURL: workerURL,
       coreURL: `${CORE_BASE}/ffmpeg-core.js`,
       wasmURL: `${CORE_BASE}/ffmpeg-core.wasm`,
     });
