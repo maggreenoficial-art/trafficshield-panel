@@ -14,6 +14,7 @@ const ADMIN_ONLY_PATH_PREFIXES = [
   "/storyboards",
   "/analise-campanha",
   "/desenvolvimento",
+  "/noticias",
 ];
 
 function isPublicPath(pathname: string): boolean {
