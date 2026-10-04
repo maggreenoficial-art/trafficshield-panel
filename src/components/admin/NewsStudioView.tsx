@@ -14,19 +14,8 @@ import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
 import { downloadBlob } from "@/lib/media/strip-image-client";
+import { formatNewsWhen } from "@/lib/news/dates";
 import type { NewsBrand, NewsDraft, NewsItem } from "@/lib/news/types";
-
-function formatDate(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 function isPlayerUrl(url: string) {
   return /youtube|youtu\.be|vimeo|facebook|fb\.watch|tiktok|instagram/i.test(url);
@@ -85,7 +74,7 @@ export function NewsStudioView() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [storyboardId, setStoryboardId] = useState("");
-  const [filter, setFilter] = useState<"all" | "video">("all");
+  const [filter, setFilter] = useState<"all" | "instagram" | "video">("all");
   const [pasteUrl, setPasteUrl] = useState("");
   const logoRef = useRef<HTMLInputElement | null>(null);
   const mockupRef = useRef<HTMLInputElement | null>(null);
@@ -132,10 +121,10 @@ export function NewsStudioView() {
       const item = data.item as NewsItem;
       setItems((current) => [item, ...current.filter((row) => row.id !== item.id)]);
       setPasteUrl("");
-      setFilter("video");
+      setFilter(item.kind === "instagram" ? "instagram" : "video");
       setNotice(
         item.kind === "instagram"
-          ? "Reel do Instagram na lista. Dá para abrir; o Instagram não solta o arquivo para baixar."
+          ? "Reel do Instagram na lista, com a data de agora. Dá para abrir; o Instagram não solta o arquivo."
           : "Vídeo do YouTube na lista."
       );
     } catch (e) {
@@ -272,7 +261,7 @@ export function NewsStudioView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Notícias"
-        subtitle="Puxa Cassilândia MS, inclui vídeo do YouTube e do Instagram quando acha, escreve a legenda e, se você autorizar, joga a arte no storyboard."
+        subtitle="Puxa notícia recente de Cassilândia, mostra a data e aceita Reel do Instagram colado. Se você autorizar, joga a arte no storyboard."
       />
 
       {error && (
@@ -338,6 +327,16 @@ export function NewsStudioView() {
             </button>
             <button
               type="button"
+              onClick={() => setFilter("instagram")}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[11px]",
+                filter === "instagram" ? "bg-white/15 text-white" : "bg-white/5 text-white/50"
+              )}
+            >
+              Instagram
+            </button>
+            <button
+              type="button"
               onClick={() => setFilter("video")}
               className={cn(
                 "rounded-full px-3 py-1.5 text-[11px]",
@@ -352,7 +351,7 @@ export function NewsStudioView() {
               className={cn(panelInput, "text-xs")}
               value={pasteUrl}
               onChange={(e) => setPasteUrl(e.target.value)}
-              placeholder="Cole um Reel do Instagram ou um YouTube"
+              placeholder="Cole o link do Reel do Instagram"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void importSocial();
               }}
@@ -368,7 +367,13 @@ export function NewsStudioView() {
           </div>
           <ul className="space-y-2">
             {items
-              .filter((item) => filter === "all" || Boolean(item.videoUrl))
+              .filter((item) =>
+                filter === "instagram"
+                  ? item.kind === "instagram"
+                  : filter === "video"
+                    ? Boolean(item.videoUrl)
+                    : true
+              )
               .map((item) => {
               const active = draft?.news.id === item.id;
               const producing = busy === `produce:${item.id}`;
@@ -381,12 +386,8 @@ export function NewsStudioView() {
                     <NewsBadge item={item} />
                   </div>
                   <p className="text-sm font-medium text-white/85">{item.title}</p>
-                  <p className="mt-1 text-[11px] text-white/40">
-                    {item.source}
-                    {formatDate(item.publishedAt)
-                      ? ` · ${formatDate(item.publishedAt)}`
-                      : ""}
-                  </p>
+                  <p className="mt-1 text-xs text-white/75">{formatNewsWhen(item.publishedAt)}</p>
+                  <p className="mt-0.5 text-[11px] text-white/40">{item.source}</p>
                   {item.summary && (
                     <p className="mt-2 line-clamp-2 text-xs text-white/45">
                       {item.summary}
@@ -410,12 +411,20 @@ export function NewsStudioView() {
                 </li>
               );
             })}
-            {!items.filter((item) => filter === "all" || Boolean(item.videoUrl)).length &&
+            {!items.filter((item) =>
+              filter === "instagram"
+                ? item.kind === "instagram"
+                : filter === "video"
+                  ? Boolean(item.videoUrl)
+                  : true
+            ).length &&
               busy !== "news" && (
               <p className="text-sm text-white/40">
-                {filter === "video"
-                  ? "Nenhum vídeo nesta busca. Cole um Reel ou um YouTube acima."
-                  : "Nenhuma notícia na lista."}
+                {filter === "instagram"
+                  ? "Nenhum Reel na lista. Cole o link do Instagram acima."
+                  : filter === "video"
+                    ? "Nenhum vídeo nesta busca. Cole um Reel do Instagram acima."
+                    : "Nenhuma notícia recente na lista."}
               </p>
             )}
           </ul>

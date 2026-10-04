@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { toNewsIso } from "@/lib/news/dates";
 import type { NewsItem } from "@/lib/news/types";
 
 function decodeXml(value: string) {
@@ -129,7 +130,7 @@ export function parseRssItems(xml: string): NewsItem[] {
       title: title.slice(0, 220),
       source: source.slice(0, 80) || "Portal",
       url,
-      publishedAt: firstTag(block, "pubDate") || null,
+      publishedAt: toNewsIso(firstTag(block, "pubDate") || firstTag(block, "dc:date")),
       summary: stripHtml(description).slice(0, 420),
       imageUrl: image.startsWith("http") ? image : null,
       videoUrl: video.startsWith("http") ? video : null,

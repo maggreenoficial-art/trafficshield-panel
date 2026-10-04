@@ -19,13 +19,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const publishedAt = new Date().toISOString();
     const youtube = await resolveYoutubeNews(raw);
-    if (youtube) return NextResponse.json({ item: youtube });
+    if (youtube) {
+      return NextResponse.json({
+        item: { ...youtube, publishedAt: youtube.publishedAt || publishedAt },
+      });
+    }
 
     const instagram = newsItemFromInstagram({
       url: raw,
       title: "Vídeo no Instagram",
       summary: "Post colado do Instagram. O arquivo do Reel o Instagram não libera para baixar; dá para abrir o original.",
+      publishedAt,
     });
     if (instagram) return NextResponse.json({ item: instagram });
 
