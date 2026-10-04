@@ -1,3 +1,5 @@
+export type NewsKind = "news" | "youtube" | "instagram";
+
 export type NewsItem = {
   id: string;
   title: string;
@@ -7,6 +9,7 @@ export type NewsItem = {
   summary: string;
   imageUrl: string | null;
   videoUrl: string | null;
+  kind?: NewsKind;
 };
 
 export type NewsBrand = {

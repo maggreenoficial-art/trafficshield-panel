@@ -139,12 +139,30 @@ export function parseRssItems(xml: string): NewsItem[] {
   return items;
 }
 
+function newsDedupeKey(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const id = parsed.searchParams.get("v");
+      if (id) return `youtube:${id.toLowerCase()}`;
+    }
+    if (host === "youtu.be") {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      if (id) return `youtube:${id.toLowerCase()}`;
+    }
+    return parsed.toString().replace(/[?#].*$/, "").toLowerCase();
+  } catch {
+    return url.replace(/[?#].*$/, "").toLowerCase();
+  }
+}
+
 export function mergeNews(lists: NewsItem[][]): NewsItem[] {
   const seen = new Set<string>();
   const merged: NewsItem[] = [];
   for (const list of lists) {
     for (const item of list) {
-      const key = item.url.replace(/[?#].*$/, "").toLowerCase();
+      const key = newsDedupeKey(item.url);
       if (seen.has(key) || seen.has(item.id)) continue;
       seen.add(key);
       seen.add(item.id);

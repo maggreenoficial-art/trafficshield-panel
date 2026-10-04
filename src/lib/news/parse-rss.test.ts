@@ -34,6 +34,36 @@ test("junta feeds sem repetir a mesma URL", () => {
   assert.equal(merged.length, 1);
 });
 
+test("não junta dois YouTube só porque o caminho é /watch", () => {
+  const merged = mergeNews([
+    [
+      {
+        id: "a",
+        title: "Um em Cassilândia",
+        source: "YouTube",
+        url: "https://www.youtube.com/watch?v=AAAAAAAAAAA",
+        publishedAt: null,
+        summary: "",
+        imageUrl: null,
+        videoUrl: "https://www.youtube.com/watch?v=AAAAAAAAAAA",
+        kind: "youtube",
+      },
+      {
+        id: "b",
+        title: "Dois em Cassilândia",
+        source: "YouTube",
+        url: "https://www.youtube.com/watch?v=BBBBBBBBBBB",
+        publishedAt: null,
+        summary: "",
+        imageUrl: null,
+        videoUrl: "https://www.youtube.com/watch?v=BBBBBBBBBBB",
+        kind: "youtube",
+      },
+    ],
+  ]);
+  assert.equal(merged.length, 2);
+});
+
 test("lê foto e vídeo do HTML da matéria", () => {
   const media = extractArticleMedia(
     `<meta property="og:image" content="https://cdn.exemplo.com/a.jpg" />

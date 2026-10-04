@@ -1,5 +1,11 @@
 import { assertPublicOriginHostname } from "@/lib/traffic-shield/origin-url";
 import { isGoogleNewsUrl, resolveNewsUrl } from "@/lib/news/google-url";
+import {
+  extractSocialVideoUrls,
+  instagramPostUrl,
+  youtubeVideoId,
+  youtubeWatchUrl,
+} from "@/lib/news/social";
 
 export const NEWS_BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -57,10 +63,6 @@ function ogContent(html: string, property: string) {
   return decode(html.match(named)?.[1] ?? html.match(reversed)?.[1] ?? "");
 }
 
-function firstMatch(html: string, pattern: RegExp) {
-  return decode(html.match(pattern)?.[1] ?? "");
-}
-
 function absolutize(raw: string, base?: string) {
   if (!raw) return "";
   try {
@@ -71,7 +73,7 @@ function absolutize(raw: string, base?: string) {
 }
 
 function isGenericMedia(url: string) {
-  return /\/(?:default|placeholder|sprite|favicon)(?:[-_.]|$)|\/ui\/images\/|\/logo(?:[-_.]|\.|$)/i.test(
+  return /(?:^|\/)(?:default|placeholder|sprite|favicon)(?:[-_.]|$)|\/ui\/images\/|(?:^|\/)logo(?:[-_.]|\.|$)/i.test(
     url
   );
 }
@@ -82,30 +84,45 @@ function usableMediaUrl(raw: string, baseUrl?: string) {
   return parsed.toString();
 }
 
+function usableVideoUrl(raw: string, baseUrl?: string) {
+  if (!raw || /\$\{|youtubeId|params\.toString/i.test(raw)) return null;
+  const youtube = youtubeVideoId(raw);
+  if (youtube) return youtubeWatchUrl(youtube);
+  const instagram = instagramPostUrl(raw);
+  if (instagram) return instagram;
+  const parsed = usableMediaUrl(raw, baseUrl);
+  if (!parsed) return null;
+  if (isHostedPlayer(parsed) || isDirectVideoUrl(parsed) || /facebook|fb\.watch|tiktok/i.test(parsed)) {
+    return parsed;
+  }
+  return null;
+}
+
 export function extractArticleMedia(
   html: string,
   baseUrl?: string
 ): {
   imageUrl: string | null;
   videoUrl: string | null;
+  socialUrls: string[];
 } {
   const image =
     ogContent(html, "og:image") ||
     ogContent(html, "twitter:image") ||
     ogContent(html, "twitter:image:src");
+  const socialUrls = extractSocialVideoUrls(html);
   const video =
-    ogContent(html, "og:video:secure_url") ||
-    ogContent(html, "og:video:url") ||
-    ogContent(html, "og:video") ||
-    ogContent(html, "twitter:player:stream") ||
-    firstMatch(html, /<source[^>]+type=["']video\/[^"']+["'][^>]+src=["']([^"']+)/i) ||
-    firstMatch(html, /<source[^>]+src=["']([^"']+)["'][^>]+type=["']video\//i) ||
-    firstMatch(html, /<video[^>]+src=["']([^"']+)/i) ||
-    firstMatch(html, /<(?:iframe|embed)[^>]+src=["']([^"']*(?:youtube|youtu\.be|vimeo)[^"']*)/i);
+    usableVideoUrl(ogContent(html, "og:video:secure_url"), baseUrl) ||
+    usableVideoUrl(ogContent(html, "og:video:url"), baseUrl) ||
+    usableVideoUrl(ogContent(html, "og:video"), baseUrl) ||
+    usableVideoUrl(ogContent(html, "twitter:player:stream"), baseUrl) ||
+    socialUrls[0] ||
+    null;
 
   return {
     imageUrl: usableMediaUrl(image, baseUrl),
-    videoUrl: usableMediaUrl(video, baseUrl),
+    videoUrl: video,
+    socialUrls,
   };
 }
 
@@ -191,13 +208,14 @@ async function downloadArticleHtml(rawUrl: string) {
 export async function fetchArticleMedia(rawUrl: string): Promise<{
   imageUrl: string | null;
   videoUrl: string | null;
+  socialUrls: string[];
 }> {
   try {
     const page = await downloadArticleHtml(rawUrl);
-    if (!page) return { imageUrl: null, videoUrl: null };
+    if (!page) return { imageUrl: null, videoUrl: null, socialUrls: [] };
     return extractArticleMedia(page.html, page.url);
   } catch {
-    return { imageUrl: null, videoUrl: null };
+    return { imageUrl: null, videoUrl: null, socialUrls: [] };
   }
 }
 

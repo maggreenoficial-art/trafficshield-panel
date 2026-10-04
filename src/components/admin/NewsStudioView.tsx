@@ -32,6 +32,24 @@ function isPlayerUrl(url: string) {
   return /youtube|youtu\.be|vimeo|facebook|fb\.watch|tiktok|instagram/i.test(url);
 }
 
+function NewsBadge({ item }: { item: NewsItem }) {
+  const label =
+    item.kind === "instagram"
+      ? "Instagram"
+      : item.kind === "youtube"
+        ? "YouTube"
+        : item.videoUrl
+          ? "Vídeo"
+          : item.imageUrl
+            ? "Foto"
+            : "Texto";
+  return (
+    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
+      {label}
+    </span>
+  );
+}
+
 async function downloadNewsMedia(
   url: string,
   kind: "image" | "video",
@@ -67,6 +85,8 @@ export function NewsStudioView() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [storyboardId, setStoryboardId] = useState("");
+  const [filter, setFilter] = useState<"all" | "video">("all");
+  const [pasteUrl, setPasteUrl] = useState("");
   const logoRef = useRef<HTMLInputElement | null>(null);
   const mockupRef = useRef<HTMLInputElement | null>(null);
 
@@ -91,6 +111,35 @@ export function NewsStudioView() {
       setItems(data.items ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao buscar notícias.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function importSocial() {
+    const url = pasteUrl.trim();
+    if (!url) return;
+    setBusy("paste");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/news/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não leu esse link.");
+      const item = data.item as NewsItem;
+      setItems((current) => [item, ...current.filter((row) => row.id !== item.id)]);
+      setPasteUrl("");
+      setFilter("video");
+      setNotice(
+        item.kind === "instagram"
+          ? "Reel do Instagram na lista. Dá para abrir; o Instagram não solta o arquivo para baixar."
+          : "Vídeo do YouTube na lista."
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao ler o link.");
     } finally {
       setBusy("");
     }
@@ -223,7 +272,7 @@ export function NewsStudioView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Notícias"
-        subtitle="Puxa Cassilândia MS, escreve o Instagram e, se você autorizar, joga a arte no storyboard usando a logo e o mockup da página."
+        subtitle="Puxa Cassilândia MS, inclui vídeo do YouTube e do Instagram quando acha, escreve a legenda e, se você autorizar, joga a arte no storyboard."
       />
 
       {error && (
@@ -276,8 +325,51 @@ export function NewsStudioView() {
               {busy === "news" ? "Buscando..." : "Atualizar"}
             </button>
           </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[11px]",
+                filter === "all" ? "bg-white/15 text-white" : "bg-white/5 text-white/50"
+              )}
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("video")}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[11px]",
+                filter === "video" ? "bg-white/15 text-white" : "bg-white/5 text-white/50"
+              )}
+            >
+              Com vídeo
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              className={cn(panelInput, "text-xs")}
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+              placeholder="Cole um Reel do Instagram ou um YouTube"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void importSocial();
+              }}
+            />
+            <button
+              type="button"
+              disabled={Boolean(busy) || !pasteUrl.trim()}
+              onClick={() => void importSocial()}
+              className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 disabled:opacity-40"
+            >
+              {busy === "paste" ? "Lendo..." : "Trazer"}
+            </button>
+          </div>
           <ul className="space-y-2">
-            {items.map((item) => {
+            {items
+              .filter((item) => filter === "all" || Boolean(item.videoUrl))
+              .map((item) => {
               const active = draft?.news.id === item.id;
               const producing = busy === `produce:${item.id}`;
               return (
@@ -285,6 +377,9 @@ export function NewsStudioView() {
                   key={item.id}
                   className={cn(panelCard, "p-4", active && "ring-1 ring-violet-400/50")}
                 >
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    <NewsBadge item={item} />
+                  </div>
                   <p className="text-sm font-medium text-white/85">{item.title}</p>
                   <p className="mt-1 text-[11px] text-white/40">
                     {item.source}
@@ -315,8 +410,13 @@ export function NewsStudioView() {
                 </li>
               );
             })}
-            {!items.length && busy !== "news" && (
-              <p className="text-sm text-white/40">Nenhuma notícia na lista.</p>
+            {!items.filter((item) => filter === "all" || Boolean(item.videoUrl)).length &&
+              busy !== "news" && (
+              <p className="text-sm text-white/40">
+                {filter === "video"
+                  ? "Nenhum vídeo nesta busca. Cole um Reel ou um YouTube acima."
+                  : "Nenhuma notícia na lista."}
+              </p>
             )}
           </ul>
         </div>
@@ -430,7 +530,11 @@ function NewsLinks({
         className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white"
       >
         <ExternalLink size={12} />
-        Ver original
+        {news.kind === "instagram"
+          ? "Ver no Instagram"
+          : news.kind === "youtube"
+            ? "Ver no YouTube"
+            : "Ver original"}
       </a>
       {news.imageUrl && (
         <button
@@ -447,7 +551,9 @@ function NewsLinks({
           Baixar imagem
         </button>
       )}
-      {news.videoUrl && isPlayerUrl(news.videoUrl) && (
+      {news.videoUrl &&
+        isPlayerUrl(news.videoUrl) &&
+        news.videoUrl.replace(/\/+$/, "") !== news.url.replace(/\/+$/, "") && (
         <a
           href={news.videoUrl}
           target="_blank"

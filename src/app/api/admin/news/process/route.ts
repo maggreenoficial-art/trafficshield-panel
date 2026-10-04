@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       summary: (news.summary || "").slice(0, 800),
       imageUrl: news.imageUrl ?? null,
       videoUrl: news.videoUrl ?? null,
+      kind: news.kind,
     });
     return NextResponse.json({ draft });
   } catch (error) {
