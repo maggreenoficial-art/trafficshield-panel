@@ -6,6 +6,8 @@ import {
   NEWS_BROWSER_UA,
   parsePublicHttpUrl,
 } from "@/lib/news/article";
+import { fetchInstagramMeta } from "@/lib/news/instagram";
+import { instagramPostUrl } from "@/lib/news/social";
 
 export const maxDuration = 60;
 
@@ -47,7 +49,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "URL de mídia inválida." }, { status: 400 });
   }
 
-  if (kind === "video" && isHostedPlayer(url.toString()) && !isDirectVideoUrl(url.toString())) {
+  let mediaUrl = url;
+  const igPage =
+    instagramPostUrl(page?.toString() ?? "") || instagramPostUrl(url.toString());
+  if (
+    igPage &&
+    (kind === "video" || Boolean(instagramPostUrl(url.toString())))
+  ) {
+    const meta = await fetchInstagramMeta(igPage);
+    const fresh = kind === "video" ? meta?.videoUrl : meta?.imageUrl;
+    const parsed = fresh ? parsePublicHttpUrl(fresh) : null;
+    if (!parsed) {
+      return NextResponse.json(
+        {
+          error:
+            kind === "video"
+              ? "O Instagram não soltou o arquivo deste vídeo. Abra o original."
+              : "O Instagram não soltou o arquivo desta imagem. Abra o original.",
+          openUrl: igPage,
+        },
+        { status: 409 }
+      );
+    }
+    mediaUrl = parsed;
+  } else if (kind === "video" && isHostedPlayer(url.toString()) && !isDirectVideoUrl(url.toString())) {
     return NextResponse.json(
       {
         error: "Este vídeo está no player da matéria. Abra o link original.",
@@ -58,15 +83,42 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const upstream = await fetch(url.toString(), {
+    const upstream = await fetch(mediaUrl.toString(), {
       redirect: "follow",
       headers: {
         Accept: kind === "video" ? "video/*,*/*" : "image/*,*/*",
         "User-Agent": NEWS_BROWSER_UA,
-        ...(page ? { Referer: page.toString() } : {}),
+        Referer: igPage || page?.toString() || mediaUrl.toString(),
       },
       signal: AbortSignal.timeout(25_000),
     });
+    if ((!upstream.ok || !upstream.body) && igPage && kind === "image") {
+      const meta = await fetchInstagramMeta(igPage);
+      const parsed = meta?.imageUrl ? parsePublicHttpUrl(meta.imageUrl) : null;
+      if (parsed) {
+        const retry = await fetch(parsed.toString(), {
+          redirect: "follow",
+          headers: {
+            Accept: "image/*,*/*",
+            "User-Agent": NEWS_BROWSER_UA,
+            Referer: igPage,
+          },
+          signal: AbortSignal.timeout(25_000),
+        });
+        if (retry.ok && retry.body) {
+          const type = (retry.headers.get("content-type") ?? "").split(";")[0].trim();
+          const name = fileName(kind, type, title);
+          return new NextResponse(retry.body, {
+            status: 200,
+            headers: {
+              "Content-Type": type || "image/jpeg",
+              "Content-Disposition": `attachment; filename="${name}"`,
+              "Cache-Control": "no-store",
+            },
+          });
+        }
+      }
+    }
     if (!upstream.ok || !upstream.body) {
       return NextResponse.json(
         { error: `A mídia respondeu HTTP ${upstream.status}.` },

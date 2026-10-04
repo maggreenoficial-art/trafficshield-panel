@@ -105,20 +105,30 @@ export function newsItemFromInstagram(input: {
   url: string;
   title?: string;
   summary?: string;
+  source?: string;
   publishedAt?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  mediaKind?: "image" | "video";
 }): NewsItem | null {
   const url = instagramPostUrl(input.url);
   if (!url) return null;
+  const mediaKind =
+    input.mediaKind || (/\/(?:reel|tv)\//.test(url) ? "video" : "image");
   return {
     id: newsId(url),
-    title: (input.title || "Vídeo no Instagram").slice(0, 220),
-    source: "Instagram",
+    title: (input.title || (mediaKind === "video" ? "Vídeo no Instagram" : "Post no Instagram")).slice(
+      0,
+      220
+    ),
+    source: (input.source || "Instagram").slice(0, 80),
     url,
     publishedAt: input.publishedAt ?? null,
     summary: (input.summary || "Post público do Instagram sobre Cassilândia.").slice(0, 420),
-    imageUrl: null,
-    videoUrl: url,
+    imageUrl: input.imageUrl ?? null,
+    videoUrl: mediaKind === "video" ? input.videoUrl ?? url : input.videoUrl ?? null,
     kind: "instagram",
+    mediaKind,
   };
 }
 

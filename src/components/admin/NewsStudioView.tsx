@@ -15,27 +15,47 @@ import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
 import { downloadBlob } from "@/lib/media/strip-image-client";
 import { formatNewsWhen } from "@/lib/news/dates";
-import type { NewsBrand, NewsDraft, NewsItem } from "@/lib/news/types";
+import { newsMediaKind, type NewsBrand, type NewsDraft, type NewsItem } from "@/lib/news/types";
 
 function isPlayerUrl(url: string) {
-  return /youtube|youtu\.be|vimeo|facebook|fb\.watch|tiktok|instagram/i.test(url);
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return (
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "music.youtube.com" ||
+      host === "youtu.be" ||
+      host.endsWith(".vimeo.com") ||
+      host === "vimeo.com" ||
+      host === "facebook.com" ||
+      host.endsWith(".facebook.com") ||
+      host === "fb.watch" ||
+      host === "tiktok.com" ||
+      host.endsWith(".tiktok.com") ||
+      host === "instagram.com" ||
+      host.endsWith(".instagram.com")
+    );
+  } catch {
+    return false;
+  }
 }
 
-function NewsBadge({ item }: { item: NewsItem }) {
-  const label =
-    item.kind === "instagram"
-      ? "Instagram"
-      : item.kind === "youtube"
-        ? "YouTube"
-        : item.videoUrl
-          ? "Vídeo"
-          : item.imageUrl
-            ? "Foto"
-            : "Texto";
+function NewsBadges({ item }: { item: NewsItem }) {
+  const media = newsMediaKind(item);
+  const channel =
+    item.kind === "instagram" ? "Instagram" : item.kind === "youtube" ? "YouTube" : null;
+  const mediaLabel = media === "video" ? "Vídeo" : media === "image" ? "Imagem" : "Texto";
   return (
-    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
-      {label}
-    </span>
+    <>
+      {channel && (
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
+          {channel}
+        </span>
+      )}
+      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/55">
+        {mediaLabel}
+      </span>
+    </>
   );
 }
 
@@ -124,7 +144,7 @@ export function NewsStudioView() {
       setFilter(item.kind === "instagram" ? "instagram" : "video");
       setNotice(
         item.kind === "instagram"
-          ? "Reel do Instagram na lista, com a data de agora. Dá para abrir; o Instagram não solta o arquivo."
+          ? "Post do Instagram na lista, com a página e se é vídeo ou imagem."
           : "Vídeo do YouTube na lista."
       );
     } catch (e) {
@@ -371,7 +391,7 @@ export function NewsStudioView() {
                 filter === "instagram"
                   ? item.kind === "instagram"
                   : filter === "video"
-                    ? Boolean(item.videoUrl)
+                    ? newsMediaKind(item) === "video"
                     : true
               )
               .map((item) => {
@@ -383,11 +403,11 @@ export function NewsStudioView() {
                   className={cn(panelCard, "p-4", active && "ring-1 ring-violet-400/50")}
                 >
                   <div className="mb-2 flex flex-wrap gap-1.5">
-                    <NewsBadge item={item} />
+                    <NewsBadges item={item} />
                   </div>
                   <p className="text-sm font-medium text-white/85">{item.title}</p>
                   <p className="mt-1 text-xs text-white/75">{formatNewsWhen(item.publishedAt)}</p>
-                  <p className="mt-0.5 text-[11px] text-white/40">{item.source}</p>
+                  <p className="mt-0.5 text-xs text-white/60">{item.source}</p>
                   {item.summary && (
                     <p className="mt-2 line-clamp-2 text-xs text-white/45">
                       {item.summary}
@@ -415,15 +435,15 @@ export function NewsStudioView() {
               filter === "instagram"
                 ? item.kind === "instagram"
                 : filter === "video"
-                  ? Boolean(item.videoUrl)
+                  ? newsMediaKind(item) === "video"
                   : true
             ).length &&
               busy !== "news" && (
               <p className="text-sm text-white/40">
                 {filter === "instagram"
-                  ? "Nenhum Reel na lista. Cole o link do Instagram acima."
+                  ? "Nenhum post do Instagram nesta busca."
                   : filter === "video"
-                    ? "Nenhum vídeo nesta busca. Cole um Reel do Instagram acima."
+                    ? "Nenhum vídeo nesta busca."
                     : "Nenhuma notícia recente na lista."}
               </p>
             )}
@@ -476,8 +496,9 @@ export function NewsStudioView() {
                 onError={setError}
               />
               <p className="text-[11px] text-white/35">
-                Fonte: {draft.news.source}. A imagem gerada usa o mockup e a logo
-                enviados acima.
+                Página: {draft.news.source}.{" "}
+                {newsMediaKind(draft.news) === "video" ? "Vídeo" : newsMediaKind(draft.news) === "image" ? "Imagem" : "Texto"}
+                . A arte gerada usa o mockup e a logo enviados acima.
               </p>
               <button
                 type="button"
@@ -518,6 +539,16 @@ function NewsLinks({
   onError: (message: string) => void;
 }) {
   const [saving, setSaving] = useState<"image" | "video" | "">("");
+  const media = newsMediaKind(news);
+  const videoHref = news.videoUrl || (media === "video" ? news.url : null);
+  const canDownloadVideo =
+    media === "video" &&
+    Boolean(videoHref) &&
+    (news.kind === "instagram" || !isPlayerUrl(videoHref!));
+  const canOpenPlayer =
+    Boolean(news.videoUrl) &&
+    isPlayerUrl(news.videoUrl!) &&
+    news.videoUrl!.replace(/\/+$/, "") !== news.url.replace(/\/+$/, "");
 
   async function save(kind: "image" | "video", url: string) {
     setSaving(kind);
@@ -560,11 +591,9 @@ function NewsLinks({
           Baixar imagem
         </button>
       )}
-      {news.videoUrl &&
-        isPlayerUrl(news.videoUrl) &&
-        news.videoUrl.replace(/\/+$/, "") !== news.url.replace(/\/+$/, "") && (
+      {canOpenPlayer && (
         <a
-          href={news.videoUrl}
+          href={news.videoUrl!}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white"
@@ -573,11 +602,11 @@ function NewsLinks({
           Ver vídeo
         </a>
       )}
-      {news.videoUrl && !isPlayerUrl(news.videoUrl) && (
+      {canDownloadVideo && (
         <button
           type="button"
           disabled={disabled || Boolean(saving)}
-          onClick={() => void save("video", news.videoUrl!)}
+          onClick={() => void save("video", videoHref!)}
           className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white disabled:opacity-40"
         >
           {saving === "video" ? (

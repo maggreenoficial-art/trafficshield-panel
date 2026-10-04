@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requirePlatformAdmin } from "@/lib/api/panel-context";
+import { enrichInstagramItem } from "@/lib/news/instagram";
 import { newsItemFromInstagram } from "@/lib/news/social";
 import { resolveYoutubeNews } from "@/lib/news/youtube";
 
@@ -29,11 +30,13 @@ export async function POST(request: NextRequest) {
 
     const instagram = newsItemFromInstagram({
       url: raw,
-      title: "Vídeo no Instagram",
-      summary: "Post colado do Instagram. O arquivo do Reel o Instagram não libera para baixar; dá para abrir o original.",
+      title: "Post no Instagram",
+      summary: "Post colado do Instagram.",
       publishedAt,
     });
-    if (instagram) return NextResponse.json({ item: instagram });
+    if (instagram) {
+      return NextResponse.json({ item: await enrichInstagramItem(instagram) });
+    }
 
     return NextResponse.json(
       { error: "Esse link não é um Reel/post do Instagram nem um vídeo do YouTube." },

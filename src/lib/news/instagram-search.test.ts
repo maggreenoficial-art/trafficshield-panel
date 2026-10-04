@@ -9,6 +9,8 @@ test("transforma o resultado do Google News em post do Instagram com data", () =
     publishedAt: "2026-10-02T23:11:16.000Z",
   });
   assert.equal(post?.kind, "instagram");
+  assert.equal(post?.mediaKind, "image");
+  assert.equal(post?.videoUrl, null);
   assert.equal(post?.url, "https://www.instagram.com/p/DeAolFiEQZE/");
   assert.equal(post?.publishedAt, "2026-10-02T23:11:16.000Z");
   assert.match(post?.title ?? "", /Saúde de Cassilândia/);
