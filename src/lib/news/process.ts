@@ -1,5 +1,6 @@
 import { chatGrok46 } from "@/lib/kie/grok-chat";
 import { fetchNewsArticle } from "@/lib/news/article";
+import { resolveNewsUrl } from "@/lib/news/google-url";
 import type { NewsDraft, NewsItem } from "@/lib/news/types";
 
 function extractJson(raw: string) {
@@ -16,7 +17,8 @@ function extractJson(raw: string) {
 }
 
 export async function produceNewsDraft(news: NewsItem): Promise<NewsDraft> {
-  const article = await fetchNewsArticle(news.url);
+  const url = await resolveNewsUrl(news.url);
+  const article = await fetchNewsArticle(url);
   const imageUrl = news.imageUrl || article.imageUrl;
   const videoUrl = news.videoUrl || article.videoUrl;
   const prompt = `Você é o editor de Instagram de um portal de Cassilândia, MS.
@@ -26,7 +28,7 @@ Escreva a produção de UMA notícia real. Não invente fato, nome, número nem 
 Notícia:
 Título: ${news.title}
 Fonte: ${news.source}
-Link: ${news.url}
+Link: ${url}
 Resumo: ${news.summary}
 Texto da matéria: ${article.text || "(só o título e o resumo)"}
 
@@ -44,7 +46,7 @@ Responda SOMENTE JSON válido, sem markdown:
   if (!caption) throw new Error("A IA não escreveu a legenda.");
 
   return {
-    news: { ...news, imageUrl, videoUrl },
+    news: { ...news, url, imageUrl, videoUrl },
     headline,
     caption,
     imagePrompt:

@@ -1,3 +1,5 @@
+import { fetchArticleMedia } from "@/lib/news/article";
+import { decodeGoogleNewsUrls, isGoogleNewsUrl, mapNewsPool } from "@/lib/news/google-url";
 import { mergeNews, parseRssItems } from "@/lib/news/parse-rss";
 import type { NewsItem } from "@/lib/news/types";
 
@@ -18,7 +20,7 @@ const FEEDS = [
 const CACHE_MS = 8 * 60 * 1000;
 
 const cache = globalThis as typeof globalThis & {
-  __cassilandiaNews?: { at: number; items: NewsItem[] };
+  __cassilandiaNewsV2?: { at: number; items: NewsItem[] };
 };
 
 async function downloadFeed(url: string): Promise<string> {
@@ -34,10 +36,30 @@ async function downloadFeed(url: string): Promise<string> {
   return (await res.text()).slice(0, 800_000);
 }
 
+async function withPublisherUrls(items: NewsItem[]): Promise<NewsItem[]> {
+  const decoded = await decodeGoogleNewsUrls(items.map((item) => item.url));
+  return items.map((item) => {
+    const url = decoded.get(item.url);
+    return url ? { ...item, url } : item;
+  });
+}
+
+async function withArticleMedia(items: NewsItem[]): Promise<NewsItem[]> {
+  return mapNewsPool(items, 6, async (item) => {
+    if ((item.imageUrl && item.videoUrl) || isGoogleNewsUrl(item.url)) return item;
+    const media = await fetchArticleMedia(item.url);
+    return {
+      ...item,
+      imageUrl: item.imageUrl || media.imageUrl,
+      videoUrl: item.videoUrl || media.videoUrl,
+    };
+  });
+}
+
 export async function fetchCassilandiaNews(): Promise<NewsItem[]> {
   const now = Date.now();
-  if (cache.__cassilandiaNews && now - cache.__cassilandiaNews.at < CACHE_MS) {
-    return cache.__cassilandiaNews.items;
+  if (cache.__cassilandiaNewsV2 && now - cache.__cassilandiaNewsV2.at < CACHE_MS) {
+    return cache.__cassilandiaNewsV2.items;
   }
 
   const lists = await Promise.all(
@@ -50,7 +72,7 @@ export async function fetchCassilandiaNews(): Promise<NewsItem[]> {
     })
   );
 
-  const items = mergeNews(lists)
+  let items = mergeNews(lists)
     .filter((item) => !isNoise(item))
     .slice(0, 40);
   if (!items.length) {
@@ -59,6 +81,17 @@ export async function fetchCassilandiaNews(): Promise<NewsItem[]> {
     );
   }
 
-  cache.__cassilandiaNews = { at: now, items };
+  try {
+    items = await withPublisherUrls(items);
+  } catch {
+    /* keep Google URLs */
+  }
+  try {
+    items = await withArticleMedia(items);
+  } catch {
+    /* keep RSS media */
+  }
+
+  cache.__cassilandiaNewsV2 = { at: now, items };
   return items;
 }

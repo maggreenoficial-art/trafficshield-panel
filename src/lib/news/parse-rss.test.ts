@@ -42,3 +42,32 @@ test("lê foto e vídeo do HTML da matéria", () => {
   assert.equal(media.imageUrl, "https://cdn.exemplo.com/a.jpg");
   assert.equal(media.videoUrl, "https://cdn.exemplo.com/a.mp4");
 });
+
+test("resolve foto relativa contra a URL da matéria", () => {
+  const media = extractArticleMedia(
+    `<meta property="og:image" content="/foto.jpg" />`,
+    "https://portal.exemplo.com/feira"
+  );
+  assert.equal(media.imageUrl, "https://portal.exemplo.com/foto.jpg");
+});
+
+test("ignora og:image genérico do portal", () => {
+  const media = extractArticleMedia(
+    `<meta property="og:image" content="https://cdn.exemplo.com/ui/images/2025/default.jpg" />`
+  );
+  assert.equal(media.imageUrl, null);
+});
+
+test("mantém link do Google News quando o RSS não traz a fonte", () => {
+  const xml = `<?xml version="1.0"?><rss><channel>
+<item>
+  <title>Jovem morre em Cassilândia</title>
+  <link>https://news.google.com/rss/articles/CBMiabc?hl=pt-BR&amp;gl=BR&amp;ceid=BR:pt-419</link>
+  <description><![CDATA[<a href="https://news.google.com/rss/articles/CBMiabc?hl=pt-BR&amp;gl=BR&amp;ceid=BR:pt-419">Jovem morre</a>]]></description>
+  <source url="https://midiamax.com.br">MidiaMax</source>
+</item>
+</channel></rss>`;
+  const [item] = parseRssItems(xml);
+  assert.equal(item.source, "MidiaMax");
+  assert.match(item.url, /news\.google\.com\/articles\/CBMiabc/);
+});

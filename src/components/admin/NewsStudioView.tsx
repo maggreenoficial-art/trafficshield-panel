@@ -35,14 +35,17 @@ function isPlayerUrl(url: string) {
 async function downloadNewsMedia(
   url: string,
   kind: "image" | "video",
-  title: string
+  news: NewsItem
 ) {
   const res = await fetch(
-    `/api/admin/news/media?kind=${kind}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`
+    `/api/admin/news/media?kind=${kind}&title=${encodeURIComponent(news.title)}&url=${encodeURIComponent(url)}&page=${encodeURIComponent(news.url)}`
   );
   if (res.status === 409) {
     const data = (await res.json()) as { openUrl?: string; error?: string };
-    if (data.openUrl) window.open(data.openUrl, "_blank", "noopener,noreferrer");
+    if (data.openUrl) {
+      window.open(data.openUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
     throw new Error(data.error || "Abra o link original para ver esta mídia.");
   }
   if (!res.ok) {
@@ -294,6 +297,14 @@ export function NewsStudioView() {
                       {item.summary}
                     </p>
                   )}
+                  {item.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      className="mt-3 h-24 w-full rounded-lg object-cover"
+                    />
+                  )}
                   <NewsLinks
                     news={item}
                     disabled={Boolean(busy)}
@@ -402,7 +413,7 @@ function NewsLinks({
   async function save(kind: "image" | "video", url: string) {
     setSaving(kind);
     try {
-      await downloadNewsMedia(url, kind, news.title);
+      await downloadNewsMedia(url, kind, news);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Falha no download.");
     } finally {

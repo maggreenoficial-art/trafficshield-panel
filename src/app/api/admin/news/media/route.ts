@@ -3,6 +3,7 @@ import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import {
   isDirectVideoUrl,
   isHostedPlayer,
+  NEWS_BROWSER_UA,
   parsePublicHttpUrl,
 } from "@/lib/news/article";
 
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
   if (ctx instanceof NextResponse) return ctx;
 
   const url = parsePublicHttpUrl(request.nextUrl.searchParams.get("url") ?? "");
+  const page = parsePublicHttpUrl(request.nextUrl.searchParams.get("page") ?? "");
   const kind =
     request.nextUrl.searchParams.get("kind") === "video" ? "video" : "image";
   const title = request.nextUrl.searchParams.get("title") ?? "noticia";
@@ -60,7 +62,8 @@ export async function GET(request: NextRequest) {
       redirect: "follow",
       headers: {
         Accept: kind === "video" ? "video/*,*/*" : "image/*,*/*",
-        "User-Agent": "Mozilla/5.0 (compatible; NoratNews/1.0)",
+        "User-Agent": NEWS_BROWSER_UA,
+        ...(page ? { Referer: page.toString() } : {}),
       },
       signal: AbortSignal.timeout(25_000),
     });

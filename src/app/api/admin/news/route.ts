@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requirePlatformAdmin } from "@/lib/api/panel-context";
 import { fetchCassilandiaNews } from "@/lib/news/fetch-cassilandia";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function GET(request: NextRequest) {
   const ctx = await requirePlatformAdmin(request);
