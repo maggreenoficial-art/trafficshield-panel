@@ -40,6 +40,27 @@ function firstImg(html: string) {
   return match?.[1] ?? "";
 }
 
+function enclosureUrl(block: string, kind: "image" | "video") {
+  const tags = block.match(/<(?:enclosure|media:content|media:thumbnail)\b[^>]*>/gi) ?? [];
+  for (const tag of tags) {
+    const url = attr(tag, "url") || attr(tag, "href");
+    const type = attr(tag, "type").toLowerCase();
+    const medium = attr(tag, "medium").toLowerCase();
+    if (kind === "image") {
+      if (type.startsWith("image/") || medium === "image" || /\.(jpe?g|png|webp)(\?|$)/i.test(url)) {
+        return url;
+      }
+    } else if (
+      type.startsWith("video/") ||
+      medium === "video" ||
+      /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)
+    ) {
+      return url;
+    }
+  }
+  return "";
+}
+
 function stripSourceSuffix(title: string, source: string) {
   const trimmed = title.trim();
   const suffix = source.trim();
@@ -55,6 +76,22 @@ function stripSourceSuffix(title: string, source: string) {
 
 function newsId(url: string) {
   return createHash("sha1").update(url).digest("hex").slice(0, 16);
+}
+
+function readableUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.hostname.endsWith("news.google.com") &&
+      parsed.pathname.includes("/rss/articles/")
+    ) {
+      parsed.pathname = parsed.pathname.replace("/rss/articles/", "/articles/");
+      return parsed.toString();
+    }
+  } catch {
+    /* keep original */
+  }
+  return url;
 }
 
 export function isCassilandiaNews(item: Pick<NewsItem, "title" | "source" | "summary">) {
@@ -80,10 +117,13 @@ export function parseRssItems(xml: string): NewsItem[] {
     const description = firstTag(block, "description");
     const linkFromHtml = firstHref(description);
     const itemLink = firstTag(block, "link") || firstTag(block, "guid");
-    const url = (linkFromHtml.startsWith("http") ? linkFromHtml : itemLink).trim();
+    const url = readableUrl(
+      (linkFromHtml.startsWith("http") ? linkFromHtml : itemLink).trim()
+    );
     if (!title || !url.startsWith("http")) continue;
 
-    const image = firstImg(description);
+    const image = firstImg(description) || enclosureUrl(block, "image");
+    const video = enclosureUrl(block, "video");
     items.push({
       id: newsId(url),
       title: title.slice(0, 220),
@@ -92,6 +132,7 @@ export function parseRssItems(xml: string): NewsItem[] {
       publishedAt: firstTag(block, "pubDate") || null,
       summary: stripHtml(description).slice(0, 420),
       imageUrl: image.startsWith("http") ? image : null,
+      videoUrl: video.startsWith("http") ? video : null,
     });
   }
 

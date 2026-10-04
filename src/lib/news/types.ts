@@ -6,6 +6,7 @@ export type NewsItem = {
   publishedAt: string | null;
   summary: string;
   imageUrl: string | null;
+  videoUrl: string | null;
 };
 
 export type NewsBrand = {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { extractArticleMedia } from "./article";
 import { isCassilandiaNews, mergeNews, parseRssItems } from "./parse-rss";
 
 const SAMPLE = `<?xml version="1.0"?><rss><channel>
@@ -8,6 +9,7 @@ const SAMPLE = `<?xml version="1.0"?><rss><channel>
   <link>https://news.google.com/rss/articles/abc</link>
   <pubDate>Sat, 04 Oct 2026 12:00:00 GMT</pubDate>
   <description><![CDATA[<a href="https://portal.exemplo.com/feira">Prefeitura abre inscrição</a> <img src="https://cdn.exemplo.com/feira.jpg" />]]></description>
+  <enclosure url="https://cdn.exemplo.com/feira.mp4" type="video/mp4" />
   <source url="https://portal.exemplo.com">Portal Cassilândia</source>
 </item>
 <item>
@@ -22,6 +24,7 @@ test("lê título, fonte, url real e foto do RSS", () => {
   assert.equal(item.source, "Portal Cassilândia");
   assert.equal(item.url, "https://portal.exemplo.com/feira");
   assert.equal(item.imageUrl, "https://cdn.exemplo.com/feira.jpg");
+  assert.equal(item.videoUrl, "https://cdn.exemplo.com/feira.mp4");
   assert.equal(isCassilandiaNews(item), true);
 });
 
@@ -29,4 +32,13 @@ test("junta feeds sem repetir a mesma URL", () => {
   const a = parseRssItems(SAMPLE);
   const merged = mergeNews([a, a]);
   assert.equal(merged.length, 1);
+});
+
+test("lê foto e vídeo do HTML da matéria", () => {
+  const media = extractArticleMedia(
+    `<meta property="og:image" content="https://cdn.exemplo.com/a.jpg" />
+     <meta property="og:video" content="https://cdn.exemplo.com/a.mp4" />`
+  );
+  assert.equal(media.imageUrl, "https://cdn.exemplo.com/a.jpg");
+  assert.equal(media.videoUrl, "https://cdn.exemplo.com/a.mp4");
 });

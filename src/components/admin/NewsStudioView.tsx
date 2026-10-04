@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ImagePlus, Loader2, Newspaper, Upload } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  ImagePlus,
+  Loader2,
+  Newspaper,
+  Upload,
+  Video,
+} from "lucide-react";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
+import { downloadBlob } from "@/lib/media/strip-image-client";
 import type { NewsBrand, NewsDraft, NewsItem } from "@/lib/news/types";
 
 function formatDate(value: string | null) {
@@ -17,6 +26,34 @@ function formatDate(value: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function isPlayerUrl(url: string) {
+  return /youtube|youtu\.be|vimeo|facebook|fb\.watch|tiktok|instagram/i.test(url);
+}
+
+async function downloadNewsMedia(
+  url: string,
+  kind: "image" | "video",
+  title: string
+) {
+  const res = await fetch(
+    `/api/admin/news/media?kind=${kind}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`
+  );
+  if (res.status === 409) {
+    const data = (await res.json()) as { openUrl?: string; error?: string };
+    if (data.openUrl) window.open(data.openUrl, "_blank", "noopener,noreferrer");
+    throw new Error(data.error || "Abra o link original para ver esta mídia.");
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || "Não baixou a mídia.");
+  }
+  const blob = await res.blob();
+  const match = res.headers
+    .get("content-disposition")
+    ?.match(/filename="([^"]+)"/);
+  downloadBlob(blob, match?.[1] || `noticia-${kind}`);
 }
 
 export function NewsStudioView() {
@@ -241,38 +278,29 @@ export function NewsStudioView() {
               const active = draft?.news.id === item.id;
               const producing = busy === `produce:${item.id}`;
               return (
-                <li key={item.id}>
-                  <button
-                    type="button"
+                <li
+                  key={item.id}
+                  className={cn(panelCard, "p-4", active && "ring-1 ring-violet-400/50")}
+                >
+                  <p className="text-sm font-medium text-white/85">{item.title}</p>
+                  <p className="mt-1 text-[11px] text-white/40">
+                    {item.source}
+                    {formatDate(item.publishedAt)
+                      ? ` · ${formatDate(item.publishedAt)}`
+                      : ""}
+                  </p>
+                  {item.summary && (
+                    <p className="mt-2 line-clamp-2 text-xs text-white/45">
+                      {item.summary}
+                    </p>
+                  )}
+                  <NewsLinks
+                    news={item}
                     disabled={Boolean(busy)}
-                    onClick={() => void produce(item)}
-                    className={cn(
-                      panelCard,
-                      "w-full p-4 text-left",
-                      active && "ring-1 ring-violet-400/50"
-                    )}
-                  >
-                    <p className="text-sm font-medium text-white/85">{item.title}</p>
-                    <p className="mt-1 text-[11px] text-white/40">
-                      {item.source}
-                      {formatDate(item.publishedAt)
-                        ? ` · ${formatDate(item.publishedAt)}`
-                        : ""}
-                    </p>
-                    {item.summary && (
-                      <p className="mt-2 line-clamp-2 text-xs text-white/45">
-                        {item.summary}
-                      </p>
-                    )}
-                    <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-violet-200">
-                      {producing ? (
-                        <Loader2 className="animate-spin" size={12} />
-                      ) : (
-                        <Newspaper size={12} />
-                      )}
-                      Produzir para o Instagram
-                    </p>
-                  </button>
+                    producing={producing}
+                    onProduce={() => void produce(item)}
+                    onError={setError}
+                  />
                 </li>
               );
             })}
@@ -321,8 +349,14 @@ export function NewsStudioView() {
                   className="h-28 w-full rounded-lg object-cover"
                 />
               )}
+              <NewsLinks
+                news={draft.news}
+                disabled={Boolean(busy)}
+                producing={false}
+                onError={setError}
+              />
               <p className="text-[11px] text-white/35">
-                Fonte: {draft.news.source}. A imagem usa o mockup e a logo
+                Fonte: {draft.news.source}. A imagem gerada usa o mockup e a logo
                 enviados acima.
               </p>
               <button
@@ -346,6 +380,103 @@ export function NewsStudioView() {
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function NewsLinks({
+  news,
+  disabled,
+  producing,
+  onProduce,
+  onError,
+}: {
+  news: NewsItem;
+  disabled: boolean;
+  producing: boolean;
+  onProduce?: () => void;
+  onError: (message: string) => void;
+}) {
+  const [saving, setSaving] = useState<"image" | "video" | "">("");
+
+  async function save(kind: "image" | "video", url: string) {
+    setSaving(kind);
+    try {
+      await downloadNewsMedia(url, kind, news.title);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Falha no download.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      <a
+        href={news.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white"
+      >
+        <ExternalLink size={12} />
+        Ver original
+      </a>
+      {news.imageUrl && (
+        <button
+          type="button"
+          disabled={disabled || Boolean(saving)}
+          onClick={() => void save("image", news.imageUrl!)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white disabled:opacity-40"
+        >
+          {saving === "image" ? (
+            <Loader2 className="animate-spin" size={12} />
+          ) : (
+            <Download size={12} />
+          )}
+          Baixar imagem
+        </button>
+      )}
+      {news.videoUrl && isPlayerUrl(news.videoUrl) && (
+        <a
+          href={news.videoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white"
+        >
+          <Video size={12} />
+          Ver vídeo
+        </a>
+      )}
+      {news.videoUrl && !isPlayerUrl(news.videoUrl) && (
+        <button
+          type="button"
+          disabled={disabled || Boolean(saving)}
+          onClick={() => void save("video", news.videoUrl!)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white disabled:opacity-40"
+        >
+          {saving === "video" ? (
+            <Loader2 className="animate-spin" size={12} />
+          ) : (
+            <Download size={12} />
+          )}
+          Baixar vídeo
+        </button>
+      )}
+      {onProduce && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onProduce}
+          className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/20 px-3 py-1.5 text-[11px] text-violet-200 disabled:opacity-40"
+        >
+          {producing ? (
+            <Loader2 className="animate-spin" size={12} />
+          ) : (
+            <Newspaper size={12} />
+          )}
+          Produzir para o Instagram
+        </button>
+      )}
     </div>
   );
 }

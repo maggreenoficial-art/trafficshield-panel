@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       publishedAt: news.publishedAt ?? null,
       summary: (news.summary || "").slice(0, 800),
       imageUrl: news.imageUrl ?? null,
+      videoUrl: news.videoUrl ?? null,
     });
     return NextResponse.json({ draft });
   } catch (error) {
