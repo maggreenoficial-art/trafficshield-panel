@@ -1,6 +1,7 @@
 import { fetchArticleMedia } from "@/lib/news/article";
 import { isRecentNews } from "@/lib/news/dates";
 import { decodeGoogleNewsUrls, isGoogleNewsUrl, mapNewsPool } from "@/lib/news/google-url";
+import { fetchCassilandiaInstagram } from "@/lib/news/instagram-search";
 import { isCassilandiaNews, mergeNews, parseRssItems } from "@/lib/news/parse-rss";
 import { newsItemFromInstagram } from "@/lib/news/social";
 import type { NewsItem } from "@/lib/news/types";
@@ -24,7 +25,7 @@ const FEEDS = [
 const CACHE_MS = 8 * 60 * 1000;
 
 const cache = globalThis as typeof globalThis & {
-  __cassilandiaNewsV5?: { at: number; items: NewsItem[] };
+  __cassilandiaNewsV6?: { at: number; items: NewsItem[] };
 };
 
 async function downloadFeed(url: string): Promise<string> {
@@ -88,9 +89,11 @@ function keepFresh(items: NewsItem[]) {
 
 export async function fetchCassilandiaNews(): Promise<NewsItem[]> {
   const now = Date.now();
-  if (cache.__cassilandiaNewsV5 && now - cache.__cassilandiaNewsV5.at < CACHE_MS) {
-    return cache.__cassilandiaNewsV5.items;
+  if (cache.__cassilandiaNewsV6 && now - cache.__cassilandiaNewsV6.at < CACHE_MS) {
+    return cache.__cassilandiaNewsV6.items;
   }
+
+  const instagramSearch = fetchCassilandiaInstagram().catch(() => [] as NewsItem[]);
 
   const lists = await Promise.all(
     FEEDS.map(async (url) => {
@@ -124,9 +127,10 @@ export async function fetchCassilandiaNews(): Promise<NewsItem[]> {
     items = keepFresh(items).slice(0, 40);
   }
 
-  items = mergeNews([items, instagram]).filter((item) => !isNoise(item));
-  items = keepFresh(items).slice(0, 40);
+  const searched = await instagramSearch;
+  items = mergeNews([items, instagram, searched]).filter((item) => !isNoise(item));
+  items = keepFresh(items).slice(0, 48);
 
-  cache.__cassilandiaNewsV5 = { at: now, items };
+  cache.__cassilandiaNewsV6 = { at: now, items };
   return items;
 }

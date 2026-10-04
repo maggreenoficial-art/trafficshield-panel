@@ -261,7 +261,7 @@ export function NewsStudioView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Notícias"
-        subtitle="Puxa notícia recente de Cassilândia, mostra a data e aceita Reel do Instagram colado. Se você autorizar, joga a arte no storyboard."
+        subtitle="Busca notícia recente de Cassilândia e posts do Instagram pela mesma lógica do Google News. A data vai no card. Se você autorizar, joga a arte no storyboard."
       />
 
       {error && (
