@@ -48,7 +48,7 @@ import {
   rankCreativesAlgorithm,
   type GrokCreativeRanking,
 } from "@/lib/ads-analysis/rank-creatives";
-import type { OfferScaleReport } from "@/lib/offers/scale";
+import type { OfferScalePage, OfferScaleReport } from "@/lib/offers/scale";
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -327,9 +327,9 @@ export function CampaignAnalysisView() {
     void persistAnalysis(next, savedId);
   }
 
-  async function runLibrary() {
-    if (!libraryKeywords.trim()) {
-      setError("Digite o tema da oferta para ver volume e datas na Meta.");
+  async function runLibrary(hunt = false) {
+    if (!hunt && !libraryKeywords.trim()) {
+      setError("Digite o tema no recorte, ou clique em Caçar nichos.");
       return;
     }
     setLibraryBusy(true);
@@ -339,9 +339,10 @@ export function CampaignAnalysisView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keywords: libraryKeywords,
+          keywords: hunt ? "" : libraryKeywords,
           country: libraryCountry,
           analysisId: savedId || undefined,
+          hunt,
         }),
       });
       const data = await res.json();
@@ -353,6 +354,51 @@ export function CampaignAnalysisView() {
       setError(e instanceof Error ? e.message : "Falha na Biblioteca da Meta.");
     } finally {
       setLibraryBusy(false);
+    }
+  }
+
+  async function watchLibraryPage(page: OfferScalePage) {
+    setError("");
+    try {
+      if (page.watching) {
+        const params = new URLSearchParams();
+        if (page.pageId) params.set("pageId", page.pageId);
+        params.set("pageName", page.pageName);
+        const res = await fetch(`/api/admin/offers/watch?${params.toString()}`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Não tirou o acompanhamento.");
+      } else {
+        const res = await fetch("/api/admin/offers/watch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pageId: page.pageId,
+            pageName: page.pageName,
+            keywords: libraryKeywords,
+            country: libraryCountry,
+            adCount: page.count,
+            reason: "Marcada para acompanhamento.",
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Não acompanhou.");
+      }
+      setLibrary((prev) =>
+        prev
+          ? {
+              ...prev,
+              pages: prev.pages.map((item) =>
+                item.pageName === page.pageName
+                  ? { ...item, watching: !page.watching }
+                  : item
+              ),
+            }
+          : prev
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no acompanhamento.");
     }
   }
 
@@ -439,7 +485,7 @@ export function CampaignAnalysisView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Analise"
-        subtitle="CSV do Gerenciador para criativos. Biblioteca da Meta para ver quantos anúncios a oferta tem e desde quando — volume alto e data recente = validada e escalando."
+        subtitle="CSV do Gerenciador para criativos. Biblioteca da Meta no recorte: direita, conservador, evangélico, cristão, patriota e famílias. 20 anúncios da oferta para cima = escala."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -452,18 +498,18 @@ export function CampaignAnalysisView() {
               Biblioteca da Meta — volume e datas
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-white/45">
-              A métrica é simples: bastante anúncio ativo, de várias páginas, com
-              criativo novo = oferta validada e em escala. Data antiga sem lançamento
-              recente = já rodou e pode ter esfriado.
+              Só produtos e infoprodutos do recorte. O Grok lê cada anúncio, não faz
+              triagem rasa. 20 da mesma oferta para cima = escalando. Oferta boa
+              entra em acompanhamento.
             </p>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto_auto]">
           <input
             className={cn(panelInput, "text-sm")}
             value={libraryKeywords}
             onChange={(e) => setLibraryKeywords(e.target.value)}
-            placeholder="Tema da oferta, ex: emagrecer, implante dentário"
+            placeholder="Ex: curso família cristã, mentoria conservadora"
             onKeyDown={(e) => {
               if (e.key === "Enter") void runLibrary();
             }}
@@ -482,12 +528,20 @@ export function CampaignAnalysisView() {
           </select>
           <button
             type="button"
-            disabled={libraryBusy || !libraryKeywords.trim()}
+            disabled={libraryBusy}
             onClick={() => void runLibrary()}
             className="flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {libraryBusy ? <Loader2 className="animate-spin" size={16} /> : null}
-            Verificar na Meta
+            {libraryBusy ? "Grok lendo…" : "Verificar na Meta"}
+          </button>
+          <button
+            type="button"
+            disabled={libraryBusy}
+            onClick={() => void runLibrary(true)}
+            className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Caçar nichos
           </button>
         </div>
         {keywordHints.length > 0 && (
@@ -519,14 +573,24 @@ export function CampaignAnalysisView() {
                 {library.verdictBody}
               </p>
             </div>
+            {library.query || library.intent ? (
+              <p className="text-xs text-white/40">
+                Busca: {library.query || library.intent}
+                {library.niches?.length ? ` · ${library.niches.join(", ")}` : ""}
+              </p>
+            ) : null}
+            {library.brief ? (
+              <p className="text-xs leading-relaxed text-white/55">{library.brief}</p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
-                  label: "Anúncios ativos",
-                  value:
-                    library.libraryTotal && library.libraryTotal > library.adCount
-                      ? `${library.adCount} / ${library.libraryTotal.toLocaleString("pt-BR")}`
-                      : String(library.libraryTotal ?? library.adCount),
+                  label: "Anúncios da oferta",
+                  value: String(library.adCount),
+                },
+                {
+                  label: "Fora do tema",
+                  value: String(library.dropped ?? Math.max(0, (library.rawCount ?? library.adCount) - library.adCount)),
                 },
                 {
                   label: "Páginas",
@@ -591,8 +655,8 @@ export function CampaignAnalysisView() {
                 <table className="min-w-[520px] w-full text-left">
                   <thead className={panelTableHead}>
                     <tr>
-                      {["Página", "Anúncios", "Primeiro", "Mais recente"].map((h) => (
-                        <th key={h} className="px-3 py-2.5 font-medium">
+                      {["Página", "Anúncios", "Primeiro", "Mais recente", ""].map((h) => (
+                        <th key={h || "watch"} className="px-3 py-2.5 font-medium">
                           {h}
                         </th>
                       ))}
@@ -608,6 +672,15 @@ export function CampaignAnalysisView() {
                         <td className="px-3 py-2.5">{page.count}</td>
                         <td className="px-3 py-2.5">{formatWhen(page.oldestStart)}</td>
                         <td className="px-3 py-2.5">{formatWhen(page.newestStart)}</td>
+                        <td className="px-3 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => void watchLibraryPage(page)}
+                            className="text-[11px] text-sky-300 hover:text-sky-200"
+                          >
+                            {page.watching ? "Acompanhando" : "Acompanhar"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

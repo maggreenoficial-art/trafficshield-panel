@@ -4,11 +4,14 @@ import type { OfferProxy } from "@/lib/offers/proxy-parse";
 import { summarizeProxy } from "@/lib/offers/proxy-parse";
 import type { MetaAd, OfferMediaType } from "@/lib/offers/types";
 
+export type AdLibrarySearchType = "keyword_unordered" | "keyword_exact_phrase";
+
 export async function scrapeMetaAds(input: {
   keywords: string;
   country: string;
   mediaType: OfferMediaType;
   proxies: OfferProxy[];
+  searchType?: AdLibrarySearchType;
 }): Promise<{
   ads: MetaAd[];
   proxy: string | null;
@@ -25,10 +28,10 @@ export async function scrapeMetaAds(input: {
     keywords,
     country: input.country || "BR",
     mediaType: input.mediaType || "all",
+    searchType: input.searchType || "keyword_exact_phrase",
   });
 
   let lastError = "A Meta não devolveu anúncios.";
-  let emptyOk: { proxy: string; total: number | null } | null = null;
   const order = [...input.proxies];
   const start = Math.floor(Math.random() * order.length);
   const rotated = [...order.slice(start), ...order.slice(0, start)];
@@ -56,8 +59,12 @@ export async function scrapeMetaAds(input: {
           total: page.total,
         };
       }
-      lastError = `Proxy ${summarizeProxy(proxy)} abriu a biblioteca, mas sem anúncio neste tema.`;
-      emptyOk = { proxy: summarizeProxy(proxy), total: page.total };
+      return {
+        ads: [],
+        proxy: summarizeProxy(proxy),
+        searched: 0,
+        total: page.total ?? 0,
+      };
     } catch (error) {
       lastError =
         error instanceof Error
@@ -66,16 +73,50 @@ export async function scrapeMetaAds(input: {
     }
   }
 
-  if (emptyOk) {
-    return {
-      ads: [],
-      proxy: emptyOk.proxy,
-      searched: 0,
-      total: emptyOk.total ?? 0,
-    };
-  }
-
   throw new Error(lastError);
+}
+
+export async function scrapeMetaAdQueries(input: {
+  queries: { keywords: string; searchType: AdLibrarySearchType }[];
+  country: string;
+  mediaType: OfferMediaType;
+  proxies: OfferProxy[];
+}): Promise<{
+  ads: MetaAd[];
+  proxy: string | null;
+  searched: number;
+  total: number | null;
+}> {
+  const seen = new Set<string>();
+  const ads: MetaAd[] = [];
+  let proxy: string | null = null;
+  let total: number | null = null;
+  const queries = input.queries.filter((item) => item.keywords.trim()).slice(0, 4);
+  for (let i = 0; i < queries.length; i++) {
+    const query = queries[i];
+    const start = i % Math.max(input.proxies.length, 1);
+    const rotated = [...input.proxies.slice(start), ...input.proxies.slice(0, start)];
+    try {
+      const result = await scrapeMetaAds({
+        keywords: query.keywords,
+        country: input.country,
+        mediaType: input.mediaType,
+        proxies: rotated.slice(0, Math.min(2, rotated.length)),
+        searchType: query.searchType,
+      });
+      if (result.proxy) proxy = result.proxy;
+      if (result.total != null) total = Math.max(total ?? 0, result.total);
+      for (const ad of result.ads) {
+        if (seen.has(ad.id)) continue;
+        seen.add(ad.id);
+        ads.push(ad);
+      }
+      if (ads.length >= 55) break;
+    } catch {
+      continue;
+    }
+  }
+  return { ads, proxy, searched: ads.length, total };
 }
 
 export async function testOfferProxy(proxy: OfferProxy) {

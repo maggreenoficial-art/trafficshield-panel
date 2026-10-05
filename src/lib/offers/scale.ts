@@ -7,11 +7,15 @@ export type OfferScaleVerdict =
   | "scaling"
   | "mature";
 
+export const SCALE_AD_THRESHOLD = 20;
+
 export type OfferScalePage = {
   pageName: string;
+  pageId: string | null;
   count: number;
   oldestStart: string | null;
   newestStart: string | null;
+  watching: boolean;
 };
 
 export type OfferScaleMonth = {
@@ -32,7 +36,11 @@ export type OfferScaleSample = {
 export type OfferScaleReport = {
   keywords: string;
   country: string;
+  intent: string;
+  query: string;
   adCount: number;
+  rawCount: number;
+  dropped: number;
   libraryTotal: number | null;
   uniquePages: number;
   oldestStart: string | null;
@@ -48,6 +56,10 @@ export type OfferScaleReport = {
   pages: OfferScalePage[];
   sample: OfferScaleSample[];
   proxy: string | null;
+  brief: string;
+  niches: string[];
+  inNiche: boolean;
+  outOfNicheReason: string;
 };
 
 const DAY_MS = 86_400_000;
@@ -116,27 +128,24 @@ function countSince(ads: MetaAd[], now: number, days: number) {
 
 export function decideOfferScale(input: {
   volume: number;
-  last14Days: number;
   newestAgeDays: number | null;
 }): { verdict: OfferScaleVerdict; label: string } {
-  const { volume, last14Days, newestAgeDays } = input;
+  const { volume, newestAgeDays } = input;
   if (volume <= 0) return { verdict: "none", label: "Sem anúncios" };
-  if (volume <= 7) return { verdict: "testing", label: "Em teste" };
-  if (newestAgeDays != null && newestAgeDays > 45) {
+  if (volume < 8) return { verdict: "testing", label: "Em teste" };
+  if (volume >= SCALE_AD_THRESHOLD && newestAgeDays != null && newestAgeDays > 45) {
     return { verdict: "mature", label: "Rodando, sem criativo novo" };
   }
-  if (volume >= 20) return { verdict: "scaling", label: "Escalando" };
-  if (volume >= 12 && last14Days >= 2) {
+  if (volume >= SCALE_AD_THRESHOLD) {
     return { verdict: "scaling", label: "Escalando" };
   }
-  if (volume >= 8) return { verdict: "validated", label: "Oferta validada" };
-  return { verdict: "testing", label: "Em teste" };
+  return { verdict: "validated", label: "Oferta validada" };
 }
 
 function buildBody(input: {
   verdict: OfferScaleVerdict;
-  volume: number;
   adCount: number;
+  rawCount: number;
   uniquePages: number;
   oldestStart: string | null;
   newestStart: string | null;
@@ -146,9 +155,9 @@ function buildBody(input: {
 }) {
   const pages = `${input.uniquePages} página${input.uniquePages === 1 ? "" : "s"}`;
   const volumeBit =
-    input.volume > input.adCount
-      ? `${input.adCount} anúncios na primeira página (Meta indica ${input.volume} no total)`
-      : `${input.volume} anúncio${input.volume === 1 ? "" : "s"} ativo${input.volume === 1 ? "" : "s"}`;
+    input.rawCount > input.adCount
+      ? `${input.adCount} anúncios da oferta (de ${input.rawCount} brutos)`
+      : `${input.adCount} anúncio${input.adCount === 1 ? "" : "s"} da oferta`;
   const oldest = formatDate(input.oldestStart);
   const newest = formatDate(input.newestStart);
   const age =
@@ -164,20 +173,16 @@ function buildBody(input: {
       : "";
 
   if (input.verdict === "none") {
-    return "Nenhum anúncio ativo com esse tema na Biblioteca da Meta.";
+    return "Nenhum anúncio da oferta na Biblioteca da Meta depois do filtro.";
   }
   if (input.verdict === "testing") {
-    return `${volumeBit} de ${pages}. Pouca variação de criativo — ainda parece teste. ${age} ${recency}`.trim();
+    return `${volumeBit} de ${pages}. Menos de 8 anúncios da oferta — ainda parece teste. ${age} ${recency}`.trim();
   }
   if (input.verdict === "validated") {
-    return `${volumeBit} de ${pages}. Já passou do teste: tem volume para validar a oferta. ${age} ${run} ${recency}`.trim();
+    return `${volumeBit} de ${pages}. Oferta aparece, mas escala só conta a partir de ${SCALE_AD_THRESHOLD} anúncios relevantes. ${age} ${run} ${recency}`.trim();
   }
   if (input.verdict === "scaling") {
-    const recencyBit =
-      input.last14Days >= 2
-        ? "Volume alto e criativo recente = oferta validada e em escala."
-        : "Volume alto na biblioteca = oferta validada e em escala no mercado.";
-    return `${volumeBit} de ${pages}. ${recencyBit} ${age} ${run} ${recency}`.trim();
+    return `${volumeBit} de ${pages}. ${SCALE_AD_THRESHOLD}+ anúncios da mesma oferta = validada e em escala. ${age} ${run} ${recency}`.trim();
   }
   return `${volumeBit} de ${pages}. Teve escala, mas o último criativo é antigo — pode ter parado de lançar. ${age} ${run} ${recency}`.trim();
 }
@@ -186,9 +191,17 @@ export function summarizeOfferScale(input: {
   keywords: string;
   country: string;
   ads: MetaAd[];
+  rawCount?: number;
   libraryTotal?: number | null;
+  intent?: string;
+  query?: string;
+  watching?: Set<string>;
   proxy?: string | null;
   now?: number;
+  brief?: string;
+  niches?: string[];
+  inNiche?: boolean;
+  outOfNicheReason?: string;
 }): OfferScaleReport {
   const now = input.now ?? Date.now();
   const ads = input.ads;
@@ -203,20 +216,30 @@ export function summarizeOfferScale(input: {
   for (const ad of ads) {
     const name = ad.pageName || "Página";
     const prev = pagesMap.get(name);
+    const watching = Boolean(
+      input.watching?.has((ad.pageId || name).toLowerCase()) ||
+        input.watching?.has(name.toLowerCase())
+    );
     if (!prev) {
       pagesMap.set(name, {
         pageName: name,
+        pageId: ad.pageId,
         count: 1,
         oldestStart: ad.startDate,
         newestStart: ad.startDate,
+        watching,
       });
       continue;
     }
     prev.count += 1;
+    prev.pageId = prev.pageId || ad.pageId;
     prev.oldestStart = minIso([prev.oldestStart, ad.startDate]);
     prev.newestStart = maxIso([prev.newestStart, ad.startDate]);
+    prev.watching = prev.watching || watching;
   }
-  const pages = [...pagesMap.values()].sort((a, b) => b.count - a.count || a.pageName.localeCompare(b.pageName, "pt-BR"));
+  const pages = [...pagesMap.values()].sort(
+    (a, b) => b.count - a.count || a.pageName.localeCompare(b.pageName, "pt-BR")
+  );
   const monthsMap = new Map<string, number>();
   for (const ad of ads) {
     if (!ad.startDate) continue;
@@ -239,18 +262,21 @@ export function summarizeOfferScale(input: {
       snapshotUrl: ad.snapshotUrl,
     }));
   const adCount = ads.length;
+  const rawCount = Math.max(input.rawCount ?? adCount, adCount);
   const uniquePages = pages.length;
-  const volume = Math.max(input.libraryTotal ?? 0, adCount);
   const decided = decideOfferScale({
-    volume,
-    last14Days,
+    volume: adCount,
     newestAgeDays,
   });
   return {
     keywords: input.keywords.trim(),
     country: input.country.trim() || "BR",
+    intent: (input.intent ?? input.keywords).trim(),
+    query: (input.query ?? input.keywords).trim(),
     adCount,
-    libraryTotal: input.libraryTotal ?? (adCount || null),
+    rawCount,
+    dropped: Math.max(0, rawCount - adCount),
+    libraryTotal: input.libraryTotal ?? null,
     uniquePages,
     oldestStart,
     newestStart,
@@ -262,8 +288,8 @@ export function summarizeOfferScale(input: {
     verdictLabel: decided.label,
     verdictBody: buildBody({
       verdict: decided.verdict,
-      volume,
       adCount,
+      rawCount,
       uniquePages,
       oldestStart,
       newestStart,
@@ -275,5 +301,9 @@ export function summarizeOfferScale(input: {
     pages: pages.slice(0, 20),
     sample,
     proxy: input.proxy ?? null,
+    brief: (input.brief ?? "").trim(),
+    niches: input.niches ?? [],
+    inNiche: input.inNiche !== false,
+    outOfNicheReason: (input.outOfNicheReason ?? "").trim(),
   };
 }

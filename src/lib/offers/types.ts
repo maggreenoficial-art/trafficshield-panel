@@ -15,6 +15,14 @@ export type OfferProxyStatus = {
   error?: string;
 };
 
+export type OfferAdReview = {
+  niches: string[];
+  productType: "infoproduto" | "produto" | "none";
+  score: number;
+  watch: boolean;
+  why: string;
+};
+
 export type MetaAd = {
   id: string;
   pageName: string;
@@ -30,6 +38,7 @@ export type MetaAd = {
   snapshotUrl: string;
   linkUrl: string | null;
   platforms: string[];
+  review?: OfferAdReview;
 };
 
 export const emptyOfferConfig = (): OfferSearchConfig => ({

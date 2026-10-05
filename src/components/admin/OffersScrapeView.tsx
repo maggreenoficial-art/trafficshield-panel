@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Download,
   ExternalLink,
+  Eye,
   Loader2,
   Radar,
   RefreshCw,
@@ -14,6 +15,9 @@ import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
 import type { MetaAd, OfferMediaType } from "@/lib/offers/types";
+import { OFFER_NICHE_LABELS, type OfferNicheId } from "@/lib/offers/niche";
+import type { OfferScaleReport } from "@/lib/offers/scale";
+import type { WatchedOfferPage } from "@/lib/db/offer-watch";
 
 type Config = {
   keywords: string;
@@ -26,6 +30,14 @@ type Config = {
 };
 
 type ProxyCheck = { host: string; ok: boolean; ip?: string; error?: string };
+
+const verdictTone: Record<OfferScaleReport["verdict"], string> = {
+  scaling: "bg-emerald-500/15 text-emerald-200",
+  validated: "bg-sky-500/15 text-sky-200",
+  testing: "bg-amber-500/15 text-amber-200",
+  mature: "bg-white/10 text-white/65",
+  none: "bg-red-500/15 text-red-200",
+};
 
 function formatWhen(iso: string | null) {
   if (!iso) return "";
@@ -46,6 +58,8 @@ export function OffersScrapeView() {
   const [country, setCountry] = useState("BR");
   const [mediaType, setMediaType] = useState<OfferMediaType>("all");
   const [ads, setAds] = useState<MetaAd[]>([]);
+  const [report, setReport] = useState<OfferScaleReport | null>(null);
+  const [watched, setWatched] = useState<WatchedOfferPage[]>([]);
   const [usedProxy, setUsedProxy] = useState("");
   const [checks, setChecks] = useState<ProxyCheck[]>([]);
   const [busy, setBusy] = useState("");
@@ -55,6 +69,7 @@ export function OffersScrapeView() {
 
   useEffect(() => {
     void loadConfig();
+    void loadWatched();
   }, []);
 
   async function loadConfig() {
@@ -68,6 +83,16 @@ export function OffersScrapeView() {
       setError(e instanceof Error ? e.message : "Falha ao ler a config.");
     } finally {
       setBusy("");
+    }
+  }
+
+  async function loadWatched() {
+    try {
+      const res = await fetch("/api/admin/offers/watch");
+      const data = await res.json();
+      if (res.ok) setWatched(data.pages ?? []);
+    } catch {
+      /* ignore */
     }
   }
 
@@ -151,32 +176,47 @@ export function OffersScrapeView() {
     }
   }
 
-  async function search() {
-    if (!keywords.trim()) {
-      setError("Digite o tema ou as palavras-chave.");
+  async function search(hunt = false) {
+    if (!hunt && !keywords.trim()) {
+      setError("Digite o tema no recorte, ou clique em Caçar nichos.");
       return;
     }
     setBusy("search");
     setError("");
     setNotice("");
     try {
-      await saveConfig();
+      if (!hunt) await saveConfig();
       const res = await fetch("/api/admin/offers/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keywords, country, mediaType }),
+        body: JSON.stringify({
+          keywords: hunt ? "" : keywords,
+          country,
+          mediaType,
+          hunt,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não buscou as ofertas.");
       setAds(data.ads ?? []);
+      setReport(data.report ?? null);
+      setWatched(data.watched ?? []);
       setUsedProxy(data.proxy ?? "");
-      setNotice(
-        `${data.ads?.length ?? 0} anúncio(s) na Biblioteca da Meta${
-          data.total && data.total > (data.ads?.length ?? 0)
-            ? ` · ${data.total} no total`
-            : ""
-        }${data.proxy ? ` · ${data.proxy}` : ""}.`
-      );
+      const kept = data.ads?.length ?? 0;
+      const dropped = data.dropped ?? 0;
+      const intent = data.plan?.intent || data.plan?.query || keywords;
+      if (data.report?.inNiche === false) {
+        setError(
+          data.report.outOfNicheReason ||
+            "Fora do recorte. Só produtos e infoprodutos de direita, conservador, evangélico, cristão, patriota e famílias."
+        );
+      } else {
+        setNotice(
+          `${kept} anúncio(s) do recorte${dropped ? ` · ${dropped} fora` : ""}${
+            data.report?.verdictLabel ? ` · ${data.report.verdictLabel}` : ""
+          } · ${intent}${data.brief ? ` · ${data.brief}` : ""}${data.proxy ? ` · ${data.proxy}` : ""}.`
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha na busca.");
     } finally {
@@ -184,11 +224,53 @@ export function OffersScrapeView() {
     }
   }
 
+  async function watchPage(ad: MetaAd) {
+    setError("");
+    try {
+      const res = await fetch("/api/admin/offers/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageId: ad.pageId,
+          pageName: ad.pageName,
+          keywords,
+          country,
+          adCount: ads.filter((item) => item.pageName === ad.pageName).length,
+          linkUrl: ad.linkUrl,
+          snapshotUrl: ad.snapshotUrl,
+          reason: ad.review?.why || "Marcada para acompanhamento.",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não acompanhou.");
+      setWatched(data.pages ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao acompanhar.");
+    }
+  }
+
+  async function unwatchPage(page: Pick<WatchedOfferPage, "pageId" | "pageName">) {
+    const params = new URLSearchParams();
+    if (page.pageId) params.set("pageId", page.pageId);
+    params.set("pageName", page.pageName);
+    const res = await fetch(`/api/admin/offers/watch?${params.toString()}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (res.ok) setWatched(data.pages ?? []);
+  }
+
+  const watching = new Set(
+    watched.flatMap((page) =>
+      [page.pageId, page.pageName.toLowerCase()].filter(Boolean) as string[]
+    )
+  );
+
   return (
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Scrapping de ofertas"
-        subtitle="Entra na Biblioteca de Anúncios da Meta pelos IPs da Proxy-Seller. Você cola o tema e a busca gira os proxies."
+        subtitle="O Grok caça só produtos e infoprodutos de direita, conservador, evangélico, cristão, patriota e famílias. Lê cada anúncio. 20 ou mais = escala. Oferta boa vai para acompanhamento."
       />
 
       {error && (
@@ -206,15 +288,17 @@ export function OffersScrapeView() {
         <div>
           <h2 className="text-sm font-medium text-white">Tema</h2>
           <p className="mt-1 text-xs text-white/45">
-            Palavra-chave igual na busca da Biblioteca da Meta. País e tipo filtram o resultado.
+            Recorte fechado: direita, conservador, evangélico, cristão, patriota e
+            famílias. O Grok planeja as frases, entra na Meta e lê anúncio por
+            anúncio — não é triagem rasa. Escala só com 20 anúncios relevantes.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_auto_auto]">
           <input
             className={cn(panelInput, "text-sm")}
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            placeholder="Ex: emagrecer, implante dentário, cassilândia"
+            placeholder="Ex: curso família cristã, mentoria conservadora"
             onKeyDown={(e) => {
               if (e.key === "Enter") void search();
             }}
@@ -247,10 +331,79 @@ export function OffersScrapeView() {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
           >
             {busy === "search" ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
-            Buscar
+            {busy === "search" ? "Grok lendo…" : "Buscar"}
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() => void search(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          >
+            {busy === "search" ? <Loader2 className="animate-spin" size={16} /> : <Radar size={16} />}
+            Caçar nichos
           </button>
         </div>
       </section>
+
+      {report && (
+        <section className={cn(panelCardPadded, "space-y-3")}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium",
+                verdictTone[report.verdict]
+              )}
+            >
+              {report.verdictLabel}
+            </span>
+            <p className="text-xs leading-relaxed text-white/55">{report.verdictBody}</p>
+          </div>
+          {(report.query || report.intent) && (
+            <p className="text-xs text-white/40">
+              Busca: {report.query || report.intent}
+              {report.niches?.length
+                ? ` · ${report.niches
+                    .map((id) => OFFER_NICHE_LABELS[id as OfferNicheId] ?? id)
+                    .join(", ")}`
+                : ""}
+            </p>
+          )}
+          {report.brief ? (
+            <p className="text-xs leading-relaxed text-white/55">{report.brief}</p>
+          ) : null}
+        </section>
+      )}
+
+      {watched.length > 0 && (
+        <section className={cn(panelCardPadded, "space-y-3")}>
+          <h2 className="text-sm font-medium text-white">Páginas em acompanhamento</h2>
+          <p className="text-xs text-white/45">
+            O Grok marca sozinho página de oferta boa do recorte. Você também marca na mão.
+          </p>
+          <ul className="space-y-2">
+            {watched.map((page) => (
+              <li
+                key={`${page.pageId || page.pageName}-${page.watchedAt}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-white/70"
+              >
+                <span className="min-w-0 truncate">
+                  {page.pageName}
+                  {page.keywords ? ` · ${page.keywords}` : ""}
+                  {page.adCount ? ` · ${page.adCount} anúncios` : ""}
+                  {page.reason ? ` · ${page.reason}` : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void unwatchPage(page)}
+                  className="shrink-0 text-[11px] text-white/40 hover:text-red-300"
+                >
+                  tirar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className={cn(panelCardPadded, "space-y-4")}>
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -350,7 +503,11 @@ export function OffersScrapeView() {
           Ofertas{usedProxy ? ` · ${usedProxy}` : ""}
         </h2>
         {!ads.length && busy !== "search" && (
-          <p className="text-sm text-white/40">Nenhuma busca ainda. Coloque o tema e clique em Buscar.</p>
+          <p className="text-sm text-white/40">
+            {report?.inNiche === false
+              ? "Esse tema não entra no recorte. Troque a busca ou clique em Caçar nichos."
+              : "Nenhuma busca ainda. Digite um tema do recorte ou clique em Caçar nichos."}
+          </p>
         )}
         <ul className="grid gap-3 lg:grid-cols-2">
           {ads.map((ad) => (
@@ -369,6 +526,23 @@ export function OffersScrapeView() {
                 ))}
               </div>
               <p className="text-sm font-medium text-white/85">{ad.pageName}</p>
+              {ad.review?.niches?.length ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {ad.review.niches.map((id) => (
+                    <span
+                      key={id}
+                      className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] text-violet-200"
+                    >
+                      {OFFER_NICHE_LABELS[id as OfferNicheId] ?? id}
+                    </span>
+                  ))}
+                  {ad.review.productType !== "none" ? (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/50">
+                      {ad.review.productType}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
               {ad.title && <p className="mt-1 text-sm text-white/70">{ad.title}</p>}
               {ad.startDate && (
                 <p className="mt-1 text-xs text-white/45">{formatWhen(ad.startDate)}</p>
@@ -376,6 +550,11 @@ export function OffersScrapeView() {
               {ad.body && (
                 <p className="mt-2 line-clamp-4 text-xs text-white/50">{ad.body}</p>
               )}
+              {ad.review?.why ? (
+                <p className="mt-2 text-xs leading-relaxed text-violet-200/80">
+                  {ad.review.why}
+                </p>
+              ) : null}
               {ad.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -385,6 +564,20 @@ export function OffersScrapeView() {
                 />
               )}
               <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    watching.has(ad.pageId || "") || watching.has(ad.pageName.toLowerCase())
+                      ? void unwatchPage(ad)
+                      : void watchPage(ad)
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/70 hover:text-white"
+                >
+                  <Eye size={12} />
+                  {watching.has(ad.pageId || "") || watching.has(ad.pageName.toLowerCase())
+                    ? "Acompanhando"
+                    : "Acompanhar página"}
+                </button>
                 <a
                   href={ad.snapshotUrl}
                   target="_blank"

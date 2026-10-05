@@ -18,6 +18,11 @@ const ADMIN_ONLY_PATH_PREFIXES = [
   "/ofertas",
 ];
 
+const ADMIN_ONLY_API_PREFIXES = [
+  "/api/admin/offers",
+  "/api/admin/campaign-analyses",
+];
+
 function isPublicPath(pathname: string): boolean {
   return (
     PUBLIC_PATHS.some((p) => pathname === p) ||
@@ -27,10 +32,16 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
+function matchesPrefix(pathname: string, prefixes: string[]): boolean {
+  return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function isAdminOnlyPath(pathname: string): boolean {
-  return ADMIN_ONLY_PATH_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`)
-  );
+  return matchesPrefix(pathname, ADMIN_ONLY_PATH_PREFIXES);
+}
+
+function isAdminOnlyApi(pathname: string): boolean {
+  return matchesPrefix(pathname, ADMIN_ONLY_API_PREFIXES);
 }
 
 export async function middleware(request: NextRequest) {
@@ -66,6 +77,15 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/admin")) {
       if (!user || !(await canAccessPanel(user.id))) {
         return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+      }
+      if (isAdminOnlyApi(pathname)) {
+        const admin = await isAdminUser(supabase, user.id);
+        if (!admin) {
+          return NextResponse.json(
+            { error: "Disponível apenas para administradores." },
+            { status: 403 }
+          );
+        }
       }
       return supabaseResponse;
     }

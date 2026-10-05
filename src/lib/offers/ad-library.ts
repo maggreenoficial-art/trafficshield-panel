@@ -186,6 +186,7 @@ export function adLibrarySearchUrl(input: {
   keywords: string;
   country: string;
   mediaType: string;
+  searchType?: "keyword_unordered" | "keyword_exact_phrase";
 }) {
   const url = new URL("https://www.facebook.com/ads/library/");
   url.searchParams.set("active_status", "active");
@@ -194,6 +195,9 @@ export function adLibrarySearchUrl(input: {
   url.searchParams.set("is_targeted_country", "false");
   url.searchParams.set("media_type", input.mediaType || "all");
   url.searchParams.set("q", input.keywords.trim());
-  url.searchParams.set("search_type", "keyword_unordered");
+  url.searchParams.set(
+    "search_type",
+    input.searchType || "keyword_exact_phrase"
+  );
   return url.toString();
 }

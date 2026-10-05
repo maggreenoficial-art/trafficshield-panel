@@ -84,10 +84,13 @@ function errorFromBody(status: number, raw: string, parsed: Record<string, unkno
   return snippet || `Kie Grok HTTP ${status}`;
 }
 
+export type GrokReasoningEffort = "low" | "medium" | "high";
+
 /** Chat síncrono Grok 4.6 via Kie (`KIE_AI_API_KEY`). */
 export async function chatGrok46(
   prompt: string,
-  imageUrls: string[] = []
+  imageUrls: string[] = [],
+  options?: { reasoning?: GrokReasoningEffort }
 ): Promise<string> {
   const images = imageUrls.filter(Boolean).slice(0, 4);
   const input = images.length
@@ -112,7 +115,7 @@ export async function chatGrok46(
     body: JSON.stringify({
       model: "grok-4-6",
       stream: false,
-      reasoning: { effort: "low" },
+      reasoning: { effort: options?.reasoning ?? "low" },
       input,
     }),
   });

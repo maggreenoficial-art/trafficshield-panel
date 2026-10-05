@@ -72,4 +72,5 @@ test("monta a URL da Biblioteca com o tema", () => {
   assert.match(url, /q=emagrecer/);
   assert.match(url, /country=BR/);
   assert.match(url, /media_type=video/);
+  assert.match(url, /search_type=keyword_exact_phrase/);
 });
