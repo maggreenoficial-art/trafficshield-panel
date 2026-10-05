@@ -8,6 +8,7 @@ import {
   type ThemeOverrides,
 } from "@/lib/ads-analysis/theme-champions";
 import type { GrokCreativeRanking } from "@/lib/ads-analysis/rank-creatives";
+import type { OfferScaleReport } from "@/lib/offers/scale";
 
 export type AnalysisLevel = "campaign" | "adset" | "ad";
 
@@ -62,6 +63,7 @@ export type TripleEngagementAnalysis = {
   themes: ThemeChampion[];
   campaignChampions: CampaignChampion[];
   grok?: GrokCreativeRanking;
+  library?: OfferScaleReport;
   themeOverrides?: ThemeOverrides;
 };
 

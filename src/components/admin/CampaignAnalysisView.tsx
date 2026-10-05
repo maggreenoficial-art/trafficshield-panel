@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
+  CalendarDays,
   CheckCircle2,
   FileSpreadsheet,
   Loader2,
   MessageCircle,
+  Radar,
   Share2,
   Sparkles,
   ThumbsUp,
@@ -17,6 +19,7 @@ import { CopyNameButton } from "@/components/admin/CopyNameButton";
 import {
   panelCard,
   panelCardPadded,
+  panelInput,
   panelTableHead,
   panelTableWrap,
 } from "@/lib/panel-styles";
@@ -45,6 +48,7 @@ import {
   rankCreativesAlgorithm,
   type GrokCreativeRanking,
 } from "@/lib/ads-analysis/rank-creatives";
+import type { OfferScaleReport } from "@/lib/offers/scale";
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -71,6 +75,25 @@ const insightTone: Record<string, string> = {
   bad: "border-red-500/25 bg-red-500/8",
   info: "border-sky-500/25 bg-sky-500/8",
 };
+
+const libraryVerdictTone: Record<OfferScaleReport["verdict"], string> = {
+  scaling: "bg-emerald-500/15 text-emerald-200",
+  validated: "bg-sky-500/15 text-sky-200",
+  testing: "bg-amber-500/15 text-amber-200",
+  mature: "bg-white/10 text-white/65",
+  none: "bg-red-500/15 text-red-200",
+};
+
+function formatWhen(iso: string | null) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 type Slot = "campaign" | "adset" | "ad";
 
@@ -107,6 +130,10 @@ export function CampaignAnalysisView() {
     { theme: CreativeTheme; name: string; rows: AdsEngagementRow[] }[]
   >([]);
   const themeInputRefs = useRef<Partial<Record<CreativeTheme, HTMLInputElement | null>>>({});
+  const [libraryKeywords, setLibraryKeywords] = useState("");
+  const [libraryCountry, setLibraryCountry] = useState("BR");
+  const [libraryBusy, setLibraryBusy] = useState(false);
+  const [library, setLibrary] = useState<OfferScaleReport | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -156,7 +183,8 @@ export function CampaignAnalysisView() {
         files.ad.rows,
         themeOverrides
       );
-      setAnalysis(result);
+      const next = library ? { ...result, library } : result;
+      setAnalysis(next);
       setTab("ad");
 
       const res = await fetch("/api/admin/campaign-analyses", {
@@ -169,7 +197,7 @@ export function CampaignAnalysisView() {
           campaignRows: files.campaign.rows,
           adsetRows: files.adset.rows,
           adRows: files.ad.rows,
-          result,
+          result: next,
         }),
       });
       const data = await res.json();
@@ -203,6 +231,9 @@ export function CampaignAnalysisView() {
       if (!res.ok) throw new Error(data.error || "Não encontrado");
       setAnalysis(data.analysis.result);
       setGrok(data.analysis.result?.grok ?? null);
+      setLibrary(data.analysis.result?.library ?? null);
+      setLibraryKeywords(data.analysis.result?.library?.keywords ?? "");
+      setLibraryCountry(data.analysis.result?.library?.country ?? "BR");
       setThemeOverrides(data.analysis.result?.themeOverrides ?? emptyThemeOverrides());
       setSavedId(id);
       setFiles({
@@ -286,10 +317,43 @@ export function CampaignAnalysisView() {
       files.ad.rows,
       nextOverrides
     );
-    const next = keepGrok && grok ? { ...result, grok } : result;
+    const next = {
+      ...result,
+      ...(keepGrok && grok ? { grok } : {}),
+      ...(library ? { library } : {}),
+    };
     setThemeOverrides(nextOverrides);
     setAnalysis(next);
     void persistAnalysis(next, savedId);
+  }
+
+  async function runLibrary() {
+    if (!libraryKeywords.trim()) {
+      setError("Digite o tema da oferta para ver volume e datas na Meta.");
+      return;
+    }
+    setLibraryBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/campaign-analyses/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keywords: libraryKeywords,
+          country: libraryCountry,
+          analysisId: savedId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não leu a Biblioteca da Meta.");
+      const report = data.library as OfferScaleReport;
+      setLibrary(report);
+      setAnalysis((prev) => (prev ? { ...prev, library: report } : prev));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na Biblioteca da Meta.");
+    } finally {
+      setLibraryBusy(false);
+    }
   }
 
   async function onThemeFile(theme: CreativeTheme, list: FileList | null) {
@@ -340,6 +404,12 @@ export function CampaignAnalysisView() {
     retag(toggleCampaignTheme(themeOverrides, campaign, theme, currentlyOn));
   }
 
+  const keywordHints = useMemo(() => {
+    const names =
+      files.campaign?.rows.map((row) => row.campaign.trim()).filter(Boolean) ?? [];
+    return [...new Set(names)].slice(0, 8);
+  }, [files.campaign]);
+
   const active: EngagementAnalysis | null = analysis ? analysis[tab] : null;
   const algoRanking = useMemo(
     () => (analysis ? rankCreativesAlgorithm(analysis.ad.ads, 20) : []),
@@ -369,8 +439,227 @@ export function CampaignAnalysisView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Analise"
-        subtitle="Sempre 3 CSVs do Gerenciador: Campanhas, Conjuntos e Anúncios — mesmas colunas de engajamento."
+        subtitle="CSV do Gerenciador para criativos. Biblioteca da Meta para ver quantos anúncios a oferta tem e desde quando — volume alto e data recente = validada e escalando."
       />
+
+      <section className={cn(panelCard, "space-y-4 p-5")}>
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-sky-500/15 p-2 text-sky-300">
+            <Radar size={16} />
+          </div>
+          <div>
+            <h2 className="text-sm font-medium text-white">
+              Biblioteca da Meta — volume e datas
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-white/45">
+              A métrica é simples: bastante anúncio ativo, de várias páginas, com
+              criativo novo = oferta validada e em escala. Data antiga sem lançamento
+              recente = já rodou e pode ter esfriado.
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+          <input
+            className={cn(panelInput, "text-sm")}
+            value={libraryKeywords}
+            onChange={(e) => setLibraryKeywords(e.target.value)}
+            placeholder="Tema da oferta, ex: emagrecer, implante dentário"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void runLibrary();
+            }}
+          />
+          <select
+            className={cn(panelInput, "text-sm")}
+            value={libraryCountry}
+            onChange={(e) => setLibraryCountry(e.target.value)}
+          >
+            <option value="BR">Brasil</option>
+            <option value="US">EUA</option>
+            <option value="PT">Portugal</option>
+            <option value="MX">México</option>
+            <option value="AR">Argentina</option>
+            <option value="CO">Colômbia</option>
+          </select>
+          <button
+            type="button"
+            disabled={libraryBusy || !libraryKeywords.trim()}
+            onClick={() => void runLibrary()}
+            className="flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {libraryBusy ? <Loader2 className="animate-spin" size={16} /> : null}
+            Verificar na Meta
+          </button>
+        </div>
+        {keywordHints.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {keywordHints.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setLibraryKeywords(name)}
+                className="rounded-full bg-white/8 px-2.5 py-1 text-[11px] text-white/55 hover:bg-white/12 hover:text-white/80"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+        {library && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium",
+                  libraryVerdictTone[library.verdict]
+                )}
+              >
+                {library.verdictLabel}
+              </span>
+              <p className="text-xs leading-relaxed text-white/55">
+                {library.verdictBody}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  label: "Anúncios ativos",
+                  value:
+                    library.libraryTotal && library.libraryTotal > library.adCount
+                      ? `${library.adCount} / ${library.libraryTotal.toLocaleString("pt-BR")}`
+                      : String(library.libraryTotal ?? library.adCount),
+                },
+                {
+                  label: "Páginas",
+                  value: String(library.uniquePages),
+                },
+                {
+                  label: "Mais antigo",
+                  value: formatWhen(library.oldestStart),
+                },
+                {
+                  label: "Mais novo",
+                  value: formatWhen(library.newestStart),
+                },
+                {
+                  label: "Novos em 7 dias",
+                  value: String(library.last7Days),
+                },
+                {
+                  label: "Novos em 14 dias",
+                  value: String(library.last14Days),
+                },
+                {
+                  label: "Novos em 30 dias",
+                  value: String(library.last30Days),
+                },
+                {
+                  label: "Tempo no ar",
+                  value:
+                    library.runningDays != null
+                      ? `${library.runningDays} dia${library.runningDays === 1 ? "" : "s"}`
+                      : "—",
+                },
+              ].map((item) => (
+                <div key={item.label} className={cn(panelCardPadded, "space-y-1")}>
+                  <p className="text-[11px] uppercase tracking-wide text-white/35">
+                    {item.label}
+                  </p>
+                  <p className="text-lg text-white/85">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            {library.months.length > 0 && (
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-white/35">
+                  <CalendarDays size={12} />
+                  Anúncios por mês de início
+                </p>
+                <ul className="flex flex-wrap gap-2">
+                  {library.months.map((month) => (
+                    <li
+                      key={month.month}
+                      className="rounded-lg bg-white/[0.04] px-3 py-2 text-xs text-white/70"
+                    >
+                      {month.label} · {month.count}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {library.pages.length > 0 && (
+              <div className={panelTableWrap}>
+                <table className="min-w-[520px] w-full text-left">
+                  <thead className={panelTableHead}>
+                    <tr>
+                      {["Página", "Anúncios", "Primeiro", "Mais recente"].map((h) => (
+                        <th key={h} className="px-3 py-2.5 font-medium">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {library.pages.map((page) => (
+                      <tr
+                        key={page.pageName}
+                        className="border-t border-white/[0.05] text-white/70"
+                      >
+                        <td className="px-3 py-2.5 text-white/90">{page.pageName}</td>
+                        <td className="px-3 py-2.5">{page.count}</td>
+                        <td className="px-3 py-2.5">{formatWhen(page.oldestStart)}</td>
+                        <td className="px-3 py-2.5">{formatWhen(page.newestStart)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {library.sample.length > 0 && (
+              <div className={panelTableWrap}>
+                <table className="min-w-[720px] w-full text-left">
+                  <thead className={panelTableHead}>
+                    <tr>
+                      {["Início", "Página", "Título", "Biblioteca"].map((h) => (
+                        <th key={h} className="px-3 py-2.5 font-medium">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {library.sample.map((ad) => (
+                      <tr
+                        key={ad.id}
+                        className="border-t border-white/[0.05] text-white/70"
+                      >
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          {formatWhen(ad.startDate)}
+                        </td>
+                        <td className="max-w-[180px] truncate px-3 py-2.5">
+                          {ad.pageName}
+                        </td>
+                        <td className="max-w-[280px] truncate px-3 py-2.5 text-white/55">
+                          {ad.title || "—"}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <a
+                            href={ad.snapshotUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sky-300 hover:text-sky-200"
+                          >
+                            Ver
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
         <p className="text-xs leading-relaxed text-white/45">

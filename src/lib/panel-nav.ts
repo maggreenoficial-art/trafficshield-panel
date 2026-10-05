@@ -8,6 +8,7 @@ import {
   LogOut,
   Megaphone,
   Newspaper,
+  Radar,
   Sparkles,
   User,
   type LucideIcon,
@@ -47,6 +48,13 @@ export const panelNav: PanelNavItem[] = [
     adminOnly: true,
   },
   {
+    href: "/ofertas",
+    label: "Ofertas",
+    icon: Radar,
+    exact: false,
+    adminOnly: true,
+  },
+  {
     href: "/storyboards",
     label: "Storyboards",
     icon: Clapperboard,
@@ -75,6 +83,7 @@ export function panelPageTitle(pathname: string): string {
   if (pathname.match(/^\/storyboards\/[^/]+/)) return "Editor";
   if (pathname.startsWith("/desenvolvimento")) return "Desenvolvimento";
   if (pathname.startsWith("/noticias")) return "Notícias";
+  if (pathname.startsWith("/ofertas")) return "Ofertas";
   if (pathname.startsWith("/storyboards")) return "Storyboards";
   if (pathname.startsWith("/criativos")) return "Criativos";
   if (pathname.startsWith("/analise-campanha")) return "Analise";
