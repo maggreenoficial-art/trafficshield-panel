@@ -157,16 +157,16 @@ export function parseOfferNiches(values: unknown): OfferNicheId[] {
   const out: OfferNicheId[] = [];
   for (const value of values) {
     if (typeof value !== "string") continue;
-    const id = foldText(value).replace(/\s+/g, "") as OfferNicheId;
-    const mapped =
-      id === "evangelico" || id === "evangelica"
+    const raw = foldText(value).replace(/\s+/g, "");
+    const mapped: OfferNicheId | null =
+      raw === "evangelico" || raw === "evangelica"
         ? "evangelico"
-        : id === "cristao" || id === "crista"
+        : raw === "cristao" || raw === "crista"
           ? "cristao"
-          : id === "familias" || id === "familia"
+          : raw === "familias" || raw === "familia"
             ? "familias"
-            : (OFFER_NICHE_IDS as readonly string[]).includes(id)
-              ? (id as OfferNicheId)
+            : (OFFER_NICHE_IDS as readonly string[]).includes(raw)
+              ? (raw as OfferNicheId)
               : null;
     if (mapped && !out.includes(mapped)) out.push(mapped);
   }

@@ -8,6 +8,7 @@ import {
   isExplicitlyOutOfScope,
   keywordsMatchNiche,
   parseOfferNiches,
+  type OfferNicheId,
 } from "@/lib/offers/niche";
 import { extractJsonObject, tokenize } from "@/lib/offers/text";
 
