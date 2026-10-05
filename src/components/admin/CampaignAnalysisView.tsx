@@ -49,6 +49,8 @@ import {
   type GrokCreativeRanking,
 } from "@/lib/ads-analysis/rank-creatives";
 import type { OfferScalePage, OfferScaleReport } from "@/lib/offers/scale";
+import type { OfferKeywordHint } from "@/lib/offers/keywords";
+import { OfferKeywordChips } from "@/components/admin/OfferKeywordChips";
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -133,7 +135,9 @@ export function CampaignAnalysisView() {
   const [libraryKeywords, setLibraryKeywords] = useState("");
   const [libraryCountry, setLibraryCountry] = useState("BR");
   const [libraryBusy, setLibraryBusy] = useState(false);
+  const [libraryHuntBusy, setLibraryHuntBusy] = useState(false);
   const [library, setLibrary] = useState<OfferScaleReport | null>(null);
+  const [libraryHints, setLibraryHints] = useState<OfferKeywordHint[]>([]);
 
   useEffect(() => {
     void (async () => {
@@ -327,11 +331,41 @@ export function CampaignAnalysisView() {
     void persistAnalysis(next, savedId);
   }
 
-  async function runLibrary(hunt = false) {
-    if (!hunt && !libraryKeywords.trim()) {
-      setError("Digite o tema no recorte, ou clique em Caçar nichos.");
+  async function huntLibraryNames() {
+    setLibraryHuntBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/offers/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seed: libraryKeywords.trim(),
+          country: libraryCountry,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não caçou os nomes.");
+      setLibraryHints((data.keywords ?? []) as OfferKeywordHint[]);
+      if (data.inNiche === false) {
+        setError(
+          data.outOfNicheReason ||
+            "Fora do recorte. Só produtos e infoprodutos de direita, conservador, evangélico, cristão, patriota e famílias."
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao caçar nomes.");
+    } finally {
+      setLibraryHuntBusy(false);
+    }
+  }
+
+  async function runLibrary(phrase?: string) {
+    const query = (phrase ?? libraryKeywords).trim();
+    if (!query) {
+      setError("Digite o tema ou clique em Caçar nomes.");
       return;
     }
+    if (phrase) setLibraryKeywords(phrase);
     setLibraryBusy(true);
     setError("");
     try {
@@ -339,10 +373,9 @@ export function CampaignAnalysisView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keywords: hunt ? "" : libraryKeywords,
+          keywords: query,
           country: libraryCountry,
           analysisId: savedId || undefined,
-          hunt,
         }),
       });
       const data = await res.json();
@@ -485,7 +518,7 @@ export function CampaignAnalysisView() {
     <div className="space-y-6 sm:space-y-8">
       <AdminPageTitle
         title="Analise"
-        subtitle="CSV do Gerenciador para criativos. Biblioteca da Meta no recorte: direita, conservador, evangélico, cristão, patriota e famílias. 20 anúncios da oferta para cima = escala."
+        subtitle="CSV do Gerenciador para criativos. Em Ofertas e aqui: o Grok monta nomes para pesquisar no recorte. 20 anúncios da oferta para cima = escala."
       />
 
       <section className={cn(panelCard, "space-y-4 p-5")}>
@@ -498,9 +531,8 @@ export function CampaignAnalysisView() {
               Biblioteca da Meta — volume e datas
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-white/45">
-              Só produtos e infoprodutos do recorte. O Grok lê cada anúncio, não faz
-              triagem rasa. 20 da mesma oferta para cima = escalando. Oferta boa
-              entra em acompanhamento.
+              Coloque um nome. O Grok monta palavras-chave do recorte. Clique em um
+              nome para ver volume na Meta. 20 da mesma oferta para cima = escalando.
             </p>
           </div>
         </div>
@@ -509,9 +541,9 @@ export function CampaignAnalysisView() {
             className={cn(panelInput, "text-sm")}
             value={libraryKeywords}
             onChange={(e) => setLibraryKeywords(e.target.value)}
-            placeholder="Ex: curso família cristã, mentoria conservadora"
+            placeholder="Nome, produto ou tema para o Grok montar as buscas"
             onKeyDown={(e) => {
-              if (e.key === "Enter") void runLibrary();
+              if (e.key === "Enter") void huntLibraryNames();
             }}
           />
           <select
@@ -528,34 +560,49 @@ export function CampaignAnalysisView() {
           </select>
           <button
             type="button"
-            disabled={libraryBusy}
+            disabled={libraryBusy || libraryHuntBusy}
+            onClick={() => void huntLibraryNames()}
+            className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {libraryHuntBusy ? <Loader2 className="animate-spin" size={16} /> : <Radar size={16} />}
+            {libraryHuntBusy ? "Montando nomes…" : "Caçar nomes"}
+          </button>
+          <button
+            type="button"
+            disabled={libraryBusy || libraryHuntBusy}
             onClick={() => void runLibrary()}
             className="flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {libraryBusy ? <Loader2 className="animate-spin" size={16} /> : null}
             {libraryBusy ? "Grok lendo…" : "Verificar na Meta"}
           </button>
-          <button
-            type="button"
-            disabled={libraryBusy}
-            onClick={() => void runLibrary(true)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Caçar nichos
-          </button>
         </div>
-        {keywordHints.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {keywordHints.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setLibraryKeywords(name)}
-                className="rounded-full bg-white/8 px-2.5 py-1 text-[11px] text-white/55 hover:bg-white/12 hover:text-white/80"
-              >
-                {name}
-              </button>
-            ))}
+        {(libraryHints.length > 0 || keywordHints.length > 0) && (
+          <div className="space-y-3">
+            {libraryHints.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-white/70">Nomes a se pesquisar</p>
+                <OfferKeywordChips
+                  items={libraryHints}
+                  active={libraryKeywords}
+                  onPick={(phrase) => void runLibrary(phrase)}
+                />
+              </div>
+            )}
+            {keywordHints.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {keywordHints.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setLibraryKeywords(name)}
+                    className="rounded-full bg-white/8 px-2.5 py-1 text-[11px] text-white/55 hover:bg-white/12 hover:text-white/80"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {library && (

@@ -15,7 +15,9 @@ import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
 import type { MetaAd, OfferMediaType } from "@/lib/offers/types";
+import { OfferKeywordChips } from "@/components/admin/OfferKeywordChips";
 import { OFFER_NICHE_LABELS, type OfferNicheId } from "@/lib/offers/niche";
+import type { OfferKeywordHint } from "@/lib/offers/keywords";
 import type { OfferScaleReport } from "@/lib/offers/scale";
 import type { WatchedOfferPage } from "@/lib/db/offer-watch";
 
@@ -65,6 +67,8 @@ export function OffersScrapeView() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [seed, setSeed] = useState("");
+  const [hints, setHints] = useState<OfferKeywordHint[]>([]);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -176,24 +180,57 @@ export function OffersScrapeView() {
     }
   }
 
-  async function search(hunt = false) {
-    if (!hunt && !keywords.trim()) {
-      setError("Digite o tema no recorte, ou clique em Caçar nichos.");
+  async function huntNames() {
+    setBusy("hunt");
+    setError("");
+    setNotice("");
+    try {
+      const res = await fetch("/api/admin/offers/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seed: seed.trim() || keywords.trim(), country }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não caçou os nomes.");
+      const next = (data.keywords ?? []) as OfferKeywordHint[];
+      setHints(next);
+      if (data.inNiche === false) {
+        setError(
+          data.outOfNicheReason ||
+            "Fora do recorte. Só produtos e infoprodutos de direita, conservador, evangélico, cristão, patriota e famílias."
+        );
+        return;
+      }
+      setNotice(
+        next.length
+          ? `${next.length} nomes para pesquisar. Clique em um para buscar na Meta.`
+          : "O Grok não montou nomes neste tema."
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao caçar nomes.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function search(phrase?: string) {
+    const query = (phrase ?? keywords).trim();
+    if (!query) {
+      setError("Digite um nome ou clique em Caçar nomes.");
       return;
     }
+    if (phrase) setKeywords(phrase);
     setBusy("search");
     setError("");
     setNotice("");
     try {
-      if (!hunt) await saveConfig();
       const res = await fetch("/api/admin/offers/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keywords: hunt ? "" : keywords,
+          keywords: query,
           country,
           mediaType,
-          hunt,
         }),
       });
       const data = await res.json();
@@ -204,7 +241,30 @@ export function OffersScrapeView() {
       setUsedProxy(data.proxy ?? "");
       const kept = data.ads?.length ?? 0;
       const dropped = data.dropped ?? 0;
-      const intent = data.plan?.intent || data.plan?.query || keywords;
+      const intent = data.plan?.intent || data.plan?.query || query;
+      const planned: OfferKeywordHint[] = [
+        ...(typeof data.plan?.query === "string" && data.plan.query.trim()
+          ? [
+              {
+                phrase: data.plan.query.trim(),
+                niche: (data.plan.niches?.[0] ?? "familias") as OfferKeywordHint["niche"],
+                why: "Frase principal que o Grok escolheu.",
+              },
+            ]
+          : []),
+        ...((data.plan?.aliases as string[] | undefined) ?? []).map((alias) => ({
+          phrase: alias,
+          niche: (data.plan.niches?.[0] ?? "familias") as OfferKeywordHint["niche"],
+          why: "Variação da busca.",
+        })),
+      ];
+      if (planned.length) {
+        setHints((prev) => {
+          const seen = new Set(prev.map((item) => item.phrase.toLowerCase()));
+          const extra = planned.filter((item) => !seen.has(item.phrase.toLowerCase()));
+          return [...prev, ...extra].slice(0, 24);
+        });
+      }
       if (data.report?.inNiche === false) {
         setError(
           data.report.outOfNicheReason ||
@@ -270,7 +330,7 @@ export function OffersScrapeView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Scrapping de ofertas"
-        subtitle="O Grok caça só produtos e infoprodutos de direita, conservador, evangélico, cristão, patriota e famílias. Lê cada anúncio. 20 ou mais = escala. Oferta boa vai para acompanhamento."
+        subtitle="Coloque um nome. O Grok monta várias palavras-chave do recorte para você pesquisar. Clique no nome, entra na Meta. 20 anúncios da oferta = escala."
       />
 
       {error && (
@@ -286,19 +346,62 @@ export function OffersScrapeView() {
 
       <section className={cn(panelCardPadded, "space-y-4")}>
         <div>
-          <h2 className="text-sm font-medium text-white">Tema</h2>
+          <h2 className="text-sm font-medium text-white">Caçar nomes</h2>
           <p className="mt-1 text-xs text-white/45">
-            Recorte fechado: direita, conservador, evangélico, cristão, patriota e
-            famílias. O Grok planeja as frases, entra na Meta e lê anúncio por
-            anúncio — não é triagem rasa. Escala só com 20 anúncios relevantes.
+            Coloque um nome (produto, página, guru ou tema). O Grok devolve várias
+            palavras-chave de direita, conservador, evangélico, cristão, patriota e
+            famílias para você pesquisar. Sem isso a busca fica vaga.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_auto_auto]">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <input
+            className={cn(panelInput, "text-sm")}
+            value={seed}
+            onChange={(e) => setSeed(e.target.value)}
+            placeholder="Ex: família, patriota, nome de uma página"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void huntNames();
+            }}
+          />
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() => void huntNames()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+          >
+            {busy === "hunt" ? <Loader2 className="animate-spin" size={16} /> : <Radar size={16} />}
+            {busy === "hunt" ? "Montando nomes…" : "Caçar nomes"}
+          </button>
+        </div>
+        {hints.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-white/70">Nomes a se pesquisar</h3>
+            <p className="text-[11px] text-white/40">
+              Clique em um nome para buscar essa palavra-chave na Biblioteca da Meta.
+            </p>
+            <OfferKeywordChips
+              items={hints}
+              active={keywords}
+              onPick={(phrase) => void search(phrase)}
+            />
+          </div>
+        )}
+      </section>
+
+      <section className={cn(panelCardPadded, "space-y-4")}>
+        <div>
+          <h2 className="text-sm font-medium text-white">Pesquisar na Meta</h2>
+          <p className="mt-1 text-xs text-white/45">
+            Use um dos nomes acima ou digite a palavra-chave certa. Escala só com 20
+            anúncios relevantes da oferta.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_auto]">
           <input
             className={cn(panelInput, "text-sm")}
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            placeholder="Ex: curso família cristã, mentoria conservadora"
+            placeholder="Palavra-chave escolhida, ex: curso família cristã"
             onKeyDown={(e) => {
               if (e.key === "Enter") void search();
             }}
@@ -332,15 +435,6 @@ export function OffersScrapeView() {
           >
             {busy === "search" ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
             {busy === "search" ? "Grok lendo…" : "Buscar"}
-          </button>
-          <button
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() => void search(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
-          >
-            {busy === "search" ? <Loader2 className="animate-spin" size={16} /> : <Radar size={16} />}
-            Caçar nichos
           </button>
         </div>
       </section>
@@ -504,9 +598,7 @@ export function OffersScrapeView() {
         </h2>
         {!ads.length && busy !== "search" && (
           <p className="text-sm text-white/40">
-            {report?.inNiche === false
-              ? "Esse tema não entra no recorte. Troque a busca ou clique em Caçar nichos."
-              : "Nenhuma busca ainda. Digite um tema do recorte ou clique em Caçar nichos."}
+            Nenhuma busca ainda. Monte os nomes e clique em um para entrar na Meta.
           </p>
         )}
         <ul className="grid gap-3 lg:grid-cols-2">
