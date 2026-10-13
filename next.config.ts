@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["sharp", "unpdf"],
+  serverExternalPackages: ["sharp", "unpdf", "opentype.js"],
+  outputFileTracingIncludes: {
+    "/api/admin/news/storyboard": ["./src/lib/news/fonts/**/*"],
+  },
   transpilePackages: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
   turbopack: {},
   webpack: (config, { isServer }) => {

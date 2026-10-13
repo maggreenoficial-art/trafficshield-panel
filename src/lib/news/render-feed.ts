@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { parse, type Font } from "opentype.js";
 import sharp from "sharp";
 import {
@@ -22,8 +23,16 @@ const TAG_INK = "#111111";
 let extraBold: Font | null = null;
 let light: Font | null = null;
 
+function fontFile(file: string) {
+  try {
+    return readFileSync(new URL(`./fonts/${file}`, import.meta.url));
+  } catch {
+    return readFileSync(join(process.cwd(), "src/lib/news/fonts", file));
+  }
+}
+
 function loadFont(file: string) {
-  const buf = readFileSync(new URL(`./fonts/${file}`, import.meta.url));
+  const buf = fontFile(file);
   return parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 }
 

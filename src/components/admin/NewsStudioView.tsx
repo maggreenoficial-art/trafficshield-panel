@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useRouter } from "next/navigation";
 import {
   Download,
   ExternalLink,
@@ -88,14 +89,13 @@ async function downloadNewsMedia(
 }
 
 export function NewsStudioView() {
+  const router = useRouter();
   const [items, setItems] = useState<NewsItem[]>([]);
   const [brand, setBrand] = useState<NewsBrand>({ logoUrl: null, mockupUrl: null });
   const [draft, setDraft] = useState<NewsDraft | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [storyboardId, setStoryboardId] = useState("");
-  const [postUrl, setPostUrl] = useState("");
   const [filter, setFilter] = useState<"all" | "instagram" | "video">("all");
   const [pasteUrl, setPasteUrl] = useState("");
   const logoRef = useRef<HTMLInputElement | null>(null);
@@ -201,8 +201,6 @@ export function NewsStudioView() {
     setBusy(`produce:${news.id}`);
     setError("");
     setNotice("");
-    setStoryboardId("");
-    setPostUrl("");
     try {
       const res = await fetch("/api/admin/news/process", {
         method: "POST",
@@ -230,13 +228,12 @@ export function NewsStudioView() {
     if (!draft) return;
     if (!brand.logoUrl) {
       setError("Envie a logo branca antes de autorizar.");
-      return;
-    }
-    if (
-      !confirm(
-        "Autorizar esta notícia? O post 1080×1350 entra num storyboard novo."
-      )
-    ) {
+      requestAnimationFrame(() => {
+        document.getElementById("news-alert")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
       return;
     }
     setBusy("board");
@@ -250,16 +247,16 @@ export function NewsStudioView() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não criou o post.");
-      setStoryboardId(data.storyboardId);
-      setPostUrl(typeof data.imageUrl === "string" ? data.imageUrl : "");
-      setNotice(
-        data.urgent
-          ? "Post 1080×1350 pronto, com a tag URGENTE."
-          : "Post 1080×1350 pronto, sem a tag URGENTE."
-      );
+      if (!data.storyboardId) throw new Error("O storyboard não foi criado.");
+      router.push(`/storyboards/${data.storyboardId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao autorizar.");
-    } finally {
+      requestAnimationFrame(() => {
+        document.getElementById("news-alert")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
       setBusy("");
     }
   }
@@ -272,7 +269,10 @@ export function NewsStudioView() {
       />
 
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <p
+          id="news-alert"
+          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
           {error}
         </p>
       )}
@@ -505,22 +505,6 @@ export function NewsStudioView() {
                 Autorizar e jogar no storyboard
               </button>
             </>
-          )}
-          {postUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={postUrl}
-              alt="Post 1080 por 1350"
-              className="mx-auto w-full max-w-[280px] rounded-lg"
-            />
-          )}
-          {storyboardId && (
-            <a
-              href={`/storyboards/${storyboardId}`}
-              className="inline-flex rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-black"
-            >
-              Abrir storyboard
-            </a>
           )}
         </div>
       </section>
