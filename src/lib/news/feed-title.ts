@@ -111,6 +111,44 @@ export function formatFeedHeadline(words: FeedWord[]) {
   return parts.join(" ");
 }
 
+export function composeFeedImagePrompt(input: {
+  headline: string;
+  urgent: boolean;
+  hasPhoto: boolean;
+}) {
+  const words = buildFeedTitle(input.headline);
+  const headline = words.map((word) => word.text).join(" ");
+  const redWords = words.filter((word) => word.red).map((word) => word.text);
+  const urgentTag = input.urgent
+    ? 'Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge.'
+    : "No urgent tag. Leave the top left empty. Do not write URGENTE.";
+  const photoLine = input.hasPhoto
+    ? "Reference 3 is the real news photo. Use it as the full-bleed background of the whole post, cropped to 4:5, keeping the people and main subject in the upper half. Do NOT alter faces, people, objects, signs or any detail of this photo. Do not add or remove anything."
+    : "There is no reference 3. Do not keep the template photo. Use a plain dark photographic background with no extra text.";
+  return `Instagram feed news post, vertical 4:5 aspect ratio (1080x1350), sharp and professional.
+
+REFERENCES:
+- Reference 1 is a STYLE TEMPLATE, not a frame. Copy its design system exactly (positions, sizes, colors, typography, gradient), but REPLACE its photo and its headline completely. Nothing from the old photo or old headline may appear.
+- Reference 2 is the brand logo. Reproduce it faithfully in WHITE, top right corner, about 30% of the image width, 50px margin, placed directly on the photo with NO box or background behind it.
+- ${photoLine}
+
+LAYOUT, top to bottom:
+1. Logo (reference 2), top right, white.
+2. ${urgentTag}
+3. Black gradient: fully transparent at the middle of the image, solid black #000000 at the bottom.
+4. Solid red bar #D7141A, 180x10px, left-aligned with 60px margin, directly above the headline.
+5. Headline, left-aligned, 60px margin, white, ALL CAPS, condensed extra bold font (Barlow Condensed ExtraBold style), tight line spacing, maximum 4 lines, up to 80% of the width.
+   Exact headline text, letter by letter, in Portuguese, with all accents, no period at the end:
+   "${headline}"
+   Color ONLY these words in red #D7141A: "${redWords.join(", ") || "none"}". Everything else in white.
+6. Footer, centered, 50px from the bottom: "@informacassilandia" in white, thin sans-serif, small, wide letter spacing.
+
+RULES:
+- All text upright and readable. Never mirror, flip, rotate or cut letters.
+- No other text besides the headline, the urgent tag (if any) and the @.
+- Do not invent another layout, logo, newspaper or phone.`;
+}
+
 export function wrapFeedTitle(
   words: FeedWord[],
   widthOf: (text: string) => number,

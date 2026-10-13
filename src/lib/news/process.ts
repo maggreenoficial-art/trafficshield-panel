@@ -1,6 +1,11 @@
 import { chatGrok46 } from "@/lib/kie/grok-chat";
 import { fetchNewsArticle } from "@/lib/news/article";
-import { buildFeedTitle, formatFeedHeadline, isUrgentNews } from "@/lib/news/feed-title";
+import {
+  buildFeedTitle,
+  composeFeedImagePrompt,
+  formatFeedHeadline,
+  isUrgentNews,
+} from "@/lib/news/feed-title";
 import { resolveNewsUrl } from "@/lib/news/google-url";
 import type { NewsDraft, NewsItem } from "@/lib/news/types";
 
@@ -55,16 +60,20 @@ Responda SOMENTE JSON válido, sem markdown:
     news: { ...news, url, imageUrl, videoUrl },
     headline,
     caption,
-    imagePrompt: urgent
-      ? "Post 1080x1350 com tag URGENTE, logo branca no canto direito e título com o fato em vermelho."
-      : "Post 1080x1350 sem tag, logo branca no canto direito e título com o fato em vermelho.",
+    imagePrompt: composeFeedImagePrompt({
+      headline,
+      urgent,
+      hasPhoto: Boolean(imageUrl),
+    }),
   };
 }
 
 export function composeStoryboardPrompt(draft: NewsDraft) {
-  return [
-    "Post de feed do Informa Cassilândia, 1080x1350.",
-    `Título: ${draft.headline}.`,
-    draft.imagePrompt,
-  ].join(" ");
+  return composeFeedImagePrompt({
+    headline: draft.headline,
+    urgent: isUrgentNews(
+      `${draft.headline}\n${draft.news?.title ?? ""}\n${draft.news?.summary ?? ""}`
+    ),
+    hasPhoto: Boolean(draft.news?.imageUrl),
+  });
 }

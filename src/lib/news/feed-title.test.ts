@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildFeedTitle,
+  composeFeedImagePrompt,
   FEED_MAX_WORDS,
   formatFeedHeadline,
   isUrgentNews,
@@ -29,6 +30,22 @@ test("artigo, preposição e conector não ficam em vermelho", () => {
     words.filter((word) => word.red).map((word) => word.text),
     ["FESTA"]
   );
+});
+
+test("o prompt manda o título exato, as palavras em vermelho e omite a tag quando não é urgente", () => {
+  const prompt = composeFeedImagePrompt({
+    headline: "Prefeitura instala [novos contêineres] de lixo no Jardim Campo Grande.",
+    urgent: false,
+    hasPhoto: true,
+  });
+  assert.match(prompt, /1080x1350/);
+  assert.match(
+    prompt,
+    /"PREFEITURA INSTALA NOVOS CONTÊINERES DE LIXO NO JARDIM CAMPO GRANDE"/
+  );
+  assert.match(prompt, /"NOVOS, CONTÊINERES"/);
+  assert.match(prompt, /Do not write URGENTE/);
+  assert.match(prompt, /Reference 3 is the real news photo/);
 });
 
 test("a tag urgente só entra em acidente, crime, morte, desastre, falta de água ou luz e alerta de saúde", () => {

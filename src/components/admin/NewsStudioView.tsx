@@ -188,7 +188,7 @@ export function NewsStudioView() {
       setNotice(
         kind === "logo"
           ? "Logo salva. Vale para as próximas notícias."
-          : "Mockup salvo. A notícia entra nesse quadro."
+          : "Mockup salvo. Ele entra só como estilo do post."
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no envio.");
@@ -226,8 +226,8 @@ export function NewsStudioView() {
 
   async function authorize() {
     if (!draft) return;
-    if (!brand.logoUrl) {
-      setError("Envie a logo branca antes de autorizar.");
+    if (!brand.logoUrl || !brand.mockupUrl) {
+      setError("Envie a logo e o mockup de estilo antes de autorizar.");
       requestAnimationFrame(() => {
         document.getElementById("news-alert")?.scrollIntoView({
           behavior: "smooth",
@@ -247,7 +247,25 @@ export function NewsStudioView() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não criou o post.");
-      if (!data.storyboardId) throw new Error("O storyboard não foi criado.");
+      if (!data.storyboardId || !data.block?.id) {
+        throw new Error("O storyboard não foi criado.");
+      }
+      const gen = await fetch(`/api/admin/storyboards/${data.storyboardId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blockId: data.block.id,
+          modelKey: "image",
+          prompt: data.block.prompt,
+          aspectRatio: "4:5",
+          resolution: "1K",
+          referenceUrls: data.block.referenceUrls ?? [],
+        }),
+      });
+      const genData = await gen.json();
+      if (!gen.ok) {
+        throw new Error(genData.error || "O storyboard abriu, mas a imagem não foi pedida.");
+      }
       router.push(`/storyboards/${data.storyboardId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao autorizar.");
@@ -286,8 +304,8 @@ export function NewsStudioView() {
         <div>
           <h2 className="text-sm font-medium text-white">Logo e mockup</h2>
           <p className="mt-1 text-xs leading-relaxed text-white/45">
-            A logo branca vai no canto superior direito, do jeito que você enviar,
-            sem fundo. O post é sempre 1080×1350.
+            O mockup é o estilo. A logo entra branca no canto direito, sem fundo.
+            A foto da notícia vira o fundo do post 1080×1350.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -299,7 +317,7 @@ export function NewsStudioView() {
             onPick={(file) => void uploadAsset("logo", file)}
           />
           <AssetSlot
-            label="Mockup da página"
+            label="Mockup de estilo"
             url={brand.mockupUrl}
             busy={busy === "mockup"}
             inputRef={mockupRef}
