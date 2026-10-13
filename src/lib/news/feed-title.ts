@@ -116,6 +116,9 @@ export const ART_LAYER_MARK = "ART_LAYER_ONLY";
 export const HEADLINE_EDITOR_RULE =
   "O título deve ser português natural e correto, com todas as preposições e artigos necessários (de, do, da, no, na, em, para) e hífens corretos (projeto-piloto). Pode resumir, mas nunca escreva em estilo telegrama. A regra das palavras em vermelho só define o que é PINTADO, nunca o que é removido do texto.";
 
+export const HEADLINE_VERB_RULE =
+  'Ao encurtar o título, verifique se o verbo combina com o objeto. Ex.: "inicia projeto", "instala contêineres", nunca "inicia contêineres".';
+
 export function isArtLayerPrompt(prompt: string) {
   return prompt.trimStart().startsWith(ART_LAYER_MARK);
 }
@@ -143,12 +146,16 @@ Do not draw a photograph, person, face, place, object or sign. The original news
 REFERENCES:
 - Reference 1 is a STYLE TEMPLATE, not a frame. Copy its design system exactly (positions, sizes, colors, typography, gradient), but do not copy its photo or its headline. Nothing from the old photo or old headline may appear.
 - Reference 2 is the brand logo. Reproduce it faithfully in WHITE, top right corner, about 30% of the image width, 50px margin, placed with NO box or background behind it.
-- ${input.hasPhoto ? "There is no news photo in the references. Do not invent one." : "There is no news photo. Keep the background transparent."}
+- ${
+    input.hasPhoto
+      ? `Reference 3 is the real news photo. NEVER crop out any person, face or main subject: every person in the original photo must appear complete in the post. If the photo is wider than 4:5 (landscape), scale it to fill the FULL WIDTH of the post, align it to the top, and let the area below the photo fade smoothly into solid black, where the headline goes. Do not zoom in to fill the height. If the photo is vertical, fill the post and crop only empty areas (sky, floor, walls), never people. Do NOT alter faces, people, objects, signs or any detail of this photo. Do not redraw reference 3; it is placed under this transparent layer.`
+      : "There is no news photo. Keep the background transparent."
+  }
 
 LAYOUT, top to bottom:
 1. Logo (reference 2), top right, white.
 2. ${urgentTag}
-3. Black gradient: fully transparent at the middle of the image, solid black #000000 at the bottom.
+3. Black gradient: starts transparent around the lower third of the photo and becomes solid black #000000 below it, blending the photo edge into the black area seamlessly (no visible line).
 4. Solid red bar #D7141A, 180x10px, left-aligned with 60px margin, directly above the headline.
 5. Headline, left-aligned, 60px margin, white, ALL CAPS, condensed extra bold font (Barlow Condensed ExtraBold style), tight line spacing, maximum 4 lines, up to 80% of the width.
    Exact headline text, letter by letter, in Portuguese, with all accents, no period at the end:

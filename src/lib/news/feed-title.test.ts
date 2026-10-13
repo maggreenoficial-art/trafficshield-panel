@@ -6,6 +6,7 @@ import {
   FEED_MAX_WORDS,
   formatFeedHeadline,
   HEADLINE_EDITOR_RULE,
+  HEADLINE_VERB_RULE,
   isUrgentNews,
 } from "./feed-title";
 
@@ -47,6 +48,12 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
   assert.match(prompt, /"NOVOS, CONTÊINERES"/);
   assert.match(prompt, /Do not write URGENTE/);
   assert.match(prompt, /Do not draw a photograph/);
+  assert.match(prompt, /NEVER crop out any person/);
+  assert.match(prompt, /Do not zoom in to fill the height/);
+  assert.match(
+    prompt,
+    /starts transparent around the lower third of the photo and becomes solid black #000000 below it/
+  );
   assert.match(
     prompt,
     /the exact text "@informacassilandia" — the "@" symbol is mandatory/
@@ -57,6 +64,7 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
 test("a regra do título pede português natural e não deixa apagar conectores", () => {
   assert.match(HEADLINE_EDITOR_RULE, /nunca escreva em estilo telegrama/);
   assert.match(HEADLINE_EDITOR_RULE, /nunca o que é removido do texto/);
+  assert.match(HEADLINE_VERB_RULE, /nunca "inicia contêineres"/);
 });
 
 test("a tag urgente só entra em acidente, crime, morte, desastre, falta de água ou luz e alerta de saúde", () => {
