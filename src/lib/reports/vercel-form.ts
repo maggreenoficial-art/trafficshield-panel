@@ -101,7 +101,7 @@ export function readVercelCampaign(form: FormData): { error: string } | { campai
     realContentUrl = normalizeVercelUrl(realRaw);
   }
   if (what.length < 12) {
-    return { error: "Diga o que o site falso faz. A Kie escreve o texto de cada denúncia a partir disso." };
+    return { error: "Diga o que o site falso faz. Esse texto acompanha os mil títulos prontos." };
   }
   const shotIssue = fileIssue(screenshots, "as capturas de tela de phishing", false);
   if (shotIssue) return { error: shotIssue };

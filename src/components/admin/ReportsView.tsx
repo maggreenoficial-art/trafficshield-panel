@@ -129,7 +129,7 @@ export function ReportsView() {
     if (nextUrlError || nextRealError) return;
     setBusy("send");
     setError("");
-    setNotice("A Kie está criando um dado novo para cada proxy.");
+    setNotice("Os mil dados já estão prontos. Enviando as denúncias.");
     try {
       let guard = 0;
       while (guard < 600) {
@@ -142,7 +142,10 @@ export function ReportsView() {
         if (!impacted) body.delete("personalImpactEvidence");
         const res = await fetch("/api/admin/reports/send", { method: "POST", body });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Não enviou a denúncia.");
+        if (!res.ok) {
+          setNotice("");
+          throw new Error(data.error || "Não enviou a denúncia.");
+        }
         if (data.logs) setLogs(data.logs);
         const progress = data.progress as {
           phase?: string;
@@ -195,8 +198,8 @@ export function ReportsView() {
         <div>
           <h2 className="text-sm font-medium text-white">Denuncie abusos no Vercel</h2>
           <p className="mt-1 text-xs text-white/45">
-            Os dois prints abaixo vão em todas as denúncias. A Kie cria nome e e-mail. O título
-            descreve o Pix que aparece neles.
+            Os dois prints vão em todas as denúncias. Os mil nomes, e-mails e títulos já estão
+            prontos: cada proxy recebe uma pessoa e um texto.
           </p>
         </div>
 

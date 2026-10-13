@@ -4,14 +4,12 @@ import {
   appendReportLogs,
   getReportBatch,
   getReportConfig,
-  listReportLogs,
   saveReportBatch,
 } from "@/lib/db/reports";
 import { parseOfferProxyList } from "@/lib/offers/proxy-parse";
-import { generateReportPersonaBatch, type ReportPersona } from "@/lib/reports/identities";
+import { builtInReportPersonas, type ReportPersona } from "@/lib/reports/identities";
 import { fileVercelReport } from "@/lib/reports/submit";
 import { defaultReportScreenshots } from "@/lib/reports/evidence";
-import { buildPhishingTitles } from "@/lib/reports/titles";
 import { readVercelCampaign, type VercelCampaign } from "@/lib/reports/vercel-form";
 
 export const maxDuration = 120;
@@ -55,39 +53,9 @@ export async function POST(request: NextRequest) {
     let sent = stored?.key === key ? stored.sent : 0;
 
     if (personas.length < proxies.length) {
-      const more = await generateReportPersonaBatch({
-        count: Math.min(12, proxies.length - personas.length),
-        url: campaign.infringingUrl,
-        brandUrl: campaign.realContentUrl,
-        what: campaign.what,
-        avoidEmails: personas.map((item) => item.email),
-      });
-      if (!more.length) {
-        return NextResponse.json(
-          { error: "A Kie não devolveu dados novos. Tente de novo." },
-          { status: 502 }
-        );
-      }
-      const before = personas.length;
-      const titles = buildPhishingTitles(campaign.infringingUrl, proxies.length);
-      const seen = new Set(personas.map((item) => item.email));
-      for (const item of more) {
-        if (seen.has(item.email)) continue;
-        seen.add(item.email);
-        personas.push({ ...item, steps: titles[personas.length] ?? item.steps });
-      }
-      if (personas.length === before) {
-        return NextResponse.json(
-          { error: "A Kie repetiu nomes que já estavam prontos. Tente de novo." },
-          { status: 502 }
-        );
-      }
-      personas = personas.slice(0, proxies.length);
+      personas = builtInReportPersonas(campaign.infringingUrl, proxies.length);
+      sent = 0;
       await saveReportBatch({ key, personas, sent });
-      return NextResponse.json({
-        logs: await listReportLogs(),
-        progress: { phase: "generate", ready: personas.length, sent, total: proxies.length },
-      });
     }
 
     const screenshots = defaultReportScreenshots();
@@ -95,8 +63,7 @@ export async function POST(request: NextRequest) {
     const entries = [];
     for (let index = sent; index < end; index += 1) {
       const persona = personas[index];
-      const titles = buildPhishingTitles(campaign.infringingUrl, proxies.length);
-      const title = persona.steps || titles[index];
+      const title = persona.steps;
       const result = await fileVercelReport({
         proxy: proxies[index],
         report: {
