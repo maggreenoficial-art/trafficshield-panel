@@ -210,6 +210,7 @@ export const ASPECT_RATIOS = [
   "2:3",
   "4:3",
   "3:4",
+  "4:5",
   "16:9",
   "9:16",
 ] as const;

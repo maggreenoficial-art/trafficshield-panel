@@ -15,6 +15,7 @@ import { panelCard, panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
 import { downloadBlob } from "@/lib/media/strip-image-client";
 import { formatNewsWhen } from "@/lib/news/dates";
+import { isUrgentNews } from "@/lib/news/feed-title";
 import { newsMediaKind, type NewsBrand, type NewsDraft, type NewsItem } from "@/lib/news/types";
 
 function isPlayerUrl(url: string) {
@@ -94,6 +95,7 @@ export function NewsStudioView() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [storyboardId, setStoryboardId] = useState("");
+  const [postUrl, setPostUrl] = useState("");
   const [filter, setFilter] = useState<"all" | "instagram" | "video">("all");
   const [pasteUrl, setPasteUrl] = useState("");
   const logoRef = useRef<HTMLInputElement | null>(null);
@@ -200,6 +202,7 @@ export function NewsStudioView() {
     setError("");
     setNotice("");
     setStoryboardId("");
+    setPostUrl("");
     try {
       const res = await fetch("/api/admin/news/process", {
         method: "POST",
@@ -225,13 +228,13 @@ export function NewsStudioView() {
 
   async function authorize() {
     if (!draft) return;
-    if (!brand.logoUrl || !brand.mockupUrl) {
-      setError("Envie a logo e o mockup da página antes de autorizar.");
+    if (!brand.logoUrl) {
+      setError("Envie a logo branca antes de autorizar.");
       return;
     }
     if (
       !confirm(
-        "Autorizar esta notícia? Vamos criar um storyboard novo e gerar a imagem no mockup."
+        "Autorizar esta notícia? O post 1080×1350 entra num storyboard novo."
       )
     ) {
       return;
@@ -246,29 +249,13 @@ export function NewsStudioView() {
         body: JSON.stringify({ draft }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Não criou o storyboard.");
+      if (!res.ok) throw new Error(data.error || "Não criou o post.");
       setStoryboardId(data.storyboardId);
-      const gen = await fetch(`/api/admin/storyboards/${data.storyboardId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blockId: data.block.id,
-          modelKey: "image",
-          prompt: data.block.prompt,
-          aspectRatio: "9:16",
-          resolution: "1K",
-          referenceUrls: data.block.referenceUrls ?? [],
-        }),
-      });
-      const genData = await gen.json();
-      if (!gen.ok) {
-        throw new Error(
-          genData.error ||
-            "O storyboard foi criado, mas a imagem ainda não gerou. Abra e clique em gerar."
-        );
-      }
+      setPostUrl(typeof data.imageUrl === "string" ? data.imageUrl : "");
       setNotice(
-        `Storyboard criado${data.name ? `: ${data.name}` : ""}. A imagem da notícia no mockup já foi pedida à Kie.`
+        data.urgent
+          ? "Post 1080×1350 pronto, com a tag URGENTE."
+          : "Post 1080×1350 pronto, sem a tag URGENTE."
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao autorizar.");
@@ -281,7 +268,7 @@ export function NewsStudioView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Notícias"
-        subtitle="Busca notícia recente de Cassilândia e posts do Instagram pela mesma lógica do Google News. A data vai no card. Se você autorizar, joga a arte no storyboard."
+        subtitle="Busca notícia recente de Cassilândia. O post do feed sai em 1080×1350, com a logo branca no canto direito."
       />
 
       {error && (
@@ -299,8 +286,8 @@ export function NewsStudioView() {
         <div>
           <h2 className="text-sm font-medium text-white">Logo e mockup</h2>
           <p className="mt-1 text-xs leading-relaxed text-white/45">
-            Envie uma vez. A logo entra no lugar dela. O mockup é a foto da
-            página (celular ou arte) com o espaço onde a notícia aparece.
+            A logo branca vai no canto superior direito, do jeito que você enviar,
+            sem fundo. O post é sempre 1080×1350.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -461,6 +448,14 @@ export function NewsStudioView() {
             <>
               <div>
                 <label className="mb-1 block text-[11px] text-white/40">Manchete</label>
+                <p className="mb-1 text-[11px] text-white/35">
+                  No máximo 9 palavras. O fato, entre colchetes, sai em vermelho.
+                  {isUrgentNews(
+                    `${draft.headline}\n${draft.news.title}\n${draft.news.summary}`
+                  )
+                    ? " Esta notícia leva a tag URGENTE."
+                    : " Esta notícia sai sem a tag URGENTE."}
+                </p>
                 <input
                   className={panelInput}
                   value={draft.headline}
@@ -498,7 +493,7 @@ export function NewsStudioView() {
               <p className="text-[11px] text-white/35">
                 Página: {draft.news.source}.{" "}
                 {newsMediaKind(draft.news) === "video" ? "Vídeo" : newsMediaKind(draft.news) === "image" ? "Imagem" : "Texto"}
-                . A arte gerada usa o mockup e a logo enviados acima.
+                . O post usa a foto da notícia e a logo branca, em 1080×1350.
               </p>
               <button
                 type="button"
@@ -510,6 +505,14 @@ export function NewsStudioView() {
                 Autorizar e jogar no storyboard
               </button>
             </>
+          )}
+          {postUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={postUrl}
+              alt="Post 1080 por 1350"
+              className="mx-auto w-full max-w-[280px] rounded-lg"
+            />
           )}
           {storyboardId && (
             <a
