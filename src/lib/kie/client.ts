@@ -4,6 +4,8 @@
  * Key: só no servidor via KIE_AI_API_KEY.
  */
 
+import { isArtLayerPrompt, promptWithoutArtLayerMark } from "@/lib/news/feed-title";
+
 const KIE_BASE = "https://api.kie.ai";
 
 export type KieCreateTaskBody = {
@@ -141,25 +143,31 @@ export function buildKieInput(opts: {
     duration = 8,
   } = opts;
 
+  const artLayer = isArtLayerPrompt(prompt);
+  const imagePrompt = artLayer ? promptWithoutArtLayerMark(prompt) : prompt;
+  const imageRefs = artLayer ? referenceUrls.slice(0, 2) : referenceUrls;
+
   if (kieModel === "gpt-image-2-text-to-image") {
     const input: Record<string, unknown> = {
-      prompt,
+      prompt: imagePrompt,
       aspect_ratio: aspectRatio || "auto",
       resolution: resolution || "1K",
     };
-    if (modelKey === "logo") {
+    if (modelKey === "logo" || artLayer) {
       input.background = "transparent";
     }
     return input;
   }
 
   if (kieModel === "gpt-image-2-image-to-image") {
-    return {
-      prompt,
-      input_urls: referenceUrls.slice(0, 16),
+    const input: Record<string, unknown> = {
+      prompt: imagePrompt,
+      input_urls: imageRefs.slice(0, 16),
       aspect_ratio: aspectRatio || "auto",
       resolution: resolution || "1K",
     };
+    if (artLayer) input.background = "transparent";
+    return input;
   }
 
   // Grok Imagine Video 1.5 — áudio nativo

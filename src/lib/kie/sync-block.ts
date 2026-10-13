@@ -9,6 +9,8 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getKieTaskInfo } from "@/lib/kie/client";
 import { getStoryboardModel } from "@/lib/kie/models";
+import { isArtLayerPrompt } from "@/lib/news/feed-title";
+import { publishNewsComposite } from "@/lib/news/overlay";
 
 async function creativeExistsForBlock(blockId: string): Promise<boolean> {
   const supabase = createAdminClient();
@@ -28,7 +30,26 @@ export async function syncBlockFromKie(
   const info = await getKieTaskInfo(block.kieTaskId);
 
   if (info.state === "success") {
-    const url = info.resultUrls[0] ?? null;
+    let url = info.resultUrls[0] ?? null;
+    if (url && isArtLayerPrompt(block.prompt)) {
+      try {
+        url = await publishNewsComposite({
+          tenantId: block.tenantId,
+          blockId: block.id,
+          artUrl: url,
+          photoUrl: block.referenceUrls[2] ?? "",
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível colar a arte sobre a foto original.";
+        return updateBlock(block.tenantId, block.id, {
+          status: "fail",
+          errorMessage: message.slice(0, 240),
+        });
+      }
+    }
     const updated = await updateBlock(block.tenantId, block.id, {
       status: "success",
       resultUrl: url,

@@ -4,6 +4,7 @@ import {
   buildFeedTitle,
   composeFeedImagePrompt,
   formatFeedHeadline,
+  HEADLINE_EDITOR_RULE,
   isUrgentNews,
 } from "@/lib/news/feed-title";
 import { resolveNewsUrl } from "@/lib/news/google-url";
@@ -42,7 +43,9 @@ Regras do título:
 - No máximo 9 palavras e 4 linhas. Corte o que for óbvio. "de Cassilândia" só se for essencial.
 - Verbo no presente. Sem ponto final.
 - Coloque entre colchetes 1 a 3 palavras que sejam O FATO (o que aconteceu ou o número). Nunca coloque artigo, preposição ou conector entre colchetes (com, de, em, para, no, na, a, o).
-- Exemplo: PREFEITURA INSTALA [NOVOS CONTÊINERES] DE LIXO NO JARDIM CAMPO GRANDE
+- ${HEADLINE_EDITOR_RULE}
+- Errado, em estilo telegrama: PROJETO PILOTO CONTÊINERES LIXO JARDIM CAMPO GRANDE
+- Certo: PREFEITURA INSTALA [NOVOS CONTÊINERES] DE LIXO NO JARDIM CAMPO GRANDE
 
 Responda SOMENTE JSON válido, sem markdown:
 {

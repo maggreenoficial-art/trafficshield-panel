@@ -5,6 +5,7 @@ import {
   composeFeedImagePrompt,
   FEED_MAX_WORDS,
   formatFeedHeadline,
+  HEADLINE_EDITOR_RULE,
   isUrgentNews,
 } from "./feed-title";
 
@@ -45,7 +46,17 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
   );
   assert.match(prompt, /"NOVOS, CONTÊINERES"/);
   assert.match(prompt, /Do not write URGENTE/);
-  assert.match(prompt, /Reference 3 is the real news photo/);
+  assert.match(prompt, /Do not draw a photograph/);
+  assert.match(
+    prompt,
+    /the exact text "@informacassilandia" — the "@" symbol is mandatory/
+  );
+  assert.doesNotMatch(prompt, /Use it as the full-bleed background/);
+});
+
+test("a regra do título pede português natural e não deixa apagar conectores", () => {
+  assert.match(HEADLINE_EDITOR_RULE, /nunca escreva em estilo telegrama/);
+  assert.match(HEADLINE_EDITOR_RULE, /nunca o que é removido do texto/);
 });
 
 test("a tag urgente só entra em acidente, crime, morte, desastre, falta de água ou luz e alerta de saúde", () => {

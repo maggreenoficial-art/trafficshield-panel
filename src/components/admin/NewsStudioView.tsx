@@ -305,7 +305,7 @@ export function NewsStudioView() {
           <h2 className="text-sm font-medium text-white">Logo e mockup</h2>
           <p className="mt-1 text-xs leading-relaxed text-white/45">
             O mockup é o estilo. A logo entra branca no canto direito, sem fundo.
-            A foto da notícia vira o fundo do post 1080×1350.
+            A foto da notícia fica original e a arte entra por cima, em 1080×1350.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">

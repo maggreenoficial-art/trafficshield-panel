@@ -111,6 +111,19 @@ export function formatFeedHeadline(words: FeedWord[]) {
   return parts.join(" ");
 }
 
+export const ART_LAYER_MARK = "ART_LAYER_ONLY";
+
+export const HEADLINE_EDITOR_RULE =
+  "O título deve ser português natural e correto, com todas as preposições e artigos necessários (de, do, da, no, na, em, para) e hífens corretos (projeto-piloto). Pode resumir, mas nunca escreva em estilo telegrama. A regra das palavras em vermelho só define o que é PINTADO, nunca o que é removido do texto.";
+
+export function isArtLayerPrompt(prompt: string) {
+  return prompt.trimStart().startsWith(ART_LAYER_MARK);
+}
+
+export function promptWithoutArtLayerMark(prompt: string) {
+  return prompt.replace(/^ART_LAYER_ONLY\s*/, "");
+}
+
 export function composeFeedImagePrompt(input: {
   headline: string;
   urgent: boolean;
@@ -122,15 +135,15 @@ export function composeFeedImagePrompt(input: {
   const urgentTag = input.urgent
     ? 'Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge.'
     : "No urgent tag. Leave the top left empty. Do not write URGENTE.";
-  const photoLine = input.hasPhoto
-    ? "Reference 3 is the real news photo. Use it as the full-bleed background of the whole post, cropped to 4:5, keeping the people and main subject in the upper half. Do NOT alter faces, people, objects, signs or any detail of this photo. Do not add or remove anything."
-    : "There is no reference 3. Do not keep the template photo. Use a plain dark photographic background with no extra text.";
-  return `Instagram feed news post, vertical 4:5 aspect ratio (1080x1350), sharp and professional.
+  return `${ART_LAYER_MARK}
+Instagram feed news post ART LAYER only, vertical 4:5 aspect ratio (1080x1350), sharp and professional. Fully transparent background.
+
+Do not draw a photograph, person, face, place, object or sign. The original news photo is placed underneath this layer by code and must not be redrawn. Pixels that are not the logo, the urgent tag, the gradient, the red bar, the headline or the footer stay fully transparent.
 
 REFERENCES:
-- Reference 1 is a STYLE TEMPLATE, not a frame. Copy its design system exactly (positions, sizes, colors, typography, gradient), but REPLACE its photo and its headline completely. Nothing from the old photo or old headline may appear.
-- Reference 2 is the brand logo. Reproduce it faithfully in WHITE, top right corner, about 30% of the image width, 50px margin, placed directly on the photo with NO box or background behind it.
-- ${photoLine}
+- Reference 1 is a STYLE TEMPLATE, not a frame. Copy its design system exactly (positions, sizes, colors, typography, gradient), but do not copy its photo or its headline. Nothing from the old photo or old headline may appear.
+- Reference 2 is the brand logo. Reproduce it faithfully in WHITE, top right corner, about 30% of the image width, 50px margin, placed with NO box or background behind it.
+- ${input.hasPhoto ? "There is no news photo in the references. Do not invent one." : "There is no news photo. Keep the background transparent."}
 
 LAYOUT, top to bottom:
 1. Logo (reference 2), top right, white.
@@ -141,7 +154,7 @@ LAYOUT, top to bottom:
    Exact headline text, letter by letter, in Portuguese, with all accents, no period at the end:
    "${headline}"
    Color ONLY these words in red #D7141A: "${redWords.join(", ") || "none"}". Everything else in white.
-6. Footer, centered, 50px from the bottom: "@informacassilandia" in white, thin sans-serif, small, wide letter spacing.
+6. Footer, centered, 50px from the bottom: the exact text "@informacassilandia" — the "@" symbol is mandatory.
 
 RULES:
 - All text upright and readable. Never mirror, flip, rotate or cut letters.
