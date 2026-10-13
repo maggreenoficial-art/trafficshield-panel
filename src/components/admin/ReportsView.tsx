@@ -102,6 +102,22 @@ export function ReportsView() {
     }
   }
 
+  async function releaseProxies() {
+    setBusy("release");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/reports/proxies", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não liberou os proxies.");
+      applyConfig(data.config as PublicConfig);
+      setNotice(`Liberei ${data.released} proxies da Proxy-Seller.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao liberar os proxies.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function uploadFile(file: File | undefined) {
     if (!file) return;
     setBusy("upload");
@@ -358,8 +374,8 @@ export function ReportsView() {
           <div>
             <h2 className="text-sm font-medium text-white">Lista de proxies</h2>
             <p className="mt-1 text-xs text-white/45">
-              {config?.proxyCount ?? 0} IP(s) prontos. Cole a lista ou mande o arquivo. A senha
-              não aparece de novo.
+              {config?.proxyCount ?? 0} IP(s) prontos. Cole a lista, mande o arquivo ou libere até
+            1000 da Proxy-Seller. A senha não aparece de novo.
             </p>
           </div>
           <button
@@ -401,15 +417,26 @@ export function ReportsView() {
           onChange={(e) => setProxiesText(e.target.value)}
           placeholder="Cole proxies novos (host:porta@usuario:senha)."
         />
-        <button
-          type="button"
-          disabled={Boolean(busy)}
-          onClick={() => void saveProxies()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
-        >
-          {busy === "save" ? <Loader2 className="animate-spin" size={16} /> : null}
-          Salvar lista
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() => void releaseProxies()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+          >
+            {busy === "release" ? <Loader2 className="animate-spin" size={16} /> : null}
+            Liberar 1000 proxies
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() => void saveProxies()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+          >
+            {busy === "save" ? <Loader2 className="animate-spin" size={16} /> : null}
+            Salvar lista
+          </button>
+        </div>
       </section>
 
       <section className="space-y-3">
