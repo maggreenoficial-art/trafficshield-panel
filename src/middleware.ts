@@ -8,7 +8,7 @@ import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 import { ADMIN_NAV_COOKIE } from "@/lib/tenant/types";
 
-const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth"];
+const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth", "/api/proxies"];
 
 const ADMIN_ONLY_PATH_PREFIXES = [
   "/storyboards",
