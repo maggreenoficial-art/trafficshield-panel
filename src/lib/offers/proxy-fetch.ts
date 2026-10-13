@@ -13,7 +13,7 @@ export async function fetchThroughProxy(
   init: {
     method?: string;
     headers?: Record<string, string>;
-    body?: string;
+    body?: string | FormData;
     timeoutMs?: number;
     userAgent?: string;
   } = {}
@@ -28,7 +28,8 @@ export async function fetchThroughProxy(
       "User-Agent": init.userAgent || BROWSER_UA,
       ...init.headers,
     },
-    body: init.body,
+    // O cast só existe para o tipo do undici. Em runtime o FormData segue inteiro.
+    body: init.body instanceof FormData ? (init.body as unknown as string) : init.body,
     signal: AbortSignal.timeout(init.timeoutMs ?? 20_000),
   });
   const text = await res.text();
