@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   buildFeedTitle,
   composeFeedImagePrompt,
+  promptWithoutArtLayerMark,
   FEED_MAX_WORDS,
   formatFeedHeadline,
   HEADLINE_EDITOR_RULE,
+  HEADLINE_SPECIFIC_RULE,
   HEADLINE_VERB_RULE,
   isUrgentNews,
 } from "./feed-title";
@@ -47,24 +49,25 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
   );
   assert.match(prompt, /"NOVOS, CONTÊINERES"/);
   assert.match(prompt, /Do not write URGENTE/);
-  assert.match(prompt, /Do not draw a photograph/);
-  assert.match(prompt, /NEVER crop out any person/);
-  assert.match(prompt, /Do not zoom in to fill the height/);
-  assert.match(
-    prompt,
-    /starts transparent around the lower third of the photo and becomes solid black #000000 below it/
-  );
-  assert.match(
-    prompt,
-    /the exact text "@informacassilandia" — the "@" symbol is mandatory/
-  );
-  assert.doesNotMatch(prompt, /Use it as the full-bleed background/);
+  assert.match(prompt, /Do not draw any photo, person, place or object/);
+  assert.match(prompt, /From y = 0 to 650: fully transparent/);
+  assert.match(prompt, /from y = 650 \(fully transparent\) to y = 880 \(solid black #000000\)/);
+  assert.match(prompt, /RED BAR: #D7141A, 180x10px, at x = 60, y = 900/);
+  assert.match(prompt, /Exactly 3 lines/);
+  assert.match(prompt, /Never leave a single word alone on the last line/);
+  assert.match(prompt, /NO glow, shadow or outline/);
+  assert.match(prompt, /"@informacassilandia" centered at y = 1290/);
+  assert.doesNotMatch(prompt, /Reference 3/);
+  assert.doesNotMatch(prompt, /FULL WIDTH/);
+  assert.doesNotMatch(prompt, /align it to the top/);
+  assert.match(promptWithoutArtLayerMark(prompt), /^Transparent PNG, exactly 1080x1350/);
 });
 
 test("a regra do título pede português natural e não deixa apagar conectores", () => {
   assert.match(HEADLINE_EDITOR_RULE, /nunca escreva em estilo telegrama/);
   assert.match(HEADLINE_EDITOR_RULE, /nunca o que é removido do texto/);
   assert.match(HEADLINE_VERB_RULE, /nunca "inicia contêineres"/);
+  assert.match(HEADLINE_SPECIFIC_RULE, /nunca podem ficar sozinhas/);
 });
 
 test("a tag urgente só entra em acidente, crime, morte, desastre, falta de água ou luz e alerta de saúde", () => {

@@ -15,55 +15,25 @@ async function mostlyTransparent(png: Buffer) {
   return clear / pixels > 0.2;
 }
 
+const PHOTO_BOTTOM = 880;
+
 async function photoBase(photo: Buffer) {
-  const rotated = sharp(photo).rotate();
-  const meta = await rotated.metadata();
-  const width = meta.width ?? FEED_WIDTH;
-  const height = meta.height ?? FEED_HEIGHT;
-  const widerThanPost = width / height > FEED_WIDTH / FEED_HEIGHT;
-  let photoBottom = FEED_HEIGHT;
-  let placed: Buffer;
-
-  if (widerThanPost) {
-    photoBottom = Math.min(FEED_HEIGHT, Math.max(1, Math.round((FEED_WIDTH * height) / width)));
-    const resized = await sharp(photo)
-      .rotate()
-      .resize(FEED_WIDTH, photoBottom, { fit: "fill" })
-      .png()
-      .toBuffer();
-    placed = await sharp({
-      create: {
-        width: FEED_WIDTH,
-        height: FEED_HEIGHT,
-        channels: 3,
-        background: "#000000",
-      },
-    })
-      .composite([{ input: resized, top: 0, left: 0 }])
-      .png()
-      .toBuffer();
-  } else {
-    placed = await sharp(photo)
-      .rotate()
-      .resize(FEED_WIDTH, FEED_HEIGHT, { fit: "cover", position: "attention" })
-      .png()
-      .toBuffer();
-  }
-
-  const fadeStart = Math.round(photoBottom * (2 / 3));
-  const gradient = Buffer.from(`<svg width="${FEED_WIDTH}" height="${FEED_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#000000" stop-opacity="0"/>
-        <stop offset="${(fadeStart / FEED_HEIGHT).toFixed(4)}" stop-color="#000000" stop-opacity="0"/>
-        <stop offset="${(photoBottom / FEED_HEIGHT).toFixed(4)}" stop-color="#000000" stop-opacity="1"/>
-        <stop offset="1" stop-color="#000000" stop-opacity="1"/>
-      </linearGradient>
-    </defs>
-    <rect width="${FEED_WIDTH}" height="${FEED_HEIGHT}" fill="url(#fade)"/>
-  </svg>`);
-
-  return sharp(placed).composite([{ input: gradient, top: 0, left: 0 }]).png().toBuffer();
+  const resized = await sharp(photo)
+    .rotate()
+    .resize(FEED_WIDTH, PHOTO_BOTTOM, { fit: "cover", position: sharp.strategy.attention })
+    .png()
+    .toBuffer();
+  return sharp({
+    create: {
+      width: FEED_WIDTH,
+      height: FEED_HEIGHT,
+      channels: 3,
+      background: "#000000",
+    },
+  })
+    .composite([{ input: resized, top: 0, left: 0 }])
+    .png()
+    .toBuffer();
 }
 
 export async function compositeArtOverPhoto(art: Buffer, photo: Buffer | null) {

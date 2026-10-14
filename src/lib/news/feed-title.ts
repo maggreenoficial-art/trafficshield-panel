@@ -5,7 +5,7 @@ export const FEED_BAR_WIDTH = 180;
 export const FEED_BAR_HEIGHT = 10;
 export const FEED_BAR_COLOR = "#D7141A";
 export const FEED_HANDLE = "@informacassilandia";
-export const FEED_MAX_WORDS = 10;
+export const FEED_MAX_WORDS = 14;
 export const FEED_MAX_LINES = 4;
 
 const STOP = new Set([
@@ -85,11 +85,18 @@ export function buildFeedTitle(raw: string): FeedWord[] {
   const words = tokenize(raw);
   if (words.length > FEED_MAX_WORDS) dropPlace(words);
   let budget = 3;
-  return words.slice(0, FEED_MAX_WORDS).map((word) => {
+  const titled = words.slice(0, FEED_MAX_WORDS).map((word) => {
     const red = word.marked && !STOP.has(fold(word.text)) && budget > 0;
     if (red) budget -= 1;
     return { text: word.text, red };
   });
+  return highlightMainDeath(titled);
+}
+
+function highlightMainDeath(words: FeedWord[]) {
+  const index = words.findIndex((word) => DEATH_WORD.test(fold(word.text)));
+  if (index < 0) return words;
+  return words.map((word, wordIndex) => ({ ...word, red: wordIndex === index }));
 }
 
 export function formatFeedHeadline(words: FeedWord[]) {
@@ -119,12 +126,20 @@ export const HEADLINE_EDITOR_RULE =
 export const HEADLINE_VERB_RULE =
   'Ao encurtar o título, verifique se o verbo combina com o objeto. Ex.: "inicia projeto", "instala contêineres", nunca "inicia contêineres".';
 
+export const HEADLINE_SPECIFIC_RULE =
+  'O título precisa dizer O QUÊ concretamente aconteceu. Palavras genéricas como "projeto", "ação", "iniciativa" ou "programa" nunca podem ficar sozinhas; sempre diga do que se trata (ex.: "projeto-piloto de coleta de lixo").';
+
+export const HEADLINE_DEATH_RULE =
+  'Em notícias de morte, o fato principal é a morte: ela vem primeiro no título e é a palavra destacada em vermelho. Nunca empilhe duas frases soltas; ligue as informações com "após", "e" ou ponto e vírgula. Toda informação que aparece em uma foto (ex.: droga apreendida) precisa estar explicada no título ou ser retirada da arte.';
+
+const DEATH_WORD = /^(?:morre|morrem|morreu|mata|matou|morte)$/;
+
 export function isArtLayerPrompt(prompt: string) {
   return prompt.trimStart().startsWith(ART_LAYER_MARK);
 }
 
 export function promptWithoutArtLayerMark(prompt: string) {
-  return prompt.replace(/^ART_LAYER_ONLY\s*/, "");
+  return prompt.replace(/^ART_LAYER_ONLY\.?\s*/, "");
 }
 
 export function composeFeedImagePrompt(input: {
@@ -136,37 +151,27 @@ export function composeFeedImagePrompt(input: {
   const headline = words.map((word) => word.text).join(" ");
   const redWords = words.filter((word) => word.red).map((word) => word.text);
   const urgentTag = input.urgent
-    ? 'Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge.'
+    ? "Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge."
     : "No urgent tag. Leave the top left empty. Do not write URGENTE.";
-  return `${ART_LAYER_MARK}
-Instagram feed news post ART LAYER only, vertical 4:5 aspect ratio (1080x1350), sharp and professional. Fully transparent background.
-
-Do not draw a photograph, person, face, place, object or sign. The original news photo is placed underneath this layer by code and must not be redrawn. Pixels that are not the logo, the urgent tag, the gradient, the red bar, the headline or the footer stay fully transparent.
+  return `${ART_LAYER_MARK}. Transparent PNG, exactly 1080x1350. This is ONLY the graphic layer of an Instagram news post; a photo will be placed underneath by code in the area y = 0 to 880. Do not draw any photo, person, place or object.
 
 REFERENCES:
-- Reference 1 is a STYLE TEMPLATE, not a frame. Copy its design system exactly (positions, sizes, colors, typography, gradient), but do not copy its photo or its headline. Nothing from the old photo or old headline may appear.
-- Reference 2 is the brand logo. Reproduce it faithfully in WHITE, top right corner, about 30% of the image width, 50px margin, placed with NO box or background behind it.
-- ${
-    input.hasPhoto
-      ? `Reference 3 is the real news photo. NEVER crop out any person, face or main subject: every person in the original photo must appear complete in the post. If the photo is wider than 4:5 (landscape), scale it to fill the FULL WIDTH of the post, align it to the top, and let the area below the photo fade smoothly into solid black, where the headline goes. Do not zoom in to fill the height. If the photo is vertical, fill the post and crop only empty areas (sky, floor, walls), never people. Do NOT alter faces, people, objects, signs or any detail of this photo. Do not redraw reference 3; it is placed under this transparent layer.`
-      : "There is no news photo. Keep the background transparent."
-  }
+- Reference 1: style template. Copy its typography, colors and proportions only.
+- Reference 2: brand logo. Reproduce it faithfully in WHITE.
 
-LAYOUT, top to bottom:
-1. Logo (reference 2), top right, white.
-2. ${urgentTag}
-3. Black gradient: starts transparent around the lower third of the photo and becomes solid black #000000 below it, blending the photo edge into the black area seamlessly (no visible line).
-4. Solid red bar #D7141A, 180x10px, left-aligned with 60px margin, directly above the headline.
-5. Headline, left-aligned, 60px margin, white, ALL CAPS, condensed extra bold font (Barlow Condensed ExtraBold style), tight line spacing, maximum 4 lines, up to 80% of the width.
-   Exact headline text, letter by letter, in Portuguese, with all accents, no period at the end:
-   "${headline}"
-   Color ONLY these words in red #D7141A: "${redWords.join(", ") || "none"}". Everything else in white.
-6. Footer, centered, 50px from the bottom: the exact text "@informacassilandia" — the "@" symbol is mandatory.
+ELEMENTS (exact positions):
+- From y = 0 to 650: fully transparent, except the logo and the tag.
+- LOGO: white, 330px wide, top right, 50px from the top and right edges, no box behind it.
+- TAG: ${urgentTag}
+- GRADIENT: from y = 650 (fully transparent) to y = 880 (solid black #000000), smooth, no visible line.
+- From y = 880 to 1350: solid black #000000.
+- RED BAR: #D7141A, 180x10px, at x = 60, y = 900.
+- HEADLINE: starts at y = 930, x = 60, maximum width 960px, ends before y = 1220. Exactly 3 lines; reduce the font size until it fits. Never leave a single word alone on the last line. White, ALL CAPS, condensed extra bold (Barlow Condensed ExtraBold style), tight line spacing, flat text with NO glow, shadow or outline.
+  Exact text, letter by letter, Portuguese accents, no period: "${headline}"
+  Color ONLY these words in red #D7141A: "${redWords.join(", ") || "none"}".
+- FOOTER: "@informacassilandia" centered at y = 1290, white, small, thin sans-serif. The "@" is mandatory.
 
-RULES:
-- All text upright and readable. Never mirror, flip, rotate or cut letters.
-- No other text besides the headline, the urgent tag (if any) and the @.
-- Do not invent another layout, logo, newspaper or phone.`;
+RULES: all text upright and readable; no other text; no other logo.`;
 }
 
 export function wrapFeedTitle(

@@ -4,7 +4,9 @@ import {
   buildFeedTitle,
   composeFeedImagePrompt,
   formatFeedHeadline,
+  HEADLINE_DEATH_RULE,
   HEADLINE_EDITOR_RULE,
+  HEADLINE_SPECIFIC_RULE,
   HEADLINE_VERB_RULE,
   isUrgentNews,
 } from "@/lib/news/feed-title";
@@ -46,8 +48,10 @@ Regras do título:
 - Coloque entre colchetes 1 a 3 palavras que sejam O FATO (o que aconteceu ou o número). Nunca coloque artigo, preposição ou conector entre colchetes (com, de, em, para, no, na, a, o).
 - ${HEADLINE_EDITOR_RULE}
 - ${HEADLINE_VERB_RULE}
-- Errado, em estilo telegrama: PROJETO PILOTO CONTÊINERES LIXO JARDIM CAMPO GRANDE
-- Certo: PREFEITURA INSTALA [NOVOS CONTÊINERES] DE LIXO NO JARDIM CAMPO GRANDE
+- ${HEADLINE_SPECIFIC_RULE}
+- ${HEADLINE_DEATH_RULE}
+- Errado, vago: Prefeitura inicia projeto piloto no Jardim Campo Grande
+- Certo: PROJETO-PILOTO LEVA [CONTÊINERES DE LIXO] AO JARDIM CAMPO GRANDE
 
 Responda SOMENTE JSON válido, sem markdown:
 {
