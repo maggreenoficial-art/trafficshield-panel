@@ -725,7 +725,13 @@ function DraftForm({
     (getStoryboardModel(block.modelKey)?.key as StoryboardModelKey) || "image"
   );
   const [prompt, setPrompt] = useState(block.prompt);
-  const [aspectRatio, setAspectRatio] = useState(block.aspectRatio || "auto");
+  const [aspectRatio, setAspectRatio] = useState(
+    block.aspectRatio && block.aspectRatio !== "auto"
+      ? block.aspectRatio
+      : getStoryboardModel(block.modelKey)?.kind === "video"
+        ? "9:16"
+        : "1:1"
+  );
   const [resolution, setResolution] = useState(block.resolution || "1K");
   const [duration, setDuration] = useState(8);
   const [refUrls, setRefUrls] = useState<string[]>(block.referenceUrls ?? []);
@@ -767,8 +773,10 @@ function DraftForm({
     if (model.kind === "video") {
       setResolution(model.defaultResolution || "720p");
       setDuration(model.defaultDuration || 8);
+      setAspectRatio("9:16");
     } else if (model.defaultResolution) {
       setResolution(model.defaultResolution);
+      setAspectRatio((current) => (current === "auto" || current === "9:16" ? "1:1" : current));
     }
   }, [modelKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -881,7 +889,7 @@ function DraftForm({
           ? "Take com áudio nativo — pluga a Cena (imagem) ou envia referência. Para variar pose, use outra Cena."
           : model?.requiresReference
             ? "Cena de referência — depois pluga em um Take de vídeo"
-            : "Cena / imagem do anúncio (varia pose entre takes)"}
+            : "Feed em 1:1. Stories em 9:16."}
       </p>
 
       {plugSources.length > 0 && (
@@ -969,7 +977,7 @@ function DraftForm({
             >
               {ASPECT_RATIOS.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {r === "1:1" ? "1:1 · Feed" : r === "9:16" ? "9:16 · Stories" : r}
                 </option>
               ))}
             </select>

@@ -1,6 +1,6 @@
 import { FEED_WIDTH } from "@/lib/news/feed-title";
 
-export const PHOTO_HEIGHT = 880;
+export const PHOTO_HEIGHT = 704;
 const FACE_MARGIN = 80;
 
 export type FaceBox = {

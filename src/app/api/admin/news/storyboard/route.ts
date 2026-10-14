@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       storyboardId: board.id,
       modelKey: "image",
       prompt,
-      aspectRatio: "4:5",
+      aspectRatio: "1:1",
       resolution: "1K",
       referenceUrls,
       positionX: 120,

@@ -40,9 +40,9 @@ export async function cropNewsPhoto(photo: Buffer, faces: FaceBox[]) {
 function fadeOverlay() {
   return Buffer.from(`<svg width="${FEED_WIDTH}" height="${FEED_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="${(560 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="0"/>
-      <stop offset="${(720 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="0.6"/>
-      <stop offset="${(850 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="1"/>
+      <stop offset="${(448 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="0"/>
+      <stop offset="${(576 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="0.6"/>
+      <stop offset="${(680 / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="1"/>
     </linearGradient></defs>
     <rect width="${FEED_WIDTH}" height="${FEED_HEIGHT}" fill="url(#g)"/></svg>`);
 }

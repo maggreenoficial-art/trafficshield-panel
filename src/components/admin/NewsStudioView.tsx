@@ -247,24 +247,8 @@ export function NewsStudioView() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Não criou o post.");
-      if (!data.storyboardId || !data.block?.id) {
+      if (!data.storyboardId) {
         throw new Error("O storyboard não foi criado.");
-      }
-      const gen = await fetch(`/api/admin/storyboards/${data.storyboardId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blockId: data.block.id,
-          modelKey: "image",
-          prompt: data.block.prompt,
-          aspectRatio: "4:5",
-          resolution: "1K",
-          referenceUrls: data.block.referenceUrls ?? [],
-        }),
-      });
-      const genData = await gen.json();
-      if (!gen.ok) {
-        throw new Error(genData.error || "O storyboard abriu, mas a imagem não foi pedida.");
       }
       router.push(`/storyboards/${data.storyboardId}`);
     } catch (e) {
@@ -283,7 +267,7 @@ export function NewsStudioView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Notícias"
-        subtitle="Busca notícia recente de Cassilândia. O post do feed sai em 1080×1350, com a logo branca no canto direito."
+        subtitle="Busca notícia recente de Cassilândia. O feed sai em 1:1. A imagem só começa quando você clicar em Gerar no storyboard."
       />
 
       {error && (
@@ -305,7 +289,7 @@ export function NewsStudioView() {
           <h2 className="text-sm font-medium text-white">Logo e mockup</h2>
           <p className="mt-1 text-xs leading-relaxed text-white/45">
             O mockup é o estilo. A logo entra branca no canto direito, sem fundo.
-            A foto da notícia fica original e a arte entra por cima, em 1080×1350.
+            A foto da notícia fica original e a arte entra por cima, em 1:1. A geração espera o clique no storyboard.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -511,7 +495,7 @@ export function NewsStudioView() {
               <p className="text-[11px] text-white/35">
                 Página: {draft.news.source}.{" "}
                 {newsMediaKind(draft.news) === "video" ? "Vídeo" : newsMediaKind(draft.news) === "image" ? "Imagem" : "Texto"}
-                . O post usa a foto da notícia e a logo branca, em 1080×1350.
+                . O post usa a foto da notícia e a logo branca, em 1:1. No storyboard, clique em Gerar.
               </p>
               <button
                 type="button"

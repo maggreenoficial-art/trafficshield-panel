@@ -1,5 +1,5 @@
 export const FEED_WIDTH = 1080;
-export const FEED_HEIGHT = 1350;
+export const FEED_HEIGHT = 1080;
 export const FEED_MARGIN = 60;
 export const FEED_BAR_WIDTH = 180;
 export const FEED_BAR_HEIGHT = 10;
@@ -170,22 +170,22 @@ export function composeFeedImagePrompt(input: {
   const urgentTag = input.urgent
     ? "Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge."
     : "No urgent tag. Leave the top left empty. Do not write URGENTE.";
-  return `${ART_LAYER_MARK}. Transparent PNG, exactly 1080x1350. This is ONLY the graphic layer of an Instagram news post; a photo will be placed underneath by code in the area y = 0 to 880. Do not draw any photo, person, place or object.
+  return `${ART_LAYER_MARK}. Transparent PNG, exactly 1080x1080. This is ONLY the graphic layer of an Instagram feed post (1:1); a photo will be placed underneath by code in the area y = 0 to 704. Do not draw any photo, person, place or object.
 
 REFERENCES:
 - Reference 1: style template. Copy its typography, colors and proportions only.
 - Reference 2: brand logo. Reproduce it faithfully in WHITE.
 
 ELEMENTS (exact positions):
-- From y = 0 to 880: fully transparent except the logo and the tag. Do NOT draw any gradient; it is applied by code.
+- From y = 0 to 704: fully transparent except the logo and the tag. Do NOT draw any gradient; it is applied by code.
 - LOGO: white, 330px wide, top right, 50px from the top and right edges, no box behind it.
 - TAG: ${urgentTag}
-- From y = 880 to 1350: solid black #000000.
-- RED BAR: #D7141A, 180x10px, at x = 60, y = 900.
-- HEADLINE: starts at y = 930, x = 60, maximum width 960px, ends before y = 1220. Exactly 3 lines; reduce the font size until it fits. Never leave a single word alone on the last line. White, ALL CAPS, condensed extra bold (Barlow Condensed ExtraBold style), tight line spacing, flat text with NO glow, shadow or outline.
+- From y = 704 to 1080: solid black #000000.
+- RED BAR: #D7141A, 180x10px, at x = 60, y = 720.
+- HEADLINE: starts at y = 744, x = 60, maximum width 960px, ends before y = 976. Exactly 3 lines; reduce the font size until it fits. Never leave a single word alone on the last line. White, ALL CAPS, condensed extra bold (Barlow Condensed ExtraBold style), tight line spacing, flat text with NO glow, shadow or outline.
   Exact text, letter by letter, Portuguese accents, no period: "${headline}"
   Color ONLY these words in red #D7141A: "${redWords.join(", ") || "none"}".
-- FOOTER: "@informacassilandia" centered at y = 1290, white, small, thin sans-serif. The "@" is mandatory.
+- FOOTER: "@informacassilandia" centered at y = 1032, white, small, thin sans-serif. The "@" is mandatory.
 
 RULES: all text upright and readable; no other text; no other logo.`;
 }

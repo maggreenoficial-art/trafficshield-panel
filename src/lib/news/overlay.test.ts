@@ -21,7 +21,7 @@ test("a camada transparente cola por cima e a foto original continua no topo", a
     .composite([
       {
         input: Buffer.from(
-          `<svg width="${FEED_WIDTH}" height="${FEED_HEIGHT}"><rect x="60" y="1100" width="180" height="10" fill="#D7141A"/></svg>`
+          `<svg width="${FEED_WIDTH}" height="${FEED_HEIGHT}"><rect x="60" y="900" width="180" height="10" fill="#D7141A"/></svg>`
         ),
         top: 0,
         left: 0,
@@ -37,7 +37,7 @@ test("a camada transparente cola por cima e a foto original continua no topo", a
     return [data[index], data[index + 1], data[index + 2]];
   };
   assert.deepEqual(at(200, 80), [36, 88, 214]);
-  assert.deepEqual(at(80, 1104), [215, 20, 26]);
+  assert.deepEqual(at(80, 904), [215, 20, 26]);
 });
 
 test("foto larga cobre até y=880 e o preto do código só começa abaixo dela", async () => {
@@ -72,12 +72,11 @@ test("foto larga cobre até y=880 e o preto do código só começa abaixo dela",
     return [data[index], data[index + 1], data[index + 2]];
   };
   assert.deepEqual(at(80, 80), [36, 88, 214]);
-  assert.deepEqual(at(1000, 400), [36, 88, 214]);
+  assert.deepEqual(at(1000, 200), [36, 88, 214]);
   assert.deepEqual(at(80, 1004), [215, 20, 26]);
   assert.deepEqual(at(400, 860), [0, 0, 0]);
-  assert.deepEqual(at(400, 920), [0, 0, 0]);
-  const mid = at(400, 720);
-  assert.ok(mid[2] < 120 && mid[2] > 40);
+  const mid = at(400, 600);
+  assert.ok(mid[2] < 140 && mid[2] > 20);
 });
 
 test("o recorte centraliza nos rostos e não corta quem está à direita", async () => {

@@ -43,7 +43,7 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
     urgent: false,
     hasPhoto: true,
   });
-  assert.match(prompt, /1080x1350/);
+  assert.match(prompt, /1080x1080/);
   assert.match(
     prompt,
     /"PREFEITURA INSTALA NOVOS CONTÊINERES DE LIXO NO JARDIM CAMPO GRANDE"/
@@ -51,17 +51,17 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
   assert.match(prompt, /"NOVOS CONTÊINERES"/);
   assert.match(prompt, /Do not write URGENTE/);
   assert.match(prompt, /Do not draw any photo, person, place or object/);
-  assert.match(prompt, /From y = 0 to 880: fully transparent except the logo and the tag/);
+  assert.match(prompt, /From y = 0 to 704: fully transparent except the logo and the tag/);
   assert.match(prompt, /Do NOT draw any gradient/);
-  assert.match(prompt, /RED BAR: #D7141A, 180x10px, at x = 60, y = 900/);
+  assert.match(prompt, /RED BAR: #D7141A, 180x10px, at x = 60, y = 720/);
   assert.match(prompt, /Exactly 3 lines/);
   assert.match(prompt, /Never leave a single word alone on the last line/);
   assert.match(prompt, /NO glow, shadow or outline/);
-  assert.match(prompt, /"@informacassilandia" centered at y = 1290/);
+  assert.match(prompt, /"@informacassilandia" centered at y = 1032/);
   assert.doesNotMatch(prompt, /Reference 3/);
   assert.doesNotMatch(prompt, /FULL WIDTH/);
   assert.doesNotMatch(prompt, /align it to the top/);
-  assert.match(promptWithoutArtLayerMark(prompt), /^Transparent PNG, exactly 1080x1350/);
+  assert.match(promptWithoutArtLayerMark(prompt), /^Transparent PNG, exactly 1080x1080/);
 });
 
 test("a regra do título pede português natural e não deixa apagar conectores", () => {
