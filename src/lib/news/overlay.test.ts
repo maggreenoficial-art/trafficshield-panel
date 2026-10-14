@@ -74,9 +74,10 @@ test("foto larga cobre até y=880 e o preto do código só começa abaixo dela",
   assert.deepEqual(at(80, 80), [36, 88, 214]);
   assert.deepEqual(at(1000, 400), [36, 88, 214]);
   assert.deepEqual(at(80, 1004), [215, 20, 26]);
+  assert.deepEqual(at(400, 860), [0, 0, 0]);
   assert.deepEqual(at(400, 920), [0, 0, 0]);
-  const faded = at(400, 860);
-  assert.ok(faded[2] < 40);
+  const mid = at(400, 720);
+  assert.ok(mid[2] < 120 && mid[2] > 40);
 });
 
 test("o recorte centraliza nos rostos e não corta quem está à direita", async () => {
