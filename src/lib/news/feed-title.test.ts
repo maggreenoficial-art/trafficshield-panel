@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildFeedTitle,
+  artLayerResolution,
   composeFeedImagePrompt,
   promptWithoutArtLayerMark,
   FEED_MAX_WORDS,
@@ -62,6 +63,8 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
   assert.doesNotMatch(prompt, /FULL WIDTH/);
   assert.doesNotMatch(prompt, /align it to the top/);
   assert.match(promptWithoutArtLayerMark(prompt), /^Transparent PNG, exactly 1080x1080/);
+  assert.equal(artLayerResolution(prompt, "4K"), "1K");
+  assert.equal(artLayerResolution(prompt, "2K"), "2K");
 });
 
 test("a regra do título pede português natural e não deixa apagar conectores", () => {

@@ -155,6 +155,12 @@ export function isArtLayerPrompt(prompt: string) {
   return prompt.trimStart().startsWith(ART_LAYER_MARK);
 }
 
+export function artLayerResolution(prompt: string, resolution: string) {
+  if (!isArtLayerPrompt(prompt)) return resolution || "1K";
+  if (resolution === "4K") return "1K";
+  return resolution || "1K";
+}
+
 export function promptWithoutArtLayerMark(prompt: string) {
   return prompt.replace(/^ART_LAYER_ONLY\.?\s*/, "");
 }

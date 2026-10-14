@@ -29,6 +29,7 @@ import {
   getStoryboardModel,
   type StoryboardModelKey,
 } from "@/lib/kie/models";
+import { artLayerResolution, isArtLayerPrompt } from "@/lib/news/feed-title";
 import { cn } from "@/lib/utils";
 
 const BLOCK_W = 300;
@@ -745,6 +746,10 @@ function DraftForm({
 
   const model = getStoryboardModel(modelKey);
   const isImage = model?.kind === "image";
+  const artLayer = isArtLayerPrompt(prompt);
+  const imageResolutions = artLayer
+    ? IMAGE_RESOLUTIONS.filter((item) => item !== "4K")
+    : IMAGE_RESOLUTIONS;
   const liveCost = estimateKieCredits(modelKey, {
     resolution: isImage
       ? resolution
@@ -779,6 +784,10 @@ function DraftForm({
       setAspectRatio((current) => (current === "auto" || current === "9:16" ? "1:1" : current));
     }
   }, [modelKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (artLayer && resolution === "4K") setResolution("1K");
+  }, [artLayer, resolution]);
 
   async function uploadFiles(
     files: FileList | null,
@@ -833,7 +842,7 @@ function DraftForm({
             modelKey,
             prompt,
             aspectRatio,
-            resolution,
+            resolution: artLayerResolution(prompt, resolution),
             duration: isImage ? undefined : duration,
             referenceUrls: isImage ? refUrls : videoRefs,
             sourceBlockId,
@@ -991,12 +1000,17 @@ function DraftForm({
               value={resolution}
               onChange={(e) => setResolution(e.target.value)}
             >
-              {IMAGE_RESOLUTIONS.map((r) => (
+              {imageResolutions.map((r) => (
                 <option key={r} value={r}>
                   {r} · {estimateKieCredits(modelKey, r)} cr
                 </option>
               ))}
             </select>
+            {artLayer ? (
+              <p className="mt-1 text-[10px] text-white/35">
+                Fundo transparente não gera em 4K.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : (

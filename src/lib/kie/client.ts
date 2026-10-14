@@ -4,7 +4,7 @@
  * Key: só no servidor via KIE_AI_API_KEY.
  */
 
-import { isArtLayerPrompt, promptWithoutArtLayerMark } from "@/lib/news/feed-title";
+import { artLayerResolution, isArtLayerPrompt, promptWithoutArtLayerMark } from "@/lib/news/feed-title";
 
 const KIE_BASE = "https://api.kie.ai";
 
@@ -146,12 +146,13 @@ export function buildKieInput(opts: {
   const artLayer = isArtLayerPrompt(prompt);
   const imagePrompt = artLayer ? promptWithoutArtLayerMark(prompt) : prompt;
   const imageRefs = artLayer ? referenceUrls.slice(0, 2) : referenceUrls;
+  const imageResolution = artLayerResolution(prompt, resolution);
 
   if (kieModel === "gpt-image-2-text-to-image") {
     const input: Record<string, unknown> = {
       prompt: imagePrompt,
       aspect_ratio: aspectRatio || "auto",
-      resolution: resolution || "1K",
+      resolution: imageResolution,
     };
     if (modelKey === "logo" || artLayer) {
       input.background = "transparent";
@@ -164,7 +165,7 @@ export function buildKieInput(opts: {
       prompt: imagePrompt,
       input_urls: imageRefs.slice(0, 16),
       aspect_ratio: aspectRatio || "auto",
-      resolution: resolution || "1K",
+      resolution: imageResolution,
     };
     if (artLayer) input.background = "transparent";
     return input;
