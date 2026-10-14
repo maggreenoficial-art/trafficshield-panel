@@ -1,7 +1,9 @@
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseUrl } from "@/lib/supabase/env";
+import { detectFaces } from "@/lib/news/faces";
 import { FEED_HEIGHT, FEED_WIDTH } from "@/lib/news/feed-title";
+import { PHOTO_HEIGHT, photoFrame, type FaceBox } from "@/lib/news/photo-frame";
 
 const BUCKET = "storyboard-assets";
 
@@ -15,14 +17,40 @@ async function mostlyTransparent(png: Buffer) {
   return clear / pixels > 0.2;
 }
 
-const PHOTO_BOTTOM = 880;
+const FADE_START = 600;
 
-async function photoBase(photo: Buffer) {
-  const resized = await sharp(photo)
-    .rotate()
-    .resize(FEED_WIDTH, PHOTO_BOTTOM, { fit: "cover", position: sharp.strategy.attention })
+export async function cropNewsPhoto(photo: Buffer, faces: FaceBox[]) {
+  const upright = await sharp(photo).rotate().png().toBuffer();
+  const meta = await sharp(upright).metadata();
+  const width = meta.width ?? FEED_WIDTH;
+  const height = meta.height ?? FEED_HEIGHT;
+  const frame = photoFrame(width, height, faces);
+  let pipeline = sharp(upright).resize(frame.scaledWidth, frame.scaledHeight, { fit: "fill" });
+  if (frame.extendRight || frame.extendBottom) {
+    pipeline = pipeline.extend({
+      right: frame.extendRight,
+      bottom: frame.extendBottom,
+      background: "#000000",
+    });
+  }
+  return pipeline
+    .extract({ left: frame.left, top: frame.top, width: FEED_WIDTH, height: PHOTO_HEIGHT })
     .png()
     .toBuffer();
+}
+
+function fadeOverlay() {
+  return Buffer.from(`<svg width="${FEED_WIDTH}" height="${FEED_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="${(FADE_START / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="0"/>
+      <stop offset="${(PHOTO_HEIGHT / FEED_HEIGHT).toFixed(4)}" stop-color="#000" stop-opacity="1"/>
+    </linearGradient></defs>
+    <rect width="${FEED_WIDTH}" height="${FEED_HEIGHT}" fill="url(#g)"/></svg>`);
+}
+
+async function photoBase(photo: Buffer) {
+  const faces = await detectFaces(photo);
+  const cropped = await cropNewsPhoto(photo, faces);
   return sharp({
     create: {
       width: FEED_WIDTH,
@@ -31,7 +59,10 @@ async function photoBase(photo: Buffer) {
       background: "#000000",
     },
   })
-    .composite([{ input: resized, top: 0, left: 0 }])
+    .composite([
+      { input: cropped, top: 0, left: 0 },
+      { input: fadeOverlay(), top: 0, left: 0 },
+    ])
     .png()
     .toBuffer();
 }

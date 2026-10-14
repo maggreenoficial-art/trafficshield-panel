@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["sharp", "unpdf", "opentype.js"],
   outputFileTracingIncludes: {
-    "/api/admin/news/storyboard": ["./src/lib/news/fonts/**/*"],
+    "/api/admin/news/storyboard": ["./src/lib/news/fonts/**/*", "./src/lib/news/vendor/facefinder"],
+    "/api/admin/storyboards/[id]": ["./src/lib/news/vendor/facefinder"],
   },
   transpilePackages: ["@ffmpeg/ffmpeg", "@ffmpeg/util"],
   turbopack: {},

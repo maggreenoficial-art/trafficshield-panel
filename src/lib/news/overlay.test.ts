@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
 import { FEED_HEIGHT, FEED_WIDTH } from "./feed-title";
-import { compositeArtOverPhoto } from "./overlay";
+import { compositeArtOverPhoto, cropNewsPhoto } from "./overlay";
 
 test("a camada transparente cola por cima e a foto original continua no topo", async () => {
   const photo = await sharp({
@@ -72,9 +72,37 @@ test("foto larga cobre até y=880 e o preto do código só começa abaixo dela",
     return [data[index], data[index + 1], data[index + 2]];
   };
   assert.deepEqual(at(80, 80), [36, 88, 214]);
-  assert.deepEqual(at(1000, 700), [36, 88, 214]);
+  assert.deepEqual(at(1000, 400), [36, 88, 214]);
   assert.deepEqual(at(80, 1004), [215, 20, 26]);
   assert.deepEqual(at(400, 920), [0, 0, 0]);
+  const faded = at(400, 860);
+  assert.ok(faded[2] < 40);
+});
+
+test("o recorte centraliza nos rostos e não corta quem está à direita", async () => {
+  const photo = await sharp({
+    create: { width: 2000, height: 900, channels: 3, background: "#c8392b" },
+  })
+    .composite([
+      {
+        input: await sharp({
+          create: { width: 400, height: 900, channels: 3, background: "#2458d6" },
+        })
+          .png()
+          .toBuffer(),
+        left: 1600,
+        top: 0,
+      },
+    ])
+    .png()
+    .toBuffer();
+  const cropped = await cropNewsPhoto(photo, [{ x: 1680, y: 180, width: 120, height: 120 }]);
+  const { data, info } = await sharp(cropped).raw().toBuffer({ resolveWithObject: true });
+  const at = (x: number, y: number) => {
+    const index = (y * info.width + x) * info.channels;
+    return [data[index], data[index + 1], data[index + 2]];
+  };
+  assert.deepEqual(at(1040, 120), [36, 88, 214]);
 });
 
 test("camada opaca é recusada para a foto não ficar coberta", async () => {

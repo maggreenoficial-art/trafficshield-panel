@@ -90,7 +90,21 @@ export function buildFeedTitle(raw: string): FeedWord[] {
     if (red) budget -= 1;
     return { text: word.text, red };
   });
-  return highlightMainDeath(titled);
+  return highlightMainDeath(paintContinuous(titled));
+}
+
+function paintContinuous(words: FeedWord[]) {
+  let first = -1;
+  let last = -1;
+  words.forEach((word, index) => {
+    if (!word.red) return;
+    if (first < 0) first = index;
+    last = index;
+  });
+  if (first < 0 || last === first) return words;
+  return words.map((word, index) =>
+    index > first && index < last && STOP.has(fold(word.text)) ? { ...word, red: true } : word
+  );
 }
 
 function highlightMainDeath(words: FeedWord[]) {
@@ -129,6 +143,9 @@ export const HEADLINE_VERB_RULE =
 export const HEADLINE_SPECIFIC_RULE =
   'O título precisa dizer O QUÊ concretamente aconteceu. Palavras genéricas como "projeto", "ação", "iniciativa" ou "programa" nunca podem ficar sozinhas; sempre diga do que se trata (ex.: "projeto-piloto de coleta de lixo").';
 
+export const HEADLINE_RED_RULE =
+  "As palavras em vermelho devem ser um trecho contínuo do título.";
+
 export const HEADLINE_DEATH_RULE =
   'Em notícias de morte, o fato principal é a morte: ela vem primeiro no título e é a palavra destacada em vermelho. Nunca empilhe duas frases soltas; ligue as informações com "após", "e" ou ponto e vírgula. Toda informação que aparece em uma foto (ex.: droga apreendida) precisa estar explicada no título ou ser retirada da arte.';
 
@@ -149,7 +166,7 @@ export function composeFeedImagePrompt(input: {
 }) {
   const words = buildFeedTitle(input.headline);
   const headline = words.map((word) => word.text).join(" ");
-  const redWords = words.filter((word) => word.red).map((word) => word.text);
+  const redWords = redPhrases(words);
   const urgentTag = input.urgent
     ? "Yellow rectangle at the top left, 50px from the edges, with the word URGENTE in black condensed extra bold. No other badge."
     : "No urgent tag. Leave the top left empty. Do not write URGENTE.";
@@ -160,10 +177,9 @@ REFERENCES:
 - Reference 2: brand logo. Reproduce it faithfully in WHITE.
 
 ELEMENTS (exact positions):
-- From y = 0 to 650: fully transparent, except the logo and the tag.
+- From y = 0 to 880: fully transparent except the logo and the tag. Do NOT draw any gradient; it is applied by code.
 - LOGO: white, 330px wide, top right, 50px from the top and right edges, no box behind it.
 - TAG: ${urgentTag}
-- GRADIENT: from y = 650 (fully transparent) to y = 880 (solid black #000000), smooth, no visible line.
 - From y = 880 to 1350: solid black #000000.
 - RED BAR: #D7141A, 180x10px, at x = 60, y = 900.
 - HEADLINE: starts at y = 930, x = 60, maximum width 960px, ends before y = 1220. Exactly 3 lines; reduce the font size until it fits. Never leave a single word alone on the last line. White, ALL CAPS, condensed extra bold (Barlow Condensed ExtraBold style), tight line spacing, flat text with NO glow, shadow or outline.
@@ -172,6 +188,24 @@ ELEMENTS (exact positions):
 - FOOTER: "@informacassilandia" centered at y = 1290, white, small, thin sans-serif. The "@" is mandatory.
 
 RULES: all text upright and readable; no other text; no other logo.`;
+}
+
+function redPhrases(words: FeedWord[]) {
+  const phrases: string[] = [];
+  let index = 0;
+  while (index < words.length) {
+    if (!words[index].red) {
+      index += 1;
+      continue;
+    }
+    const group: string[] = [];
+    while (index < words.length && words[index].red) {
+      group.push(words[index].text);
+      index += 1;
+    }
+    phrases.push(group.join(" "));
+  }
+  return phrases;
 }
 
 export function wrapFeedTitle(

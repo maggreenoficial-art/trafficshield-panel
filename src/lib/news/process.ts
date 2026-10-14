@@ -6,6 +6,7 @@ import {
   formatFeedHeadline,
   HEADLINE_DEATH_RULE,
   HEADLINE_EDITOR_RULE,
+  HEADLINE_RED_RULE,
   HEADLINE_SPECIFIC_RULE,
   HEADLINE_VERB_RULE,
   isUrgentNews,
@@ -45,7 +46,7 @@ Texto da matéria: ${article.text || "(só o título e o resumo)"}
 Regras do título:
 - No máximo 9 palavras e 4 linhas. Corte o que for óbvio. "de Cassilândia" só se for essencial.
 - Verbo no presente. Sem ponto final.
-- Coloque entre colchetes 1 a 3 palavras que sejam O FATO (o que aconteceu ou o número). Nunca coloque artigo, preposição ou conector entre colchetes (com, de, em, para, no, na, a, o).
+- Coloque entre colchetes um único trecho contínuo que seja O FATO (ex.: [CONTÊINERES DE LIXO]). ${HEADLINE_RED_RULE}
 - ${HEADLINE_EDITOR_RULE}
 - ${HEADLINE_VERB_RULE}
 - ${HEADLINE_SPECIFIC_RULE}

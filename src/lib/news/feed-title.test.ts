@@ -7,6 +7,7 @@ import {
   FEED_MAX_WORDS,
   formatFeedHeadline,
   HEADLINE_EDITOR_RULE,
+  HEADLINE_RED_RULE,
   HEADLINE_SPECIFIC_RULE,
   HEADLINE_VERB_RULE,
   isUrgentNews,
@@ -47,11 +48,11 @@ test("o prompt manda o título exato, as palavras em vermelho e omite a tag quan
     prompt,
     /"PREFEITURA INSTALA NOVOS CONTÊINERES DE LIXO NO JARDIM CAMPO GRANDE"/
   );
-  assert.match(prompt, /"NOVOS, CONTÊINERES"/);
+  assert.match(prompt, /"NOVOS CONTÊINERES"/);
   assert.match(prompt, /Do not write URGENTE/);
   assert.match(prompt, /Do not draw any photo, person, place or object/);
-  assert.match(prompt, /From y = 0 to 650: fully transparent/);
-  assert.match(prompt, /from y = 650 \(fully transparent\) to y = 880 \(solid black #000000\)/);
+  assert.match(prompt, /From y = 0 to 880: fully transparent except the logo and the tag/);
+  assert.match(prompt, /Do NOT draw any gradient/);
   assert.match(prompt, /RED BAR: #D7141A, 180x10px, at x = 60, y = 900/);
   assert.match(prompt, /Exactly 3 lines/);
   assert.match(prompt, /Never leave a single word alone on the last line/);
@@ -68,6 +69,15 @@ test("a regra do título pede português natural e não deixa apagar conectores"
   assert.match(HEADLINE_EDITOR_RULE, /nunca o que é removido do texto/);
   assert.match(HEADLINE_VERB_RULE, /nunca "inicia contêineres"/);
   assert.match(HEADLINE_SPECIFIC_RULE, /nunca podem ficar sozinhas/);
+  assert.match(HEADLINE_RED_RULE, /trecho contínuo/);
+});
+
+test("o vermelho pinta o trecho inteiro, inclusive o de no meio", () => {
+  const words = buildFeedTitle("PROJETO-PILOTO INSTALA [CONTÊINERES DE LIXO] NO JARDIM CAMPO GRANDE");
+  assert.equal(
+    formatFeedHeadline(words),
+    "PROJETO-PILOTO INSTALA [CONTÊINERES DE LIXO] NO JARDIM CAMPO GRANDE"
+  );
 });
 
 test("a tag urgente só entra em acidente, crime, morte, desastre, falta de água ou luz e alerta de saúde", () => {
