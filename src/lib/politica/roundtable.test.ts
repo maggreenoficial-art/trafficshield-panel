@@ -23,7 +23,7 @@ test("a mesa só fecha quando as três concordam na última fala", () => {
   };
   const messages: PoliticaMessage[] = [
     { id: "1", speaker: "gemini", vote: "discordo", ...base },
-    { id: "2", speaker: "anthropic", vote: "concordo", ...base },
+    { id: "2", speaker: "grok", vote: "concordo", ...base },
     { id: "3", speaker: "gpt", vote: "concordo", ...base },
   ];
   assert.equal(lastVotesAgree(messages), false);
@@ -52,7 +52,7 @@ test("erro interno do Claude conta como falha passageira", () => {
   );
 });
 
-test("o texto vem tanto do GPT quanto do Claude", () => {
+test("o texto vem tanto do GPT quanto do bloco de conteúdo", () => {
   assert.equal(
     extractChatText({
       choices: [{ message: { content: "proposta da GPT" } }],
@@ -61,8 +61,8 @@ test("o texto vem tanto do GPT quanto do Claude", () => {
   );
   assert.equal(
     extractChatText({
-      content: [{ type: "text", text: "proposta do Claude" }],
+      content: [{ type: "text", text: "proposta do Grok" }],
     }),
-    "proposta do Claude"
+    "proposta do Grok"
   );
 });

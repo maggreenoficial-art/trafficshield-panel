@@ -11,7 +11,7 @@ import { POLITICA_SPEAKERS, type PoliticaSpeakerId } from "@/lib/politica/speake
 
 const TONE: Record<PoliticaSpeakerId, string> = {
   gemini: "border-sky-400/30 bg-sky-500/10 text-sky-100",
-  anthropic: "border-amber-400/30 bg-amber-500/10 text-amber-100",
+  grok: "border-amber-400/30 bg-amber-500/10 text-amber-100",
   gpt: "border-violet-400/30 bg-violet-500/10 text-violet-100",
 };
 
@@ -129,7 +129,7 @@ export function PoliticaView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Desenvolvimento político"
-        subtitle="Gemini, Claude e GPT leem os documentos, conversam entre si e fecham o que produzir. Só admin."
+        subtitle="Gemini, Grok e GPT leem os documentos, conversam entre si e fecham o que produzir. Só admin."
       />
 
       {error && (

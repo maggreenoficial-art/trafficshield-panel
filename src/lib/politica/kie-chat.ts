@@ -1,4 +1,5 @@
 import { getApiKey } from "@/lib/kie/client";
+import { chatGrok46 } from "@/lib/kie/grok-chat";
 import type { PoliticaSpeaker } from "@/lib/politica/speakers";
 
 const KIE_BASE = "https://api.kie.ai";
@@ -72,25 +73,22 @@ function speakerModels(speaker: PoliticaSpeaker) {
   return [speaker.model, ...extra].filter((model, index, all) => model && all.indexOf(model) === index);
 }
 
-async function chatOnce(speaker: PoliticaSpeaker, prompt: string, model: string) {
-  const body =
-    speaker.protocol === "anthropic"
-      ? {
-          model,
-          stream: false,
-          max_tokens: 2048,
-          thinkingFlag: false,
-          messages: [{ role: "user", content: prompt }],
-        }
-      : {
-          messages: [
-            {
-              role: "user",
-              content: [{ type: "text", text: prompt }],
-            },
-          ],
-          ...(speaker.id === "gpt" ? { reasoning_effort: "low" } : {}),
-        };
+async function chatOnce(speaker: PoliticaSpeaker, prompt: string, _model: string) {
+  if (speaker.protocol === "grok") {
+    const text = (await chatGrok46(prompt, [], { reasoning: "low" })).trim();
+    if (!text) throw new Error(`${speaker.name} não devolveu texto.`);
+    return text;
+  }
+
+  const body = {
+    messages: [
+      {
+        role: "user",
+        content: [{ type: "text", text: prompt }],
+      },
+    ],
+    ...(speaker.id === "gpt" ? { reasoning_effort: "low" } : {}),
+  };
 
   const res = await fetch(`${KIE_BASE}${speaker.path}`, {
     method: "POST",
