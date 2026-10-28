@@ -14,6 +14,7 @@ const ADMIN_ONLY_PATH_PREFIXES = [
   "/storyboards",
   "/analise-campanha",
   "/desenvolvimento",
+  "/desenvolvimento-politico",
   "/noticias",
   "/ofertas",
   "/denuncias",
@@ -23,6 +24,7 @@ const ADMIN_ONLY_API_PREFIXES = [
   "/api/admin/offers",
   "/api/admin/campaign-analyses",
   "/api/admin/reports",
+  "/api/admin/politica",
 ];
 
 function isPublicPath(pathname: string): boolean {

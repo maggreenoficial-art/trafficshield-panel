@@ -4,6 +4,7 @@ import {
   Flag,
   Globe,
   Images,
+  Landmark,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -38,6 +39,13 @@ export const panelNav: PanelNavItem[] = [
     href: "/desenvolvimento",
     label: "Desenvolvimento",
     icon: Sparkles,
+    exact: false,
+    adminOnly: true,
+  },
+  {
+    href: "/desenvolvimento-politico",
+    label: "Desenvolvimento político",
+    icon: Landmark,
     exact: false,
     adminOnly: true,
   },
@@ -84,11 +92,17 @@ export function getPanelNav(isPlatformAdmin: boolean): PanelNavItem[] {
   return panelNav.filter((item) => !item.adminOnly || isPlatformAdmin);
 }
 
+export function navItemActive(pathname: string, item: PanelNavItem) {
+  if (item.exact) return pathname === item.href;
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
 export { LogOut };
 
 export function panelPageTitle(pathname: string): string {
   if (pathname.startsWith("/campanhas")) return "Campanhas";
   if (pathname.match(/^\/storyboards\/[^/]+/)) return "Editor";
+  if (pathname.startsWith("/desenvolvimento-politico")) return "Desenvolvimento político";
   if (pathname.startsWith("/desenvolvimento")) return "Desenvolvimento";
   if (pathname.startsWith("/noticias")) return "Notícias";
   if (pathname.startsWith("/ofertas")) return "Ofertas";

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelMobileNav, panelPageTitle } from "@/components/PanelMobileNav";
 import { NoratLogo } from "@/components/NoratLogo";
-import { LogOut, getPanelNav } from "@/lib/panel-nav";
+import { LogOut, getPanelNav, navItemActive } from "@/lib/panel-nav";
 import { panelNavItem } from "@/lib/panel-styles";
 import { logoutPanel } from "@/lib/auth-logout";
 import { cn } from "@/lib/utils";
@@ -55,9 +55,7 @@ export function PanelShell({ children }: { children: React.ReactNode }) {
         <nav className="landing-nav-pill mt-8 flex flex-col gap-0.5 rounded-2xl p-1.5">
           {nav.map((item) => {
             const Icon = item.icon;
-            const active = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
+            const active = navItemActive(pathname, item);
             return (
               <Link
                 key={item.href}

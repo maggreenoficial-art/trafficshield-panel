@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, panelPageTitle, type PanelNavItem } from "@/lib/panel-nav";
+import { LogOut, navItemActive, panelPageTitle, type PanelNavItem } from "@/lib/panel-nav";
 import { cn } from "@/lib/utils";
 import { logoutPanel } from "@/lib/auth-logout";
 
@@ -19,9 +19,7 @@ export function PanelMobileNav({ items }: { items: PanelNavItem[] }) {
     >
       <div className="mx-auto flex max-w-full items-stretch gap-0.5 overflow-x-auto px-1 pt-1">
         {items.map(({ href, label, icon: Icon, exact }) => {
-          const isActive = exact
-            ? pathname === href
-            : pathname.startsWith(href);
+          const isActive = navItemActive(pathname, { href, label, icon: Icon, exact });
           return (
             <Link
               key={href}
