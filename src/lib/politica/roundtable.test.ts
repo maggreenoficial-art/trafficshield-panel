@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { joinPoliticaDocuments } from "./document";
 import { extractChatText } from "./kie-chat";
 import { lastVotesAgree, parseSpeakerReply } from "./roundtable";
 import type { PoliticaMessage } from "./roundtable";
@@ -28,6 +29,17 @@ test("a mesa só fecha quando as três concordam na última fala", () => {
   assert.equal(lastVotesAgree(messages), false);
   messages.push({ id: "4", speaker: "gemini", vote: "concordo", ...base, round: 3 });
   assert.equal(lastVotesAgree(messages), true);
+});
+
+test("vários documentos entram no mesmo pacote, cada um com o nome", () => {
+  const packed = joinPoliticaDocuments([
+    { name: "plano.pdf", text: "Mutirão no sábado." },
+    { name: "pauta.md", text: "Falar de saúde." },
+  ]);
+  assert.match(packed, /## plano\.pdf/);
+  assert.match(packed, /Mutirão no sábado/);
+  assert.match(packed, /## pauta\.md/);
+  assert.match(packed, /Falar de saúde/);
 });
 
 test("o texto vem tanto do GPT quanto do Claude", () => {

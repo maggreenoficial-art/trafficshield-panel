@@ -63,13 +63,13 @@ function turnPrompt(input: {
 Seu recorte: ${input.job}.
 Fale em português do Brasil, direto, sem floreio. Não imite as outras IAs. Não invente fato que o documento não traz.
 
-Documento:
+Documentos:
 """
 ${input.document}
 """
 
 Pedido de quem abriu a mesa:
-${input.brief || "Chegar no que é melhor produzir a partir deste documento."}
+${input.brief || "Chegar no que é melhor produzir a partir destes documentos."}
 
 Conversa até agora:
 ${transcript(input.history)}
@@ -93,9 +93,9 @@ Use "voto: discordo" se ainda não aceita a proposta das outras.`;
 function synthesisPrompt(document: string, brief: string, messages: PoliticaMessage[]) {
   return `Você fecha a mesa de desenvolvimento político. Escreva o consenso final, em português do Brasil.
 
-Documento (recorte):
+Documentos (recorte):
 """
-${document.slice(0, 8000)}
+${document.slice(0, 12_000)}
 """
 
 Pedido: ${brief || "O que é melhor produzir."}

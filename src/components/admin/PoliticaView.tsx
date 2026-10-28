@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Landmark, Loader2, Upload } from "lucide-react";
+import { Landmark, Loader2, Upload, X } from "lucide-react";
 import { AdminPageTitle } from "@/components/admin/AdminMobileUI";
 import { panelCardPadded, panelInput } from "@/lib/panel-styles";
 import { cn } from "@/lib/utils";
+import { POLITICA_MAX_FILES, type PoliticaDoc } from "@/lib/politica/types";
 import type { PoliticaEvent, PoliticaMessage } from "@/lib/politica/roundtable";
 import { POLITICA_SPEAKERS, type PoliticaSpeakerId } from "@/lib/politica/speakers";
 
@@ -21,8 +22,7 @@ function speakerMeta(id: PoliticaSpeakerId) {
 export function PoliticaView() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [docName, setDocName] = useState("");
-  const [document, setDocument] = useState("");
+  const [docs, setDocs] = useState<PoliticaDoc[]>([]);
   const [brief, setBrief] = useState("");
   const [busy, setBusy] = useState("");
   const [status, setStatus] = useState("");
@@ -35,53 +35,59 @@ export function PoliticaView() {
   }, [messages, status, consensus]);
 
   async function onFile(files: FileList | null) {
-    const file = files?.[0];
-    if (!file) return;
+    const incoming = Array.from(files ?? []).slice(0, POLITICA_MAX_FILES);
+    if (!incoming.length) return;
+    const room = POLITICA_MAX_FILES - docs.length;
+    if (room <= 0) {
+      setError(`A mesa aceita no máximo ${POLITICA_MAX_FILES} documentos.`);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setBusy("doc");
     setError("");
-    setNoticeSafe();
     try {
       const form = new FormData();
-      form.append("file", file);
+      for (const file of incoming.slice(0, room)) form.append("file", file);
       const res = await fetch("/api/admin/politica/documento", {
         method: "POST",
         body: form,
       });
-      const data = (await res.json()) as { error?: string; name?: string; text?: string };
-      if (!res.ok) throw new Error(data.error || "Não leu o documento.");
-      setDocName(data.name || file.name);
-      setDocument(data.text || "");
+      const data = (await res.json()) as { error?: string; documents?: PoliticaDoc[] };
+      if (!res.ok) throw new Error(data.error || "Não leu os documentos.");
+      const next = data.documents ?? [];
+      if (!next.length) throw new Error("Nenhum documento veio com texto.");
+      setDocs((prev) => {
+        const names = new Set(prev.map((doc) => doc.name));
+        const extra = next.filter((doc) => !names.has(doc.name));
+        return [...prev, ...extra].slice(0, POLITICA_MAX_FILES);
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao ler o arquivo.");
-      setDocName("");
-      setDocument("");
+      setError(e instanceof Error ? e.message : "Falha ao ler os arquivos.");
     } finally {
       setBusy("");
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
-  function setNoticeSafe() {
-    setStatus("");
-    setConsensus("");
-    setMessages([]);
-  }
-
   async function openTable() {
-    if (!document) {
-      setError("Envie o documento antes de abrir a mesa.");
+    if (!docs.length) {
+      setError("Envie ao menos um documento antes de abrir a mesa.");
       return;
     }
     setBusy("mesa");
     setError("");
-    setStatus("A mesa está lendo o documento…");
+    setStatus(
+      docs.length > 1
+        ? `A mesa está lendo ${docs.length} documentos…`
+        : "A mesa está lendo o documento…"
+    );
     setMessages([]);
     setConsensus("");
     try {
       const res = await fetch("/api/admin/politica/mesa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document, brief }),
+        body: JSON.stringify({ documents: docs, brief }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -123,7 +129,7 @@ export function PoliticaView() {
     <div className="space-y-6 pb-24 sm:space-y-8 lg:pb-0">
       <AdminPageTitle
         title="Desenvolvimento político"
-        subtitle="Gemini, Claude e GPT leem o documento, conversam entre si e fecham o que produzir. Só admin."
+        subtitle="Gemini, Claude e GPT leem os documentos, conversam entre si e fecham o que produzir. Só admin."
       />
 
       {error && (
@@ -138,24 +144,52 @@ export function PoliticaView() {
             <input
               ref={fileRef}
               type="file"
+              multiple
               accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain"
               className="hidden"
               onChange={(e) => void onFile(e.target.files)}
             />
             <button
               type="button"
-              disabled={Boolean(busy)}
+              disabled={Boolean(busy) || docs.length >= POLITICA_MAX_FILES}
               onClick={() => fileRef.current?.click()}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 px-4 py-3 text-sm text-white/70 hover:text-white disabled:opacity-40"
             >
               {busy === "doc" ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
-              {docName || "Enviar documento (PDF, TXT ou MD)"}
+              {docs.length
+                ? "Adicionar documentos"
+                : "Enviar documentos (PDF, TXT ou MD)"}
             </button>
-            {document ? (
-              <p className="text-[11px] text-white/40">
-                {document.length.toLocaleString("pt-BR")} caracteres lidos.
-              </p>
+            {docs.length ? (
+              <ul className="space-y-1.5">
+                {docs.map((doc) => (
+                  <li
+                    key={doc.name}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70"
+                  >
+                    <span className="min-w-0 truncate">{doc.name}</span>
+                    <button
+                      type="button"
+                      disabled={Boolean(busy)}
+                      onClick={() =>
+                        setDocs((prev) => prev.filter((item) => item.name !== doc.name))
+                      }
+                      className="rounded p-1 text-white/40 hover:text-white"
+                      aria-label={`Tirar ${doc.name}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             ) : null}
+            <p className="text-[11px] text-white/40">
+              {docs.length
+                ? `${docs.length} de ${POLITICA_MAX_FILES} · ${docs
+                    .reduce((sum, doc) => sum + doc.text.length, 0)
+                    .toLocaleString("pt-BR")} caracteres`
+                : `Até ${POLITICA_MAX_FILES} arquivos.`}
+            </p>
             <textarea
               className={cn(panelInput, "min-h-24")}
               placeholder="Opcional: o que você quer que a mesa resolva. Ex.: o que produzir esta semana."
@@ -164,7 +198,7 @@ export function PoliticaView() {
             />
             <button
               type="button"
-              disabled={Boolean(busy) || !document}
+              disabled={Boolean(busy) || !docs.length}
               onClick={() => void openTable()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
             >
