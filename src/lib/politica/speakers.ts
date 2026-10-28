@@ -14,7 +14,8 @@ export const POLITICA_SPEAKERS = [
     house: "Anthropic",
     protocol: "anthropic" as const,
     path: "/claude/v1/messages",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-4-5",
+    fallbacks: ["claude-sonnet-4-6", "claude-haiku-4-5"],
     job: "risco, ética e consistência: o que não pode ser dito ou prometido",
   },
   {

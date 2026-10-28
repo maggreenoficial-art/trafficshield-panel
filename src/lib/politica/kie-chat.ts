@@ -39,22 +39,47 @@ export function extractChatText(payload: unknown): string {
   return "";
 }
 
-function kieError(status: number, raw: string, parsed: Record<string, unknown> | null) {
-  const wrapped = parsed?.error as { message?: string } | string | undefined;
+export function payloadError(parsed: Record<string, unknown> | null) {
+  if (!parsed) return "";
+  const wrapped = parsed.error as { message?: string } | string | undefined;
   if (typeof wrapped === "string" && wrapped.trim()) return wrapped.trim();
-  if (wrapped && typeof wrapped === "object" && wrapped.message) return wrapped.message;
-  if (typeof parsed?.msg === "string" && parsed.msg.trim()) return parsed.msg.trim();
+  if (wrapped && typeof wrapped === "object" && wrapped.message?.trim()) return wrapped.message.trim();
+  if (typeof parsed.msg === "string" && parsed.msg.trim() && parsed.code != null && parsed.code !== 200) {
+    return parsed.msg.trim();
+  }
+  if (parsed.type === "error" && typeof parsed.message === "string") return parsed.message.trim();
+  return "";
+}
+
+export function isTransientChatError(message: string, status = 0) {
+  if (status === 429 || status >= 500) return true;
+  return /internal error|try again|overloaded|temporar|timeout|timed out|unavailable/i.test(message);
+}
+
+function kieError(status: number, raw: string, parsed: Record<string, unknown> | null) {
+  const fromBody = payloadError(parsed);
+  if (fromBody) return fromBody;
   const snippet = raw.replace(/\s+/g, " ").trim().slice(0, 220);
   return snippet || `Kie HTTP ${status}`;
 }
 
-export async function chatPoliticaSpeaker(speaker: PoliticaSpeaker, prompt: string) {
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function speakerModels(speaker: PoliticaSpeaker) {
+  const extra = "fallbacks" in speaker && Array.isArray(speaker.fallbacks) ? speaker.fallbacks : [];
+  return [speaker.model, ...extra].filter((model, index, all) => model && all.indexOf(model) === index);
+}
+
+async function chatOnce(speaker: PoliticaSpeaker, prompt: string, model: string) {
   const body =
     speaker.protocol === "anthropic"
       ? {
-          model: speaker.model,
+          model,
           stream: false,
-          max_tokens: 4096,
+          max_tokens: 2048,
+          thinkingFlag: false,
           messages: [{ role: "user", content: prompt }],
         }
       : {
@@ -89,8 +114,9 @@ export async function chatPoliticaSpeaker(speaker: PoliticaSpeaker, prompt: stri
     }
   }
 
-  if (!res.ok || (parsed?.code != null && parsed.code !== 200)) {
-    throw new Error(`${speaker.name}: ${kieError(res.status, raw, parsed)}`);
+  const err = kieError(res.status, raw, parsed);
+  if (!res.ok || (parsed?.code != null && parsed.code !== 200) || payloadError(parsed)) {
+    throw new Error(`${speaker.name}: ${err}`);
   }
 
   const text = extractChatText(parsed ?? raw);
@@ -98,4 +124,21 @@ export async function chatPoliticaSpeaker(speaker: PoliticaSpeaker, prompt: stri
     throw new Error(`${speaker.name} não devolveu texto.`);
   }
   return text;
+}
+
+export async function chatPoliticaSpeaker(speaker: PoliticaSpeaker, prompt: string) {
+  const models = speakerModels(speaker);
+  let last: Error | null = null;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await chatOnce(speaker, prompt, model);
+      } catch (error) {
+        last = error instanceof Error ? error : new Error(String(error));
+        if (!isTransientChatError(last.message) || attempt === 2) break;
+        await sleep(1500 * (attempt + 1));
+      }
+    }
+  }
+  throw last ?? new Error(`${speaker.name} falhou.`);
 }

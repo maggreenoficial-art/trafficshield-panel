@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { joinPoliticaDocuments } from "./document";
-import { extractChatText } from "./kie-chat";
+import { extractChatText, isTransientChatError, payloadError } from "./kie-chat";
 import { lastVotesAgree, parseSpeakerReply } from "./roundtable";
 import type { PoliticaMessage } from "./roundtable";
 
@@ -40,6 +40,16 @@ test("vários documentos entram no mesmo pacote, cada um com o nome", () => {
   assert.match(packed, /Mutirão no sábado/);
   assert.match(packed, /## pauta\.md/);
   assert.match(packed, /Falar de saúde/);
+});
+
+test("erro interno do Claude conta como falha passageira", () => {
+  assert.equal(isTransientChatError("Internal error, please try again later"), true);
+  assert.equal(
+    payloadError({
+      error: { message: "Internal error, please try again later" },
+    }),
+    "Internal error, please try again later"
+  );
 });
 
 test("o texto vem tanto do GPT quanto do Claude", () => {
