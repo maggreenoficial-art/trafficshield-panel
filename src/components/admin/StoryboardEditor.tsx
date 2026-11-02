@@ -19,14 +19,16 @@ import {
 } from "lucide-react";
 import {
   ASPECT_RATIOS,
+  GROK_VIDEO_ASPECT_LABELS,
   IMAGE_RESOLUTIONS,
   STORYBOARD_MODELS,
   STORYBOARD_SELECT_CLASS,
-  VIDEO_DURATIONS,
   VIDEO_RESOLUTIONS,
   estimateKieCredits,
   formatKieCredits,
   getStoryboardModel,
+  videoAspectRatiosForModel,
+  videoDurationsForModel,
   type StoryboardModelKey,
 } from "@/lib/kie/models";
 import { artLayerResolution, isArtLayerPrompt } from "@/lib/news/feed-title";
@@ -773,17 +775,30 @@ function DraftForm({
       ? [pluggedStill, ...refUrls]
       : refUrls;
 
+  const videoAspectOptions = videoAspectRatiosForModel(modelKey);
+  const videoDurationOptions = videoDurationsForModel(modelKey);
+
   useEffect(() => {
     if (!model) return;
     if (model.kind === "video") {
       setResolution(model.defaultResolution || "720p");
       setDuration(model.defaultDuration || 8);
-      setAspectRatio("9:16");
+      setAspectRatio(model.key === "grok_15" ? "auto" : "9:16");
     } else if (model.defaultResolution) {
       setResolution(model.defaultResolution);
       setAspectRatio((current) => (current === "auto" || current === "9:16" ? "1:1" : current));
     }
   }, [modelKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!model || model.kind !== "video") return;
+    if (!videoAspectOptions.includes(aspectRatio)) {
+      setAspectRatio(model.key === "grok_15" ? "auto" : videoAspectOptions[0] || "9:16");
+    }
+    if (!videoDurationOptions.includes(duration)) {
+      setDuration(model.defaultDuration || videoDurationOptions[0] || 8);
+    }
+  }, [modelKey, videoAspectOptions, videoDurationOptions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (artLayer && resolution === "4K") setResolution("1K");
@@ -1014,60 +1029,94 @@ function DraftForm({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
           <div>
             <label className="mb-1 block text-[10px] text-white/40">
-              Resolução
+              Formato
             </label>
             <select
               className={STORYBOARD_SELECT_CLASS}
               value={
-                VIDEO_RESOLUTIONS.includes(
-                  resolution as (typeof VIDEO_RESOLUTIONS)[number]
-                )
-                  ? resolution
-                  : "720p"
+                videoAspectOptions.includes(aspectRatio)
+                  ? aspectRatio
+                  : modelKey === "grok_15"
+                    ? "auto"
+                    : "9:16"
               }
-              onChange={(e) => setResolution(e.target.value)}
+              onChange={(e) => setAspectRatio(e.target.value)}
             >
-              {VIDEO_RESOLUTIONS.map((r) => (
+              {videoAspectOptions.map((r) => (
                 <option key={r} value={r}>
-                  {r} ·{" "}
-                  {formatKieCredits(
-                    estimateKieCredits(modelKey, { resolution: r, duration })
-                  )}{" "}
-                  cr
+                  {modelKey === "grok_15" && r in GROK_VIDEO_ASPECT_LABELS
+                    ? GROK_VIDEO_ASPECT_LABELS[
+                        r as keyof typeof GROK_VIDEO_ASPECT_LABELS
+                      ]
+                    : r === "1:1"
+                      ? "1:1 · quadrado"
+                      : r === "9:16"
+                        ? "9:16 · stories"
+                        : r === "16:9"
+                          ? "16:9 · horizontal"
+                          : r}
                 </option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-[10px] text-white/40">
-              Duração
-            </label>
-            <select
-              className={STORYBOARD_SELECT_CLASS}
-              value={String(duration)}
-              onChange={(e) => setDuration(Number(e.target.value))}
-            >
-              {VIDEO_DURATIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}s ·{" "}
-                  {formatKieCredits(
-                    estimateKieCredits(modelKey, {
-                      resolution:
-                        VIDEO_RESOLUTIONS.includes(
-                          resolution as (typeof VIDEO_RESOLUTIONS)[number]
-                        )
-                          ? resolution
-                          : "720p",
-                      duration: d,
-                    })
-                  )}{" "}
-                  cr
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-[10px] text-white/40">
+                Resolução
+              </label>
+              <select
+                className={STORYBOARD_SELECT_CLASS}
+                value={
+                  VIDEO_RESOLUTIONS.includes(
+                    resolution as (typeof VIDEO_RESOLUTIONS)[number]
+                  )
+                    ? resolution
+                    : "720p"
+                }
+                onChange={(e) => setResolution(e.target.value)}
+              >
+                {VIDEO_RESOLUTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r} ·{" "}
+                    {formatKieCredits(
+                      estimateKieCredits(modelKey, { resolution: r, duration })
+                    )}{" "}
+                    cr
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] text-white/40">
+                Duração
+              </label>
+              <select
+                className={STORYBOARD_SELECT_CLASS}
+                value={String(duration)}
+                onChange={(e) => setDuration(Number(e.target.value))}
+              >
+                {videoDurationOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}s ·{" "}
+                    {formatKieCredits(
+                      estimateKieCredits(modelKey, {
+                        resolution:
+                          VIDEO_RESOLUTIONS.includes(
+                            resolution as (typeof VIDEO_RESOLUTIONS)[number]
+                          )
+                            ? resolution
+                            : "720p",
+                        duration: d,
+                      })
+                    )}{" "}
+                    cr
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       )}

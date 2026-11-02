@@ -215,9 +215,51 @@ export const ASPECT_RATIOS = [
   "9:16",
 ] as const;
 
+/** Proporções oficiais do Grok Imagine Video 1.5 (Kie). */
+export const GROK_VIDEO_ASPECT_RATIOS = [
+  "auto",
+  "1:1",
+  "16:9",
+  "9:16",
+  "4:3",
+  "3:4",
+  "3:2",
+  "2:3",
+] as const;
+
+export const GROK_VIDEO_ASPECT_LABELS: Record<
+  (typeof GROK_VIDEO_ASPECT_RATIOS)[number],
+  string
+> = {
+  auto: "auto · da imagem",
+  "1:1": "1:1 · quadrado",
+  "16:9": "16:9 · horizontal",
+  "9:16": "9:16 · stories",
+  "4:3": "4:3 · clássico",
+  "3:4": "3:4 · retrato",
+  "3:2": "3:2 · foto",
+  "2:3": "2:3 · vertical",
+};
+
+export function videoAspectRatiosForModel(
+  modelKey: string
+): readonly string[] {
+  const key = resolveModelKey(modelKey);
+  if (key === "grok_15") return GROK_VIDEO_ASPECT_RATIOS;
+  return ["9:16", "16:9", "1:1"] as const;
+}
+
 export const IMAGE_RESOLUTIONS = ["1K", "2K", "4K"] as const;
 export const VIDEO_RESOLUTIONS = ["480p", "720p", "1080p"] as const;
 export const VIDEO_DURATIONS = [5, 6, 8, 10, 12] as const;
+/** Durações aceitas pelo Grok Imagine Video 1.5 (1–15 s). */
+export const GROK_VIDEO_DURATIONS = [4, 5, 6, 8, 10, 12, 15] as const;
+
+export function videoDurationsForModel(modelKey: string): readonly number[] {
+  const key = resolveModelKey(modelKey);
+  if (key === "grok_15") return GROK_VIDEO_DURATIONS;
+  return VIDEO_DURATIONS;
+}
 
 export const STORYBOARD_SELECT_CLASS =
   "sb-select w-full rounded-lg border border-white/[0.08] bg-[#151b26] px-2 py-2 text-xs text-white outline-none";
