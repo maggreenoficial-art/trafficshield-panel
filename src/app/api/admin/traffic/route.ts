@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getSiteVisitStats } from "@/lib/db/site-visits";
 import {
   getTrafficConfig,
   getTrafficStats,
@@ -12,11 +13,12 @@ export async function GET(request: NextRequest) {
   if (ctx instanceof NextResponse) return ctx;
 
   try {
-    const [config, stats] = await Promise.all([
+    const [config, stats, siteVisits] = await Promise.all([
       getTrafficConfig(ctx.tenantId),
       getTrafficStats(ctx.tenantId),
+      getSiteVisitStats(),
     ]);
-    return NextResponse.json({ config, stats, tenant: ctx.tenant });
+    return NextResponse.json({ config, stats, siteVisits, tenant: ctx.tenant });
   } catch {
     return NextResponse.json(
       { error: "Erro ao carregar dados de tráfego." },

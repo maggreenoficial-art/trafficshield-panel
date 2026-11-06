@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Bot,
@@ -211,6 +211,13 @@ const faqs = [
 
 export function NoratLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("norat_site_visit")) return;
+    void fetch("/api/site/visit", { method: "POST", keepalive: true }).then((res) => {
+      if (res.ok) sessionStorage.setItem("norat_site_visit", "1");
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-black text-white">

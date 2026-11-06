@@ -15,6 +15,7 @@ import {
 import {
   Bot,
   CheckCircle2,
+  Eye,
   Globe,
   Loader2,
   RefreshCw,
@@ -24,6 +25,7 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import type { SiteVisitStats } from "@/lib/db/site-visits";
 import type {
   TrafficShieldConfig,
   TrafficShieldStats,
@@ -72,6 +74,12 @@ const features = [
 export function TrafficOverviewView() {
   const [config, setConfig] = useState<TrafficShieldConfig | null>(null);
   const [stats, setStats] = useState<TrafficShieldStats | null>(null);
+  const [siteVisits, setSiteVisits] = useState<SiteVisitStats>({
+    today: 0,
+    last7: 0,
+    last30: 0,
+    total: 0,
+  });
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,6 +94,7 @@ export function TrafficOverviewView() {
     const me = await meRes.json();
     setConfig(json.config ?? null);
     setStats(json.stats ?? null);
+    if (json.siteVisits) setSiteVisits(json.siteVisits);
     setTenantName(me.tenant?.name ?? json.tenant?.name ?? null);
     setLoading(false);
   }, []);
@@ -155,6 +164,39 @@ export function TrafficOverviewView() {
               Atualizar
             </button>
           </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className={panelSectionTitle}>Visitas do site</h2>
+        <p className="mt-1 text-sm text-white/40">
+          Página inicial do norat. Cada pessoa conta uma vez por dia.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Hoje"
+            value={String(siteVisits.today)}
+            sub="desde a meia-noite"
+            icon={Eye}
+          />
+          <StatCard
+            label="7 dias"
+            value={String(siteVisits.last7)}
+            sub="incluindo hoje"
+            icon={Eye}
+          />
+          <StatCard
+            label="30 dias"
+            value={String(siteVisits.last30)}
+            sub="incluindo hoje"
+            icon={Eye}
+          />
+          <StatCard
+            label="Total"
+            value={String(siteVisits.total)}
+            sub="desde o início da contagem"
+            icon={Eye}
+          />
         </div>
       </div>
 
