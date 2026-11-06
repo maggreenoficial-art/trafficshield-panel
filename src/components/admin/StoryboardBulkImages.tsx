@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Download, Loader2, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Download, Loader2, Upload, X } from "lucide-react";
 import {
   ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
@@ -121,7 +121,10 @@ export function StoryboardBulkImages({
   const [text, setText] = useState("");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [resolution, setResolution] = useState("1K");
+  const [baseUrl, setBaseUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
@@ -134,6 +137,29 @@ export function StoryboardBulkImages({
   const batchBlocks = blocks.filter((block) => batchIds.includes(block.id));
   const batchReady = readyImages(batchBlocks);
   const allReady = readyImages(blocks);
+  const baseChoices = allReady.filter((block) => block.resultUrl);
+
+  async function uploadBase(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/admin/storyboards/upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error || "Falha no upload");
+      setBaseUrl(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro no upload");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   async function generateAll() {
     if (!prompts.length || busy) return;
@@ -155,6 +181,7 @@ export function StoryboardBulkImages({
             prompt: prompts[index],
             aspectRatio,
             resolution,
+            referenceUrls: baseUrl ? [baseUrl] : [],
             positionX: originX + (index % 3) * (BLOCK_W + 36),
             positionY: originY + Math.floor(index / 3) * 560,
           }),
@@ -212,6 +239,66 @@ export function StoryboardBulkImages({
       </div>
 
       <div className="space-y-3 overflow-y-auto p-3">
+        <div>
+          <p className="mb-1 text-[10px] text-white/40">Imagem base</p>
+          <div className="flex items-center gap-2">
+            {baseUrl ? (
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={baseUrl} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="absolute top-0 right-0 rounded bg-black/70 p-0.5"
+                  onClick={() => setBaseUrl(null)}
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ) : null}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <button
+                type="button"
+                disabled={busy || uploading}
+                onClick={() => fileRef.current?.click()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/15 py-2 text-[11px] text-white/70 hover:bg-white/[0.04] disabled:opacity-40"
+              >
+                {uploading ? (
+                  <Loader2 className="animate-spin" size={12} />
+                ) : (
+                  <Upload size={12} />
+                )}
+                {baseUrl ? "Trocar imagem" : "Enviar imagem"}
+              </button>
+              {baseChoices.length > 0 && (
+                <select
+                  className={STORYBOARD_SELECT_CLASS}
+                  disabled={busy}
+                  value={baseChoices.some((block) => block.resultUrl === baseUrl) ? baseUrl ?? "" : ""}
+                  onChange={(event) => setBaseUrl(event.target.value || null)}
+                >
+                  <option value="">Ou uma cena já pronta</option>
+                  {baseChoices.map((block, index) => (
+                    <option key={block.id} value={block.resultUrl ?? ""}>
+                      {`${index + 1}. ${(block.prompt || "Imagem").slice(0, 42)}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(event) => void uploadBase(event.target.files?.[0])}
+          />
+          <p className="mt-1 text-[10px] text-white/35">
+            A mesma foto entra como referência de todos os prompts.
+          </p>
+        </div>
+
         <textarea
           className="h-40 w-full resize-y rounded-lg border border-white/[0.08] bg-[#151b26] px-2 py-2 text-xs text-white outline-none placeholder:text-white/25"
           placeholder={"Prompt da cena 1\n\nPrompt da cena 2\n\nOu um prompt por linha"}
