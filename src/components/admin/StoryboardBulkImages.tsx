@@ -10,10 +10,12 @@ import {
   formatKieCredits,
   getStoryboardModel,
 } from "@/lib/kie/models";
+import { COMPLETE_VIDEO, type AutoVideoPlan } from "@/lib/storyboard/auto-video";
 import { imageDownloadName, parseBulkPrompts } from "@/lib/storyboard/bulk-prompts";
 import { buildStoredZip } from "@/lib/zip-store";
 
 const BULK_LIMIT = 40;
+const VIDEO_LIMIT = 8;
 const BLOCK_W = 300;
 
 export type BulkBlock = {
@@ -118,8 +120,10 @@ export function StoryboardBulkImages({
   onCredits,
   onClose,
 }: Props) {
+  const [mode, setMode] = useState<"images" | "video">("images");
   const [text, setText] = useState("");
   const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [videoAspect, setVideoAspect] = useState("9:16");
   const [resolution, setResolution] = useState("1K");
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -130,12 +134,22 @@ export function StoryboardBulkImages({
   const [error, setError] = useState("");
   const [batchIds, setBatchIds] = useState<string[]>([]);
 
-  const prompts = useMemo(() => parseBulkPrompts(text).slice(0, BULK_LIMIT), [text]);
+  const limit = mode === "video" ? VIDEO_LIMIT : BULK_LIMIT;
+  const prompts = useMemo(() => parseBulkPrompts(text).slice(0, limit), [text, limit]);
   const parsedCount = parseBulkPrompts(text).length;
   const unitCost = estimateKieCredits("image", resolution);
   const totalCost = Math.round(unitCost * prompts.length * 100) / 100;
+  const videoUnit =
+    estimateKieCredits("image", COMPLETE_VIDEO.imageResolution) +
+    estimateKieCredits("grok_15", {
+      resolution: COMPLETE_VIDEO.videoResolution,
+      duration: COMPLETE_VIDEO.takeSeconds,
+    }) *
+      COMPLETE_VIDEO.takeCount;
+  const videoCost = Math.round(videoUnit * prompts.length * 100) / 100;
   const batchBlocks = blocks.filter((block) => batchIds.includes(block.id));
   const batchReady = readyImages(batchBlocks);
+  const batchDone = batchBlocks.filter((block) => block.status === "success").length;
   const allReady = readyImages(blocks);
   const baseChoices = allReady.filter((block) => block.resultUrl);
 
@@ -206,6 +220,124 @@ export function StoryboardBulkImages({
     }
   }
 
+  async function postGenerate(body: Record<string, unknown>) {
+    const res = await fetch(`/api/admin/storyboards/${storyboardId}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as {
+      error?: string;
+      credits?: number;
+      block?: BulkBlock & { resultUrl?: string | null };
+    };
+    if (!res.ok || !data.block) throw new Error(data.error || "Falha ao gerar.");
+    onBlock(data.block);
+    if (typeof data.credits === "number") onCredits(data.credits);
+    return data.block;
+  }
+
+  async function waitForImage(blockId: string) {
+    const started = Date.now();
+    while (Date.now() - started < 4 * 60 * 1000) {
+      const res = await fetch(
+        `/api/admin/storyboards/${storyboardId}/blocks/${blockId}`
+      );
+      const data = (await res.json()) as { block?: BulkBlock; error?: string };
+      if (!res.ok || !data.block) {
+        throw new Error(data.error || "Não foi possível acompanhar a imagem.");
+      }
+      onBlock(data.block);
+      if (data.block.status === "success" && data.block.resultUrl) return data.block;
+      if (data.block.status === "fail") {
+        throw new Error("A imagem 4K falhou. Os takes não foram gerados.");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+    throw new Error("A imagem 4K demorou demais. Os takes não foram gerados.");
+  }
+
+  async function generateCompleteVideos() {
+    if (!prompts.length || busy) return;
+    setBusy(true);
+    setError("");
+    const maxX = blocks.reduce((max, block) => Math.max(max, block.positionX), 0);
+    const originX = blocks.length ? maxX + BLOCK_W + 80 : 140;
+    let created = 0;
+
+    try {
+      for (let index = 0; index < prompts.length; index++) {
+        const label = `Vídeo ${index + 1} de ${prompts.length}`;
+        setProgress(`${label}: escrevendo os prompts…`);
+        const planRes = await fetch(
+          `/api/admin/storyboards/${storyboardId}/auto-video`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              brief: prompts[index],
+              baseImageUrl: baseUrl,
+            }),
+          }
+        );
+        const planData = (await planRes.json()) as {
+          error?: string;
+          plan?: AutoVideoPlan;
+        };
+        if (!planRes.ok || !planData.plan) {
+          throw new Error(planData.error || "Falha ao escrever os prompts.");
+        }
+
+        const y = 80 + index * 1180;
+        setProgress(`${label}: imagem 4K…`);
+        const image = await postGenerate({
+          modelKey: "image",
+          prompt: planData.plan.imagePrompt,
+          aspectRatio: videoAspect,
+          resolution: COMPLETE_VIDEO.imageResolution,
+          referenceUrls: baseUrl ? [baseUrl] : [],
+          positionX: originX,
+          positionY: y,
+        });
+        const ready = await waitForImage(image.id);
+
+        setProgress(`${label}: dois takes de 8s…`);
+        const takeBody = {
+          modelKey: "grok_15",
+          aspectRatio: videoAspect,
+          resolution: COMPLETE_VIDEO.videoResolution,
+          duration: COMPLETE_VIDEO.takeSeconds,
+          referenceUrls: [ready.resultUrl],
+          sourceBlockId: ready.id,
+        };
+        const take1 = await postGenerate({
+          ...takeBody,
+          prompt: planData.plan.take1,
+          positionX: originX + BLOCK_W + 80,
+          positionY: y,
+        });
+        const take2 = await postGenerate({
+          ...takeBody,
+          prompt: planData.plan.take2,
+          positionX: originX + BLOCK_W + 80,
+          positionY: y + 560,
+        });
+        setBatchIds((prev) => [...prev, image.id, take1.id, take2.id]);
+        created += 1;
+      }
+      setProgress(
+        created === 1
+          ? "1 vídeo completo na fila."
+          : `${created} vídeos completos na fila.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao gerar o vídeo.");
+      setProgress(created ? `${created} vídeo(s) enviado(s) antes do erro.` : "");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function download(which: "batch" | "all") {
     const target = which === "batch" ? batchBlocks : blocks;
     setDownloading(true);
@@ -225,8 +357,14 @@ export function StoryboardBulkImages({
     <aside className="absolute top-20 right-4 z-40 flex max-h-[calc(100vh-8rem)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0c1018] shadow-2xl">
       <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2.5">
         <div>
-          <p className="text-sm font-medium text-white">Imagens em massa</p>
-          <p className="text-[11px] text-white/40">Criar imagem · um prompt por bloco</p>
+          <p className="text-sm font-medium text-white">
+            {mode === "video" ? "Vídeo completo" : "Imagens em massa"}
+          </p>
+          <p className="text-[11px] text-white/40">
+            {mode === "video"
+              ? "Imagem 4K + 2 takes de 8s no Grok 1.5"
+              : "Criar imagem · um prompt por bloco"}
+          </p>
         </div>
         <button
           type="button"
@@ -239,6 +377,24 @@ export function StoryboardBulkImages({
       </div>
 
       <div className="space-y-3 overflow-y-auto p-3">
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-white/[0.04] p-1">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setMode("images")}
+            className={`rounded-md py-1.5 text-[11px] ${mode === "images" ? "bg-white/10 text-white" : "text-white/45"}`}
+          >
+            Imagens
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setMode("video")}
+            className={`rounded-md py-1.5 text-[11px] ${mode === "video" ? "bg-white/10 text-white" : "text-white/45"}`}
+          >
+            Vídeo
+          </button>
+        </div>
         <div>
           <p className="mb-1 text-[10px] text-white/40">Imagem base</p>
           <div className="flex items-center gap-2">
@@ -295,29 +451,40 @@ export function StoryboardBulkImages({
             onChange={(event) => void uploadBase(event.target.files?.[0])}
           />
           <p className="mt-1 text-[10px] text-white/35">
-            A mesma foto entra como referência de todos os prompts.
+            {mode === "video"
+              ? "A foto base entra na imagem 4K. Os dois takes usam essa imagem pronta."
+              : "A mesma foto entra como referência de todos os prompts."}
           </p>
         </div>
 
         <textarea
           className="h-40 w-full resize-y rounded-lg border border-white/[0.08] bg-[#151b26] px-2 py-2 text-xs text-white outline-none placeholder:text-white/25"
-          placeholder={"Prompt da cena 1\n\nPrompt da cena 2\n\nOu um prompt por linha"}
+          placeholder={
+            mode === "video"
+              ? "O que a pessoa fala e mostra neste vídeo\n\nOutro vídeo"
+              : "Prompt da cena 1\n\nPrompt da cena 2\n\nOu um prompt por linha"
+          }
           value={text}
           onChange={(event) => setText(event.target.value)}
           disabled={busy}
         />
         <p className="text-[10px] leading-relaxed text-white/35">
-          Separe prompts longos com uma linha em branco, ou com uma linha só de ---.
-          Sem linha em branco, cada linha vira uma imagem. Máximo {BULK_LIMIT}.
+          {mode === "video"
+            ? `Cada bloco vira um vídeo: a IA escreve os prompts, gera a imagem em 4K e dois takes de 8s no Grok 1.5 (36 cr cada). Máximo ${VIDEO_LIMIT}.`
+            : `Separe prompts longos com uma linha em branco, ou com uma linha só de ---. Sem linha em branco, cada linha vira uma imagem. Máximo ${BULK_LIMIT}.`}
         </p>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className={mode === "video" ? "" : "grid grid-cols-2 gap-2"}>
           <label className="block">
             <span className="mb-1 block text-[10px] text-white/40">Formato</span>
             <select
               className={STORYBOARD_SELECT_CLASS}
-              value={aspectRatio}
-              onChange={(event) => setAspectRatio(event.target.value)}
+              value={mode === "video" ? videoAspect : aspectRatio}
+              onChange={(event) =>
+                mode === "video"
+                  ? setVideoAspect(event.target.value)
+                  : setAspectRatio(event.target.value)
+              }
               disabled={busy}
             >
               {ASPECT_RATIOS.map((ratio) => (
@@ -327,32 +494,35 @@ export function StoryboardBulkImages({
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-[10px] text-white/40">Resolução</span>
-            <select
-              className={STORYBOARD_SELECT_CLASS}
-              value={resolution}
-              onChange={(event) => setResolution(event.target.value)}
-              disabled={busy}
-            >
-              {IMAGE_RESOLUTIONS.map((item) => (
-                <option key={item} value={item}>
-                  {item} · {estimateKieCredits("image", item)} cr
-                </option>
-              ))}
-            </select>
-          </label>
+          {mode === "images" ? (
+            <label className="block">
+              <span className="mb-1 block text-[10px] text-white/40">Resolução</span>
+              <select
+                className={STORYBOARD_SELECT_CLASS}
+                value={resolution}
+                onChange={(event) => setResolution(event.target.value)}
+                disabled={busy}
+              >
+                {IMAGE_RESOLUTIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item} · {estimateKieCredits("image", item)} cr
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
 
         <p className="text-[11px] text-white/50">
-          {prompts.length} prompt{prompts.length === 1 ? "" : "s"}
-          {parsedCount > BULK_LIMIT ? ` (só os ${BULK_LIMIT} primeiros)` : ""} ·{" "}
-          {formatKieCredits(totalCost)} créditos
+          {prompts.length} {mode === "video" ? "vídeo" : "prompt"}
+          {prompts.length === 1 ? "" : "s"}
+          {parsedCount > limit ? ` (só os ${limit} primeiros)` : ""} ·{" "}
+          {formatKieCredits(mode === "video" ? videoCost : totalCost)} créditos
         </p>
 
         {batchIds.length > 0 && (
           <p className="text-[11px] text-white/50">
-            Nesta leva: {batchReady.length} pronta{batchReady.length === 1 ? "" : "s"} de{" "}
+            Nesta leva: {batchDone} pronto{batchDone === 1 ? "" : "s"} de{" "}
             {batchIds.length}
             {batchBlocks.some((block) => block.status === "fail")
               ? ` · ${batchBlocks.filter((block) => block.status === "fail").length} falhou`
@@ -366,15 +536,19 @@ export function StoryboardBulkImages({
         <button
           type="button"
           disabled={busy || prompts.length === 0}
-          onClick={() => void generateAll()}
+          onClick={() => void (mode === "video" ? generateCompleteVideos() : generateAll())}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 py-2.5 text-xs font-medium text-white disabled:opacity-50"
         >
           {busy ? <Loader2 className="animate-spin" size={14} /> : null}
           {busy
             ? "Gerando…"
-            : `Gerar ${prompts.length || ""} imagem${prompts.length === 1 ? "" : "ns"}`}
+            : mode === "video"
+              ? `Gerar ${prompts.length || ""} vídeo${prompts.length === 1 ? "" : "s"}`
+              : `Gerar ${prompts.length || ""} imagem${prompts.length === 1 ? "" : "ns"}`}
         </button>
 
+        {mode === "images" ? (
+        <>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -398,6 +572,8 @@ export function StoryboardBulkImages({
         <p className="text-[10px] text-white/30">
           No Chrome, as imagens vão para uma pasta. Nos outros navegadores, sai um ZIP.
         </p>
+        </>
+        ) : null}
       </div>
     </aside>
   );
