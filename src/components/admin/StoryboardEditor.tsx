@@ -7,8 +7,10 @@ import {
   Cable,
   Crosshair,
   Diamond,
+  Download,
   Hand,
   ImageIcon,
+  Images,
   Loader2,
   Plus,
   Upload,
@@ -32,6 +34,10 @@ import {
   type StoryboardModelKey,
 } from "@/lib/kie/models";
 import { artLayerResolution, isArtLayerPrompt } from "@/lib/news/feed-title";
+import {
+  StoryboardBulkImages,
+  downloadImageBlocks,
+} from "@/components/admin/StoryboardBulkImages";
 import { cn } from "@/lib/utils";
 
 const BLOCK_W = 300;
@@ -105,6 +111,8 @@ export function StoryboardEditor({ id }: { id: string }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [tool, setTool] = useState<"select" | "pan">("select");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [downloadNote, setDownloadNote] = useState("");
   const canvasPan = useRef<{ ox: number; oy: number } | null>(null);
   const blockDrag = useRef<{
     id: string;
@@ -434,6 +442,28 @@ export function StoryboardEditor({ id }: { id: string }) {
         </div>
       </div>
 
+      {bulkOpen && (
+        <StoryboardBulkImages
+          storyboardId={id}
+          blocks={blocks}
+          onBlock={(block) =>
+            setBlocks((prev) =>
+              prev.some((item) => item.id === block.id)
+                ? prev.map((item) => (item.id === block.id ? { ...item, ...block } : item))
+                : [...prev, block as Block]
+            )
+          }
+          onCredits={setCredits}
+          onClose={() => setBulkOpen(false)}
+        />
+      )}
+
+      {downloadNote && (
+        <p className="pointer-events-none absolute top-16 right-4 z-30 text-[11px] text-sky-200">
+          {downloadNote}
+        </p>
+      )}
+
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center px-4">
         <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-black/70 px-2 py-1.5 shadow-2xl backdrop-blur-md">
           <ToolBtn title="Novo bloco" onClick={() => void spawnBlock("any")}>
@@ -450,6 +480,38 @@ export function StoryboardEditor({ id }: { id: string }) {
             onClick={() => void spawnBlock("video")}
           >
             <Video size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Imagens em massa"
+            active={bulkOpen}
+            onClick={() => setBulkOpen((open) => !open)}
+          >
+            <Images size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Baixar imagens prontas"
+            onClick={() => {
+              const ready = blocks.filter(
+                (block) =>
+                  getStoryboardModel(block.modelKey)?.kind === "image" &&
+                  block.status === "success" &&
+                  block.resultUrl
+              );
+              if (!ready.length) {
+                setError("Nenhuma imagem pronta para baixar.");
+                return;
+              }
+              setDownloadNote(`Baixando ${ready.length}…`);
+              void downloadImageBlocks(id, ready, setDownloadNote)
+                .then(() => setDownloadNote(""))
+                .catch((err: unknown) => {
+                  setDownloadNote("");
+                  if (err instanceof DOMException && err.name === "AbortError") return;
+                  setError(err instanceof Error ? err.message : "Erro no download.");
+                });
+            }}
+          >
+            <Download size={16} />
           </ToolBtn>
           <div className="mx-1 h-5 w-px bg-white/10" />
           <ToolBtn
