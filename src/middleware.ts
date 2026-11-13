@@ -39,6 +39,7 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/c/") ||
     pathname.startsWith("/api/traffic/") ||
     pathname.startsWith("/api/kie/") ||
+    pathname === "/api/mcp" ||
     pathname.startsWith("/api/mcp/")
   );
 }
