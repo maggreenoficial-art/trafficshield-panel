@@ -12,6 +12,7 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@gsap/react": "^2.1.2",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.8",
     "dotted-map": "^3.1.0",
@@ -29,7 +30,8 @@
     "sharp": "^0.35.4",
     "three": "^0.180.0",
     "undici": "^7.30.0",
-    "unpdf": "^1.8.1"
+    "unpdf": "^1.8.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

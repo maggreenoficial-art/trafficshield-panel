@@ -1,6 +1,17 @@
 # norat Storyboard MCP
 
-Liga o **Claude Desktop** / **Claude Code** ao storyboard do [norat](https://www.norat.cloud) para o Claude escrever e disparar takes de criativos (imagem 4K + 2 vídeos Grok 1.5 de 8s).
+Liga o **Claude** (conector remoto / Desktop / Code) ao storyboard do [norat](https://www.norat.cloud) para o Claude escrever e disparar takes de criativos (imagem 4K + 2 vídeos Grok 1.5 de 8s).
+
+## Claude.ai — conector personalizado (HTTPS)
+
+Essa tela pede URL HTTPS (não o `node server.mjs` local).
+
+1. **Nome:** `norat Storyboard`
+2. **URL do servidor MCP:** `https://www.norat.cloud/api/mcp`
+3. Em autenticação: **Sem login** / No sign-in
+4. Em headers / credencial, adicione:
+   - Header: `Authorization`
+   - Valor: `Bearer SEU_NORAT_MCP_TOKEN`
 
 ## Fluxo típico
 
