@@ -66,12 +66,17 @@ claude mcp add norat-storyboard --env NORAT_BASE_URL=https://www.norat.cloud --e
 
 | Tool | Uso |
 |------|-----|
+| `list_capabilities` | Modelos + resoluções (imagem **1K/2K/4K**, vídeo 480p/720p/1080p) |
 | `list_storyboards` | Boards + créditos Kie |
 | `get_storyboard` | Blocos e status |
 | `create_storyboard` | Novo board |
-| `create_take_pipeline` | Imagem 4K + 2 takes (prompts do Claude) |
-| `generate_block` | Dispara Kie num bloco |
+| `create_image` | Imagem solta — **padrão 1K** (também 2K/4K) |
+| `create_video_take` | Take de vídeo (Grok / Seedance) a partir de imagem |
+| `create_take_pipeline` | Atalho imagem + 2 takes (`image_resolution` 1K/2K/4K) |
+| `update_block` | Prompt / resolução / aspect / modelo |
+| `generate_block` | Dispara Kie (aceita `resolution`) |
 | `get_block` | Poll / sync status |
+| `delete_block` | Remove bloco |
 
 ## Auth
 

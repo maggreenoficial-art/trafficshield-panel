@@ -15,6 +15,7 @@ export async function POST(request: NextRequest, context: Ctx) {
       prompt?: string;
       referenceUrls?: string[];
       duration?: number;
+      resolution?: string;
     };
     if (!body.blockId) {
       return NextResponse.json({ error: "blockId obrigatório." }, { status: 400 });
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest, context: Ctx) {
       prompt: body.prompt,
       referenceUrls: body.referenceUrls,
       duration: body.duration,
+      resolution: body.resolution,
     });
     return NextResponse.json({ block });
   } catch (error) {

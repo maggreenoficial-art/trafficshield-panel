@@ -5,7 +5,7 @@ import { mcpCreateTakePipeline } from "@/lib/storyboard/mcp-actions";
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * Claude entrega os 3 prompts; o painel cria a imagem 4K + 2 takes de 8s
+ * Claude entrega os 3 prompts; o painel cria imagem (1K/2K/4K) + 2 takes
  * e opcionalmente inicia a geração da imagem.
  */
 export async function POST(request: NextRequest, context: Ctx) {
@@ -20,6 +20,9 @@ export async function POST(request: NextRequest, context: Ctx) {
       take2Prompt?: string;
       baseImageUrl?: string | null;
       aspectRatio?: string;
+      imageResolution?: string;
+      videoResolution?: string;
+      videoModelKey?: string;
       startImage?: boolean;
     };
 
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest, context: Ctx) {
       take2Prompt: body.take2Prompt,
       baseImageUrl: body.baseImageUrl,
       aspectRatio: body.aspectRatio,
+      imageResolution: body.imageResolution,
+      videoResolution: body.videoResolution,
+      videoModelKey: body.videoModelKey,
       startImage: body.startImage,
     });
 

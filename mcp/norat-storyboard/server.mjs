@@ -4,7 +4,7 @@
  *
  * Env:
  *   NORAT_BASE_URL   ex: https://www.norat.cloud
- *   NORAT_MCP_TOKEN  mesmo valor de NORAT_MCP_TOKEN (ou TRAFFIC_INTERNAL_SECRET) na Vercel
+ *   NORAT_MCP_TOKEN  mesmo valor de NORAT_MCP_TOKEN na Vercel
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -58,30 +58,37 @@ function jsonResult(data) {
 
 const server = new McpServer({
   name: "norat-storyboard",
-  version: "1.0.0",
+  version: "1.1.0",
 });
 
 server.tool(
+  "list_capabilities",
+  "Lista modelos e resoluções (imagem 1K/2K/4K; vídeo 480p/720p/1080p).",
+  {},
+  async () => jsonResult(await api("/api/mcp/capabilities"))
+);
+
+server.tool(
   "list_storyboards",
-  "Lista storyboards da conta principal norat e créditos Kie disponíveis.",
+  "Lista storyboards, créditos Kie e capabilities.",
   {},
   async () => jsonResult(await api("/api/mcp/storyboards"))
 );
 
 server.tool(
   "get_storyboard",
-  "Detalhe de um storyboard: blocos (imagem + takes), status e créditos.",
-  { storyboard_id: z.string().describe("UUID do storyboard") },
+  "Detalhe de um storyboard: blocos, status e créditos.",
+  { storyboard_id: z.string() },
   async ({ storyboard_id }) =>
     jsonResult(await api(`/api/mcp/storyboards/${storyboard_id}`))
 );
 
 server.tool(
   "create_storyboard",
-  "Cria um storyboard novo (ex.: campanha / criativo).",
+  "Cria um storyboard novo.",
   {
-    name: z.string().min(1).describe("Nome curto do board"),
-    description: z.string().optional().describe("Descrição opcional"),
+    name: z.string().min(1),
+    description: z.string().optional(),
   },
   async ({ name, description }) =>
     jsonResult(
@@ -93,34 +100,83 @@ server.tool(
 );
 
 server.tool(
-  "create_take_pipeline",
-  `Monta no storyboard: 1 imagem 4K + 2 takes de vídeo Grok 1.5 (8s cada).
-Você (Claude) escreve imagePrompt, take1Prompt e take2Prompt no idioma pedido pelo usuário.
-Por padrão já inicia a geração da imagem. Depois: poll get_block até success, então generate_block em cada take.`,
+  "create_image",
+  "Cria/gera imagem. resolution: 1K (padrão), 2K ou 4K. NÃO force 4K.",
   {
-    storyboard_id: z.string().describe("UUID do storyboard"),
-    image_prompt: z
-      .string()
-      .describe("Prompt da cena estática 4K (primeiro quadro)"),
-    take1_prompt: z
-      .string()
-      .describe("Prompt do take 1 (movimento + fala, 8s)"),
-    take2_prompt: z
-      .string()
-      .describe("Prompt do take 2 (ângulo/variação, 8s)"),
-    base_image_url: z
-      .string()
-      .url()
-      .optional()
-      .describe("URL de referência opcional para a imagem"),
-    aspect_ratio: z
-      .string()
-      .optional()
-      .describe("Padrão 9:16"),
-    start_image: z
-      .boolean()
-      .optional()
-      .describe("Inicia geração da imagem (padrão true)"),
+    storyboard_id: z.string(),
+    prompt: z.string().min(1),
+    resolution: z.enum(["1K", "2K", "4K"]).optional(),
+    aspect_ratio: z.string().optional(),
+    model_key: z.enum(["image", "image_hq", "logo"]).optional(),
+    reference_urls: z.array(z.string().url()).optional(),
+    start_generation: z.boolean().optional(),
+  },
+  async (args) =>
+    jsonResult(
+      await api(`/api/mcp/storyboards/${args.storyboard_id}/blocks`, {
+        method: "POST",
+        body: {
+          kind: "image",
+          prompt: args.prompt,
+          resolution: args.resolution,
+          aspectRatio: args.aspect_ratio,
+          modelKey: args.model_key,
+          referenceUrls: args.reference_urls,
+          startGeneration: args.start_generation,
+        },
+      })
+    )
+);
+
+server.tool(
+  "create_video_take",
+  "Cria take de vídeo a partir de imagem (source_block_id).",
+  {
+    storyboard_id: z.string(),
+    prompt: z.string().min(1),
+    source_block_id: z.string().optional(),
+    reference_urls: z.array(z.string().url()).optional(),
+    model_key: z.enum(["grok_15", "seedance_15", "seedance_2"]).optional(),
+    resolution: z.enum(["480p", "720p", "1080p"]).optional(),
+    aspect_ratio: z.string().optional(),
+    duration: z.number().optional(),
+    start_generation: z.boolean().optional(),
+  },
+  async (args) =>
+    jsonResult(
+      await api(`/api/mcp/storyboards/${args.storyboard_id}/blocks`, {
+        method: "POST",
+        body: {
+          kind: "video",
+          prompt: args.prompt,
+          sourceBlockId: args.source_block_id,
+          referenceUrls: args.reference_urls,
+          modelKey: args.model_key,
+          resolution: args.resolution,
+          aspectRatio: args.aspect_ratio,
+          duration: args.duration,
+          startGeneration: args.start_generation,
+        },
+      })
+    )
+);
+
+server.tool(
+  "create_take_pipeline",
+  "Atalho: imagem + 2 takes. image_resolution 1K/2K/4K (padrão 4K neste atalho).",
+  {
+    storyboard_id: z.string(),
+    image_prompt: z.string(),
+    take1_prompt: z.string(),
+    take2_prompt: z.string(),
+    base_image_url: z.string().url().optional(),
+    aspect_ratio: z.string().optional(),
+    image_resolution: z.enum(["1K", "2K", "4K"]).optional(),
+    video_resolution: z.enum(["480p", "720p", "1080p"]).optional(),
+    video_model_key: z
+      .enum(["grok_15", "seedance_15", "seedance_2"])
+      .optional(),
+    start_image: z.boolean().optional(),
   },
   async (args) =>
     jsonResult(
@@ -132,6 +188,9 @@ Por padrão já inicia a geração da imagem. Depois: poll get_block até succes
           take2Prompt: args.take2_prompt,
           baseImageUrl: args.base_image_url ?? null,
           aspectRatio: args.aspect_ratio,
+          imageResolution: args.image_resolution,
+          videoResolution: args.video_resolution,
+          videoModelKey: args.video_model_key,
           startImage: args.start_image,
         },
       })
@@ -139,35 +198,81 @@ Por padrão já inicia a geração da imagem. Depois: poll get_block até succes
 );
 
 server.tool(
-  "generate_block",
-  "Dispara geração Kie de um bloco (imagem ou take). Nos takes, espere a imagem source estar success.",
+  "update_block",
+  "Atualiza prompt/resolução/aspect/modelo de um bloco.",
   {
     storyboard_id: z.string(),
     block_id: z.string(),
-    prompt: z.string().optional().describe("Sobrescreve o prompt do bloco"),
-    duration: z.number().optional().describe("Segundos do vídeo (padrão 8)"),
+    prompt: z.string().optional(),
+    resolution: z.string().optional(),
+    aspect_ratio: z.string().optional(),
+    model_key: z.string().optional(),
+    reference_urls: z.array(z.string().url()).optional(),
+    source_block_id: z.string().nullable().optional(),
   },
-  async ({ storyboard_id, block_id, prompt, duration }) =>
+  async (args) =>
+    jsonResult(
+      await api(
+        `/api/mcp/storyboards/${args.storyboard_id}/blocks/${args.block_id}`,
+        {
+          method: "PATCH",
+          body: {
+            prompt: args.prompt,
+            resolution: args.resolution,
+            aspectRatio: args.aspect_ratio,
+            modelKey: args.model_key,
+            referenceUrls: args.reference_urls,
+            sourceBlockId: args.source_block_id,
+          },
+        }
+      )
+    )
+);
+
+server.tool(
+  "generate_block",
+  "Dispara geração Kie. Pode passar resolution e duration.",
+  {
+    storyboard_id: z.string(),
+    block_id: z.string(),
+    prompt: z.string().optional(),
+    resolution: z.string().optional(),
+    duration: z.number().optional(),
+  },
+  async ({ storyboard_id, block_id, prompt, resolution, duration }) =>
     jsonResult(
       await api(`/api/mcp/storyboards/${storyboard_id}/generate`, {
         method: "POST",
-        body: { blockId: block_id, prompt, duration },
+        body: { blockId: block_id, prompt, resolution, duration },
       })
     )
 );
 
 server.tool(
   "get_block",
-  "Consulta status de um bloco e sincroniza com a Kie se ainda estiver gerando.",
+  "Status/sync de um bloco.",
   {
     storyboard_id: z.string(),
     block_id: z.string(),
   },
   async ({ storyboard_id, block_id }) =>
     jsonResult(
-      await api(
-        `/api/mcp/storyboards/${storyboard_id}/blocks/${block_id}`
-      )
+      await api(`/api/mcp/storyboards/${storyboard_id}/blocks/${block_id}`)
+    )
+);
+
+server.tool(
+  "delete_block",
+  "Remove um bloco do storyboard.",
+  {
+    storyboard_id: z.string(),
+    block_id: z.string(),
+  },
+  async ({ storyboard_id, block_id }) =>
+    jsonResult(
+      await api(`/api/mcp/storyboards/${storyboard_id}/blocks/${block_id}`, {
+        method: "DELETE",
+      })
     )
 );
 
