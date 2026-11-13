@@ -9,16 +9,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function unauthorized() {
+  // Sem WWW-Authenticate: o Claude interpreta isso como OAuth e tenta
+  // "Entrar agora". Auth real = header Authorization Bearer (Sem login).
   return NextResponse.json(
     {
       jsonrpc: "2.0",
-      error: { code: -32001, message: "Não autorizado. Use Bearer NORAT_MCP_TOKEN." },
+      error: {
+        code: -32001,
+        message: "Não autorizado. Use Sem login + header Authorization: Bearer <token>.",
+      },
       id: null,
     },
     {
-      status: 401,
+      status: 403,
       headers: {
-        "WWW-Authenticate": 'Bearer realm="norat-mcp"',
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers":
           "Authorization, Content-Type, Accept, Mcp-Session-Id, Last-Event-ID",
