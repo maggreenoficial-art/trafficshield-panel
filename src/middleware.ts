@@ -8,7 +8,13 @@ import { handleCustomDomainRoute } from "@/lib/traffic-shield/domain-routing";
 import { handleCampaignRoute } from "@/lib/traffic-shield/campaign-middleware";
 import { ADMIN_NAV_COOKIE } from "@/lib/tenant/types";
 
-const PUBLIC_PATHS = ["/", "/login", "/api/admin/auth", "/api/proxies", "/api/site/visit"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/api/admin/auth",
+  "/api/proxies",
+  "/api/site/visit",
+];
 
 const ADMIN_ONLY_PATH_PREFIXES = [
   "/storyboards",
@@ -32,7 +38,8 @@ function isPublicPath(pathname: string): boolean {
     PUBLIC_PATHS.some((p) => pathname === p) ||
     pathname.startsWith("/c/") ||
     pathname.startsWith("/api/traffic/") ||
-    pathname.startsWith("/api/kie/")
+    pathname.startsWith("/api/kie/") ||
+    pathname.startsWith("/api/mcp/")
   );
 }
 
